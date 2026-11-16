@@ -14,8 +14,8 @@ The file is [dashboards/teltonika-control.yaml](../dashboards/teltonika-control.
 
 - Teltonika Control installed and set up, see the
   [getting started guide](getting-started.md).
-- A version of the integration that accepts a service target (the current
-  `main` branch or any release after 0.1.0). The buttons call services with
+- A version of the integration that accepts a service target (release 0.2.0
+  or newer). The buttons call services with
   an entity of your router as target, so no device ID is needed.
 - Home Assistant 2024.8 or newer for the `perform-action` button setting.
 
