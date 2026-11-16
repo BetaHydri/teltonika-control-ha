@@ -266,6 +266,18 @@ class TeltonikaClient:
         """Return the configured WireGuard instances."""
         return await self._async_list("/wireguard/config")
 
+    async def async_sim_cards_config(self) -> list[dict[str, Any]]:
+        """Return the settings of the SIM slots (roaming, band, operator)."""
+        return await self._async_list("/sim_cards/config")
+
+    async def async_set_sim_roaming(self, card_id: str, allowed: bool) -> None:
+        """Allow or deny data roaming of one SIM; only this field is sent."""
+        await self.async_request(
+            "PUT",
+            f"/sim_cards/config/{quote(card_id, safe='')}",
+            json={"data": {"deny_roaming": "0" if allowed else "1"}},
+        )
+
     async def async_set_wireguard_enabled(
         self, instance_id: str, enabled: bool
     ) -> None:

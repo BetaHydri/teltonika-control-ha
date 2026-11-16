@@ -28,6 +28,8 @@ DHCP_INTERVAL = 120
 MISSING_PAGE_PAUSE = 300
 # GPS readings with 0 satellites in a row that are ignored as glitches.
 GPS_GLITCH_POLLS = 3
+# Seconds to wait after a roaming change before the setting is read back.
+ROAMING_REFRESH_DELAY = 3
 
 # Returns HTTP 204 with working internet; a captive portal answers with
 # a redirect or a login page instead.

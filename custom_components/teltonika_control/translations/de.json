@@ -169,7 +169,8 @@
     },
     "switch": {
       "access_point": { "name": "Access Point {name}" },
-      "tunnel": { "name": "WireGuard {name} aktiviert" }
+      "tunnel": { "name": "WireGuard {name} aktiviert" },
+      "data_roaming": { "name": "Daten-Roaming SIM {slot} erlauben" }
     }
   },
   "exceptions": {

@@ -171,7 +171,7 @@ the router device. You should see:
 
 Select the modem device to see operator, network type, network registration,
 signal values (RSRP, RSRQ, SINR), temperature, SIM state and data counters,
-the **Roaming** binary sensor, the
+the **Roaming** binary sensor, the **Allow data roaming** switch of each SIM, the
 **Restart mobile connection** button and, on dual SIM modems, the
 **SIM slot** select.
 
@@ -457,6 +457,8 @@ answers.
 | No uptime, CPU load, DHCP client or WireGuard entities | The router user may not read those pages (the router answers with an error), or the router has no WireGuard instance. Give the group read access, see step 2, and reload the integration. |
 | A WireGuard tunnel has no switch and no reconnect button | The user may not read and change **Services**, **VPN**, **WireGuard**. Give the group read and write there and reload the integration. |
 | **Reconnect WireGuard** says the tunnel is switched off | The reconnect button only works on a tunnel that is switched on. Turn the **WireGuard ... enabled** switch on instead. |
+| **Allow data roaming** says the router did not apply the setting | The router did not take the change, or the user may not change the mobile settings. Check **Network**, **Mobile**, **General**, **SIM configuration** on the router, and give the group read and write on that page. |
+| There is no **Allow data roaming** switch | The router did not answer the SIM settings page (the user may not read it), or the modem is offline. Give the group read access on **Network**, **Mobile**, **General** and reload the integration. |
 | Some values do not update and the log says "The router did not answer for ... in time" | One page of the router (often the Wi-Fi status) is slow or stuck. The integration keeps the last known values for that page, asks again after two minutes and keeps all other entities working. If it does not recover, restart the router's Wi-Fi or reboot the router. |
 | Values look wrong or an entity stays empty | Field names differ slightly between RutOS releases. Download the diagnostics and open an issue. |
 

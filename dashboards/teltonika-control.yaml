@@ -670,6 +670,94 @@ views:
                   show_name: true
                   show_state: true
                   styles: *style_orange
+          # Data roaming of each SIM: tap to allow or deny. Allowing asks for
+          # confirmation, because roaming outside the EU can be expensive.
+          - type: horizontal-stack
+            cards:
+              - type: vertical-stack
+                cards:
+                  - type: conditional
+                    conditions:
+                      - condition: state
+                        entity: switch.my_modem_allow_data_roaming_sim_1
+                        state: "on"
+                    card:
+                      type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: "SIM 1: roaming allowed"
+                      icon: mdi:earth
+                      styles: *style_green
+                      tap_action: &roaming_deny_1
+                        action: perform-action
+                        perform_action: switch.turn_off
+                        target:
+                          entity_id: switch.my_modem_allow_data_roaming_sim_1
+                      button_action:
+                        tap_action: *roaming_deny_1
+                  - type: conditional
+                    conditions:
+                      - condition: state
+                        entity: switch.my_modem_allow_data_roaming_sim_1
+                        state: "off"
+                    card:
+                      type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: "SIM 1: roaming denied"
+                      icon: mdi:earth-off
+                      styles: *style_grey
+                      tap_action: &roaming_allow_1
+                        action: perform-action
+                        perform_action: switch.turn_on
+                        target:
+                          entity_id: switch.my_modem_allow_data_roaming_sim_1
+                        confirmation:
+                          text: Allow data roaming for SIM 1? Outside the EU this can be expensive.
+                      button_action:
+                        tap_action: *roaming_allow_1
+              - type: vertical-stack
+                cards:
+                  - type: conditional
+                    conditions:
+                      - condition: state
+                        entity: switch.my_modem_allow_data_roaming_sim_2
+                        state: "on"
+                    card:
+                      type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: "SIM 2: roaming allowed"
+                      icon: mdi:earth
+                      styles: *style_green
+                      tap_action: &roaming_deny_2
+                        action: perform-action
+                        perform_action: switch.turn_off
+                        target:
+                          entity_id: switch.my_modem_allow_data_roaming_sim_2
+                      button_action:
+                        tap_action: *roaming_deny_2
+                  - type: conditional
+                    conditions:
+                      - condition: state
+                        entity: switch.my_modem_allow_data_roaming_sim_2
+                        state: "off"
+                    card:
+                      type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: "SIM 2: roaming denied"
+                      icon: mdi:earth-off
+                      styles: *style_grey
+                      tap_action: &roaming_allow_2
+                        action: perform-action
+                        perform_action: switch.turn_on
+                        target:
+                          entity_id: switch.my_modem_allow_data_roaming_sim_2
+                        confirmation:
+                          text: Allow data roaming for SIM 2? Outside the EU this can be expensive.
+                      button_action:
+                        tap_action: *roaming_allow_2
           - type: horizontal-stack
             cards:
               - type: custom:bubble-card

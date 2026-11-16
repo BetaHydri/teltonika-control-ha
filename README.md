@@ -40,8 +40,8 @@ respective owners and are used here only to say which routers are supported.
 - **Mobile data monitoring**: operator, network type, band, RSRP, RSRQ, SINR,
   modem temperature, SIM state, network registration ("Registered, home" or
   roaming) and the data counters for each modem.
-- **SIM and modem control**: switch the SIM slot of dual SIM modems and
-  re-establish the mobile connection.
+- **SIM and modem control**: switch the SIM slot of dual SIM modems,
+  re-establish the mobile connection and allow or deny data roaming per SIM.
 - **GPS tracking**: for routers with GPS, a device tracker for the map plus
   speed, altitude, satellites and accuracy.
 - **The router's own Wi-Fi**: a switch for each access point that shows the
@@ -167,6 +167,7 @@ to:
 | WireGuard interface state and counters | Network, Interfaces | Read |
 | WireGuard switch and reconnect | Services, VPN, WireGuard | Read and write |
 | Restart mobile connection, SIM slot | Network, Mobile, Modems | Write |
+| Data roaming switches (SIM settings) | Network, Mobile, General | Read and write |
 | Reboot router | System, Administration, General | Write |
 
 Teltonika's API description does not list the exact permission entry for each
@@ -191,6 +192,7 @@ Knowing this helps you decide how much to allow:
   which switches the instance off and on again).
 - Saved Wi-Fi client networks (`join_wifi` and `forget_wifi`).
 - Restart of the mobile connection, SIM slot switch and router reboot.
+- The data roaming flag of each SIM ("Deny data roaming", only this field).
 
 It never changes passwords, users, firewall rules or firmware.
 
@@ -282,10 +284,19 @@ select. RSSI and signal quality are disabled by default.
 **Network registration** shows the text of the router, for example
 `Registered, home`. The binary sensor **Roaming** is on while that text says
 roaming, so you can warn yourself when the modem leaves your home network.
-Both come from the modem status the integration already reads. Whether
-roaming is allowed is a setting of the SIM on the router (**Network, Mobile,
-General, SIM configuration, Deny data roaming**); the integration only shows
-the state, it does not change that setting yet.
+Both come from the modem status the integration already reads.
+
+The switches **Allow data roaming SIM 1** and **SIM 2** show and change the
+router setting **Network, Mobile, General, SIM configuration, Deny data
+roaming** of each SIM. On means roaming is allowed (the opposite of the
+router's "Deny data roaming"). Only this one field is written, never the PIN or
+the APN, and the integration reads the setting back and reports an error if the
+router did not apply it. Switching it can make the modem register again.
+Inside the EU roaming is usually free of extra charge ("roam like at home");
+outside the EU it can be expensive, so deny it there. The sample dashboard asks
+for confirmation before it allows roaming. The switches need the right to
+change the mobile settings (see the permissions) and appear only if the router
+answers the SIM settings page.
 
 ## GPS
 
@@ -617,6 +628,11 @@ Home Assistant reaches the internet through this router.
   time** sensor does not appear.
 - Changing the SIM drops mobile data for about a minute and is not rolled
   back automatically.
+- The roaming switches write one field of the SIM settings with the same
+  request pattern as the other settings, but this was only tested against the
+  router's read answers, not yet by writing on a real router. Try it first with
+  a harmless write: turn **Allow data roaming** on while it is already on, which
+  sends the value it already has.
 - Switching off the access point you are connected through disconnects you.
 - If one page of the router (for example the Wi-Fi status) does not answer in
   time, its entities show the last known values and the page is asked again

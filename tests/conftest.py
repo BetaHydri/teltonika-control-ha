@@ -40,6 +40,7 @@ def no_delays(monkeypatch: pytest.MonkeyPatch) -> None:
     """Skip the waiting built into actions and portal mode."""
     for name in (
         "AP_REFRESH_DELAY",
+        "ROAMING_REFRESH_DELAY",
         "VPN_RECONNECT_DELAY",
         "VPN_REFRESH_DELAY",
         "PORTAL_FIRST_DELAY",
@@ -76,6 +77,7 @@ def mock_router(
     usage: bool = True,
     dhcp: bool = True,
     wireguard: bool = True,
+    sim_cards: bool = True,
 ) -> None:
     """Register answers for every endpoint the integration polls.
 
@@ -94,6 +96,7 @@ def mock_router(
         (usage, "/system/device/usage/status", data["usage"]),
         (dhcp, "/dhcp/leases/ipv4/status", data["dhcp"]),
         (wireguard, "/wireguard/config", data["wireguard"]),
+        (sim_cards, "/sim_cards/config", data["sim_cards"]),
     ):
         if enabled:
             aioclient_mock.get(f"{BASE}{path}", json={"success": True, "data": body})
@@ -134,6 +137,8 @@ def mock_router(
         method(f"{BASE}/wireless/interfaces/config/default_radio1", json={"success": True})
         method(f"{BASE}/wireless/interfaces/config/6", json={"success": True})
         method(f"{BASE}/wireguard/config/HOMEBASE", json={"success": True})
+        method(f"{BASE}/sim_cards/config/cfg_sim1", json={"success": True})
+        method(f"{BASE}/sim_cards/config/cfg_sim2", json={"success": True})
 
 
 def mock_login_failure(aioclient_mock: Any) -> None:

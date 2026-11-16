@@ -181,6 +181,26 @@ WIREGUARD_INTERFACE = {
 }
 
 
+SIM_CARDS = [
+    {
+        ".type": "sim",
+        "id": "cfg_sim1",
+        "modem": "2-1.1",
+        "position": "1",
+        "primary": "1",
+        "deny_roaming": "0",
+    },
+    {
+        ".type": "sim",
+        "id": "cfg_sim2",
+        "modem": "2-1.1",
+        "position": "2",
+        "primary": "0",
+        "deny_roaming": "1",
+    },
+]
+
+
 def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[str, Any]:
     """Return fresh copies; optionally give Wi-Fi a better metric than mobile."""
     data = {
@@ -194,6 +214,7 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
         "usage": deepcopy(USAGE_STATUS),
         "dhcp": deepcopy(DHCP_LEASES),
         "wireguard": deepcopy(WIREGUARD_CONFIG),
+        "sim_cards": deepcopy(SIM_CARDS),
     }
     if wireguard:
         data["interfaces"].append(deepcopy(WIREGUARD_INTERFACE))

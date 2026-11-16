@@ -10,8 +10,13 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
-from .entity import TeltonikaEntity, TeltonikaTunnelEntity, async_add_discovered
-from .models import AccessPoint
+from .entity import (
+    TeltonikaEntity,
+    TeltonikaModemEntity,
+    TeltonikaTunnelEntity,
+    async_add_discovered,
+)
+from .models import AccessPoint, SimCard
 
 PARALLEL_UPDATES = 1
 
@@ -45,6 +50,70 @@ async def async_setup_entry(
             if tunnel.enabled is not None
         ),
     )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"{card.modem_id}_roaming_sim{card.slot}",
+                lambda m=card.modem_id, s=card.slot: TeltonikaRoamingSwitch(c, m, s),
+            )
+            for card in c.data.sim_cards
+            if card.modem_id in c.modem_ids()
+            and card.slot is not None
+            and card.roaming_allowed is not None
+        ),
+    )
+
+
+class TeltonikaRoamingSwitch(TeltonikaModemEntity, SwitchEntity):
+    """Allows or denies data roaming of one SIM (the router's setting).
+
+    On means roaming is allowed, which is the opposite of the router's "Deny
+    data roaming". Only this one field is written.
+    """
+
+    _attr_translation_key = "data_roaming"
+
+    def __init__(
+        self, coordinator: TeltonikaCoordinator, modem_id: str, slot: int
+    ) -> None:
+        super().__init__(coordinator, modem_id, f"roaming_sim{slot}")
+        self._slot = slot
+        self._attr_translation_placeholders = {"slot": str(slot)}
+
+    @property
+    def card(self) -> SimCard | None:
+        """Return the current settings of this SIM."""
+        for card in self.coordinator.data.sim_cards:
+            if card.modem_id == self._modem_id and card.slot == self._slot:
+                return card
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the SIM settings are gone from the router."""
+        return super().available and self.card is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether data roaming is allowed."""
+        card = self.card
+        return card.roaming_allowed if card else None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Allow data roaming."""
+        await self._async_set(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Deny data roaming."""
+        await self._async_set(False)
+
+    async def _async_set(self, allowed: bool) -> None:
+        card = self.card
+        if card is None:
+            raise HomeAssistantError("SIM settings not found")
+        await self.coordinator.async_set_roaming(card.card_id, allowed)
 
 
 class TeltonikaTunnelSwitch(TeltonikaTunnelEntity, SwitchEntity):

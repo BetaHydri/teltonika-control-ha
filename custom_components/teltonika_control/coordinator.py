@@ -48,6 +48,7 @@ from .const import (
     PORTAL_POLL_INTERVAL,
     PRIORITY_VERIFY_DELAY,
     PROBE_TIMEOUT,
+    ROAMING_REFRESH_DELAY,
     SLOW_PAGE_PAUSE,
     UPLINK_WIFI,
     VPN_RECONNECT_DELAY,
@@ -83,6 +84,7 @@ PAGES: dict[str, tuple[str, str]] = {
     "wireless_config": ("async_wireless_config", "config"),
     "wireless_devices": ("async_wireless_devices_status", "config"),
     "wireguard": ("async_wireguard_config", "config"),
+    "sim_cards": ("async_sim_cards_config", "config"),
     "multi_ap": ("async_multi_ap_config", "config"),
     "wireless_status": ("async_wireless_status", "status"),
     "modems": ("async_modems_status", "status"),
@@ -192,6 +194,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 "usage",
                 "dhcp",
                 "wireguard",
+                "sim_cards",
             ]
         )
         interface_config = parts["interface_config"] or []
@@ -203,6 +206,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         usage = parts["usage"]
         dhcp_leases = parts["dhcp"]
         wireguard_config = parts["wireguard"] or []
+        sim_cards = parts["sim_cards"] or []
 
         multi_ap: list[dict[str, Any]] = []
         if any(item.get("mode") == "multi_ap" for item in wireless_config):
@@ -221,6 +225,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             usage=usage if isinstance(usage, dict) else None,
             dhcp_leases=dhcp_leases if isinstance(dhcp_leases, list) else None,
             wireguard_config=wireguard_config,
+            sim_cards=sim_cards,
         )
         data.portal_waiting = self.portal_waiting
         probe_internet = bool(self._probe_url) and data.uplink is not None
@@ -435,6 +440,22 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                     )
                 return tunnel
         raise HomeAssistantError(f"Tunnel {tunnel_id} not found")
+
+    async def async_set_roaming(self, card_id: str, allowed: bool) -> None:
+        """Allow or deny data roaming of one SIM and check that it took effect."""
+        card = next((c for c in self.data.sim_cards if c.card_id == card_id), None)
+        if card is None:
+            raise HomeAssistantError(f"SIM settings {card_id} not found")
+        async with translate_errors():
+            await self.client.async_set_sim_roaming(card_id, allowed)
+        await asyncio.sleep(ROAMING_REFRESH_DELAY)
+        await self.async_refresh()
+        current = next((c for c in self.data.sim_cards if c.card_id == card_id), None)
+        if current is None or current.roaming_allowed is not allowed:
+            raise HomeAssistantError(
+                "The router did not apply the roaming setting. Check it in "
+                "Network, Mobile, General, SIM configuration."
+            )
 
     async def async_switch_sim(self, modem_id: str, target_sim: int) -> None:
         """Switch a dual SIM modem to the requested slot."""

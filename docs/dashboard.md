@@ -116,6 +116,7 @@ differ. These are the entities the dashboard uses:
 | Network type | `sensor.my_modem_network_type` |
 | Network registration | `sensor.my_modem_network_registration` |
 | Roaming | `binary_sensor.my_modem_roaming` |
+| Allow data roaming SIM 1, SIM 2 | `switch.my_modem_allow_data_roaming_sim_1`, `_sim_2` |
 | Band | `sensor.my_modem_band` |
 | RSRP, RSRQ, SINR | `sensor.my_modem_rsrp`, `_rsrq`, `_sinr` |
 | Temperature | `sensor.my_modem_temperature` |
@@ -176,7 +177,9 @@ list. Fix that entity and save again.
   the Wi-Fi has internet. See
   [hotspots with a login page](../README.md#hotspots-with-a-login-page).
 - **Mobile data**: operator, network type, a **Network registration** pill
-  (plain at home, orange while roaming), signal values, the active SIM with
+  (plain at home, orange while roaming), two pills for the data roaming of SIM
+  1 and SIM 2 (green when allowed, grey when denied; tap to change, and
+  allowing asks for confirmation), signal values, the active SIM with
   SIM 1 and SIM 2 buttons, modem temperature and the data counters.
 - **Add a Wi-Fi network**, in three steps:
   1. Press **Scan** (the pill) and choose a network with **Choose**. The list

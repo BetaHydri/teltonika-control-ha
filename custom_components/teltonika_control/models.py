@@ -754,6 +754,35 @@ def derive_vpn_tunnels(
     return sorted(tunnels.values(), key=lambda tunnel: tunnel.tunnel_id)
 
 
+@dataclass(frozen=True, slots=True)
+class SimCard:
+    """The roaming setting of one SIM slot (``/sim_cards/config``)."""
+
+    card_id: str
+    modem_id: str | None
+    slot: int | None
+    roaming_allowed: bool | None
+
+
+def derive_sim_cards(raw: Iterable[dict[str, Any]] | None) -> list[SimCard]:
+    """Read the SIM settings; the router stores ``deny_roaming`` as "0" or "1"."""
+    cards: list[SimCard] = []
+    for item in raw or []:
+        card_id = str(item.get("id") or "")
+        if not card_id:
+            continue
+        deny = item.get("deny_roaming")
+        cards.append(
+            SimCard(
+                card_id=card_id,
+                modem_id=_first_text(item.get("modem")),
+                slot=to_int(item.get("position")),
+                roaming_allowed=None if deny is None else not _flag(deny, False),
+            )
+        )
+    return sorted(cards, key=lambda card: (card.modem_id or "", card.slot or 0))
+
+
 @dataclass(slots=True)
 class TeltonikaData:
     """One snapshot of the router state."""
@@ -781,6 +810,7 @@ class TeltonikaData:
     system_usage: SystemUsage | None = None
     dhcp_leases: list[dict[str, Any]] | None = None
     vpn_tunnels: list[VpnTunnel] = field(default_factory=list)
+    sim_cards: list[SimCard] = field(default_factory=list)
 
     @classmethod
     def build(
@@ -798,6 +828,7 @@ class TeltonikaData:
         usage: dict[str, Any] | None = None,
         dhcp_leases: list[dict[str, Any]] | None = None,
         wireguard_config: list[dict[str, Any]] | None = None,
+        sim_cards: list[dict[str, Any]] | None = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
@@ -835,6 +866,7 @@ class TeltonikaData:
             system_usage=system_usage,
             dhcp_leases=dhcp_leases,
             vpn_tunnels=derive_vpn_tunnels(interfaces, wireguard_config or []),
+            sim_cards=derive_sim_cards(sim_cards),
         )
 
     @property

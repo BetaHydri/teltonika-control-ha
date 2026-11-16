@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-16
+
+### Added
+
+- **Allow data roaming** switch for each SIM. It shows and changes the router
+  setting "Deny data roaming" (on means roaming is allowed). Only this one
+  field is written, never PIN or APN, the setting is read back after the
+  change and an error is shown if the router did not apply it. The switches
+  appear when the router answers the SIM settings page (`/sim_cards/config`).
+- The sample dashboard has two pills for the roaming of SIM 1 and SIM 2:
+  green when allowed, grey when denied. Allowing asks for confirmation.
+- Configuration page `/sim_cards/config` is read with the other rarely
+  changing pages.
+
+### Notes
+
+- The write request follows the pattern of the other settings but has not been
+  tested on a real router yet. Try it first by turning the switch on while it
+  is already on, which sends the value it already has.
+
 ## [0.7.0] - 2026-11-16
 
 ### Added
