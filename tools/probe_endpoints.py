@@ -72,6 +72,36 @@ CANDIDATES = (
     "/modems/status",
     "/modems/config",
     "/modems/sims/config",
+    # Where could the SIM settings (deny roaming) be? The probe marks every
+    # answer that contains a key with "roaming" in its name.
+    "/sims/config",
+    "/sim/config",
+    "/simcards/config",
+    "/sim_cards/config",
+    "/simcard/config",
+    "/sims",
+    "/sim",
+    "/simcards",
+    "/simcard",
+    "/modems/sim/config",
+    "/modems/sims",
+    "/modems/simcards/config",
+    "/modems/simcard/config",
+    "/modems/sim_cards/config",
+    "/modems/sim_config",
+    "/modems/apns/config",
+    "/modems/apns",
+    "/modems/general/config",
+    "/modems/roaming/config",
+    "/modems/config/sim",
+    "/modem/config",
+    "/modem/sims/config",
+    "/mobile/config",
+    "/mobile/sims/config",
+    "/mobile/general/config",
+    "/mobile/sim/config",
+    "/network/mobile/config",
+    "/network/mobile/sims/config",
     "/logs/system",
     "/logs/kernel",
     "/logs",
@@ -130,6 +160,22 @@ def describe(value: Any, key: str = "") -> Any:
     return type(value).__name__
 
 
+def find_keys(value: Any, needle: str, path: str = "") -> list[tuple[str, Any]]:
+    """Find keys that contain ``needle`` anywhere in a JSON value."""
+    found: list[tuple[str, Any]] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            here = f"{path}.{key}" if path else str(key)
+            if needle in str(key).lower():
+                shown = item if isinstance(item, (bool, int, float, str)) else type(item).__name__
+                found.append((here, shown))
+            found.extend(find_keys(item, needle, here))
+    elif isinstance(value, list):
+        for index, item in enumerate(value[:20]):
+            found.extend(find_keys(item, needle, f"{path}[{index}]"))
+    return found
+
+
 class Probe:
     def __init__(self, session: aiohttp.ClientSession, base: str) -> None:
         self._session = session
@@ -172,6 +218,8 @@ class Probe:
         if len(text) > MAX_LINE:
             text = text[:MAX_LINE] + " ...(cut)"
         print(f"OK   GET {path}\n     {text}")
+        for key_path, shown in find_keys(data, "roaming"):
+            print(f"     >>> ROAMING {key_path} = {shown!r}")
         return data
 
 
@@ -224,6 +272,15 @@ async def main() -> int:
                     f"/modems/{safe_id}/sim_cards",
                     f"/modems/config/{safe_id}/sim",
                     f"/modems/config/{safe_id}/sims",
+                    f"/modems/{safe_id}/sim/config",
+                    f"/modems/{safe_id}/sim/1",
+                    f"/modems/{safe_id}/sim/1/config",
+                    f"/modems/{safe_id}/sims/1/config",
+                    f"/modems/{safe_id}/sims/2/config",
+                    f"/modems/{safe_id}/simcards",
+                    f"/modems/{safe_id}/simcard/config",
+                    f"/modems/{safe_id}/roaming",
+                    f"/modems/{safe_id}/apns/config",
                 ):
                     await probe.get(path)
 
