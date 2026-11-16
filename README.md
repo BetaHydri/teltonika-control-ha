@@ -12,6 +12,11 @@ It grew out of a camper setup: switch between Wi-Fi and mobile data, get told
 when a hotspot needs a login, and restart things without opening the router
 web page.
 
+[![The ready-made dashboard: uplink, router control, mobile data, Wi-Fi management and GPS](docs/images/dashboard-sample.png)](docs/dashboard.md)
+
+The ready-made [sample dashboard](docs/dashboard.md) (map blurred in this
+picture). It uses Bubble Card and Mushroom, for the dashboard only.
+
 This is an independent community project. It is not affiliated with or
 endorsed by Teltonika Networks. Teltonika, RUT and RutOS are names of their
 respective owners and are used here only to say which routers are supported.

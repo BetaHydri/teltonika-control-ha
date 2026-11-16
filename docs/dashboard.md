@@ -9,6 +9,11 @@ The design uses coloured pills in two columns, with colour-coded badges at
 the top, in the style of the Bubble Card and Mushroom frontend cards. The
 file is [dashboards/teltonika-control.yaml](../dashboards/teltonika-control.yaml).
 
+![The sample dashboard](images/dashboard-sample.png)
+
+The screenshot shows the German interface of a RUTC50 in a camper. The map is
+blurred. Your labels follow your Home Assistant language.
+
 ## What you need
 
 Prerequisites for the integration:
