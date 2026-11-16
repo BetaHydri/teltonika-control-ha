@@ -20,6 +20,14 @@ get notified when a hotspot needs a login, all from Home Assistant.
 The integration only polls the router. The router never connects to Home
 Assistant and no cloud account is needed.
 
+**No Home Assistant helpers are required.** The integration does not use
+`input_*` helpers, timers, counters, scripts, template sensors or YAML
+packages. Everything, including adding and removing Wi-Fi networks, is an
+entity of the router device. Helpers are only needed for the optional
+extras in [step 11](#step-11-optional-helpers-for-a-monthly-data-counter),
+and the sample dashboard needs frontend cards, see the
+[dashboard guide](dashboard.md).
+
 ## Step 1: Find the router address
 
 Use the address you open in the browser to reach the router web interface.
@@ -316,6 +324,28 @@ select **Configure**.
 The internet check runs on the Home Assistant host, so it only says
 something about the router if Home Assistant reaches the internet through
 this router.
+
+## Step 11: Optional helpers for a monthly data counter
+
+This step is optional. The integration has no monthly counter of its own,
+but the modem's **Received** and **Sent** sensors count upwards, so a
+built-in Utility Meter helper can turn them into monthly values. Do this once
+for each of the two sensors:
+
+1. Go to **Settings**, **Devices & services**, **Helpers**.
+2. Select **Create helper**, then **Utility Meter**.
+3. Enter a **Name**, for example `Mobile data received monthly`.
+4. Select the modem sensor **Received** (or **Sent**) as **Input sensor**.
+5. Set **Meter reset cycle** to **Monthly**. Leave the other options off.
+6. Select **Submit**.
+
+The new sensor starts at zero and resets at the start of each month. To get
+the total traffic, add a **Sum** helper (**Create helper**, **Combine the
+state of several sensors**) over the two meters. For a warning at a limit,
+create an automation with a numeric state trigger on that sensor.
+
+These helpers belong to you, not to the integration. Removing the integration
+does not remove them.
 
 ## Troubleshooting
 

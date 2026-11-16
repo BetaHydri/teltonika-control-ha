@@ -164,8 +164,11 @@ loaded yet. Reload the browser page (Ctrl+F5) after installing it.
 
 ## What is not included
 
-A monthly data limit is not part of this dashboard. Use a `utility_meter`
-helper on the data counters of the modem if you need one.
+A monthly data limit is not part of this dashboard. Use a Utility Meter
+helper on the data counters of the modem if you need one, see
+[step 11 of the getting started guide](getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter).
+
+The dashboard itself needs no helpers, scripts or YAML packages.
 
 ## See also
 

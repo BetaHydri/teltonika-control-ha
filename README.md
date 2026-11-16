@@ -57,7 +57,8 @@ respective owners and are used here only to say which routers are supported.
 ### Planned
 
 Ideas that are not implemented yet: data usage limits and monthly counters
-(until then, use a `utility_meter` on the modem's data counters), router
+(until then, use a Utility Meter helper, see the
+[step-by-step guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter)), router
 uptime and system temperature, per-interface WAN failover control, SMS
 notifications and setting the Home Assistant home zone from the router's GPS
 (see the [automation example](#move-the-home-zone-with-the-camper)).

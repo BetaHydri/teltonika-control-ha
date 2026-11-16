@@ -15,6 +15,9 @@ and this project adheres to
   Wi-Fi first and Mobile first are two buttons that show the active priority,
   the priority drop-down is gone. Bubble Card (and optionally Mushroom) is
   needed for this dashboard only, not for the integration.
+- Docs state that no Home Assistant helpers are required and add a
+  step-by-step guide for an optional monthly data counter with the Utility
+  Meter helper.
 
 ## [0.3.1] - 2026-11-16
 
