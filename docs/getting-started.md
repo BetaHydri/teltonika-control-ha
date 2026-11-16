@@ -244,10 +244,13 @@ Use the entities of the router device, for example on the
 1. Press **Scan for Wi-Fi networks**. The scan takes a few seconds per radio.
 2. Choose a network in **Found networks**. Each network appears once per
    band with its best signal, and networks you already saved are hidden.
-3. Type the password into **Wi-Fi password** and press Enter. Leave it empty
-   for open networks. Home Assistant only keeps the password in memory and
-   shows `********` instead of the text.
-4. Press **Add selected network**.
+3. Type the password into **Wi-Fi password** and press Enter. A secured
+   network needs a password of at least 8 characters, leave it empty for open
+   networks. Home Assistant only keeps the password in memory and shows
+   `********` instead of the text. On the sample dashboard, the key button on
+   the highlighted network opens this field.
+4. Press **Add selected network**. Without a password for a secured network,
+   Home Assistant tells you to enter one first.
 
 **Last Wi-Fi action** tells you what happened, for example `Saved CampsiteWifi`.
 Mobile data stays preferred until you switch to **Wi-Fi first**, so a new

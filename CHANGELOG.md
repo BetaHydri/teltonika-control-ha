@@ -10,6 +10,10 @@ and this project adheres to
 
 ### Changed
 
+- Docs checked against the code and corrected: options list, password rule
+  for secured networks (at least 8 characters), the Wi-Fi connected sensor,
+  the GPS confirmation wording, the placeholder for the WireGuard instance in
+  the sample dashboard and the order of the dashboard prerequisites.
 - Docs: GPS heading and fix status checked on a RUTC50 (parked): both fields
   exist, the fix status is `1` with a fix, the heading is 0 when parked.
   Driving values are still to be confirmed.

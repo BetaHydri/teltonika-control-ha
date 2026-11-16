@@ -37,12 +37,12 @@ integration and not for any other dashboard of yours:
   optional: delete the `badges:` block from the file if you do not want to
   install it.
 
+Install them in HACS under **Frontend**, restart or reload the browser page
+afterwards, and then continue with step 1.
+
 The **VPN** pill needs no extra card. It stays hidden until you set a VPN
 check host in the integration options, see
 [step 12 of the getting started guide](getting-started.md#step-12-optional-vpn-check).
-
-Install them in HACS under **Frontend**, restart or reload the browser page
-afterwards, and then continue with step 1.
 
 ## Step 1: List your entity IDs
 
@@ -82,6 +82,8 @@ Use find and replace in a text editor on a copy of the file:
 2. Replace `my_modem` with your modem prefix.
 3. Replace `my_wifi` in the two switch entities with the name of your
    router's own Wi-Fi, as it appears in your list.
+4. Replace `homebase` in the two WireGuard entities with the name of your
+   WireGuard instance, or delete that pill if you have none.
 
 If Home Assistant runs in another language than English, the ending of each
 entity ID is in that language too (for example `uplink_ip_adresse` in
@@ -181,7 +183,11 @@ list. Fix that entity and save again.
      shows the name. Before you choose, a grey hint says "Scan first, then
      choose a network".
   3. On the highlighted pill, press the **Password** (key) button to enter the
-     password. Open networks need none, so it is optional. Then press **Add**.
+     password. A secured network needs one of at least 8 characters, open
+     networks need none. Then press **Add**. If the key button shows no
+     input field in your Home Assistant version, use the action
+     `teltonika_control.join_wifi` instead, see the
+     [getting started guide](getting-started.md#add-a-wi-fi-network).
 
   The result pill tells you what happened. Mobile data stays preferred, so a
   new network never breaks your connection by itself.

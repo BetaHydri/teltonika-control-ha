@@ -78,7 +78,7 @@ respective owners and are used here only to say which routers are supported.
 Ideas that are not implemented yet: data usage limits and monthly counters
 (until then, use a Utility Meter helper, see the
 [step-by-step guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter)),
-system temperature, failover state per interface, switches for port forwards,
+system temperature of the router, failover state per interface, switches for port forwards,
 SMS notifications, the WireGuard handshake time (the router offers no status
 endpoint for it, see [WireGuard tunnels](#wireguard-tunnels)) and setting the
 Home Assistant home zone from the router's GPS (see the
@@ -245,7 +245,7 @@ automatically.
 | Uplink IP address | sensor | Diagnostic |
 | Wi-Fi network, signal, link speed, band | sensors | Router as Wi-Fi client |
 | Hotspot login | sensor | `no_wifi`, `idle`, `waiting`, `login_required`, `online` |
-| Wi-Fi connected | binary sensor | Router is a Wi-Fi client |
+| Wi-Fi connected | binary sensor | Router is a Wi-Fi client, or a Wi-Fi interface carries the uplink |
 | Internet | binary sensor | Result of the internet check |
 | Hotspot login required | binary sensor | Wi-Fi is up but has no internet |
 | VPN reachable | binary sensor | Only with a VPN check host, see [VPN check](#vpn-check) |
@@ -295,8 +295,9 @@ write GPS noise into the history on every update. The receiver of a RUTC50
 now and then reports a single empty reading (0 satellites, accuracy 500 m)
 between normal ones of 5 to 9 satellites. Up to three such readings in a row
 are ignored and the last good values stay, so sensors and zone automations do
-not jump; a longer loss of the fix shows up as 0 satellites. While the router has no fix
-(it reports zeros), the entities are `unknown` and the position is not
+not jump; a longer loss of the fix shows up as 0 satellites. While the router
+has no fix (it reports zeros), the entities are `unknown` and the position is
+not
 trusted. The router needs a clear view of the sky and a connected GPS
 antenna, and GPS must be switched on in the router.
 
@@ -351,9 +352,13 @@ dashboard needs no helpers or scripts:
 2. **Found networks** (select) lists each network once per band with its best
    signal, for example `Camp5 [5 GHz · secured · -60 dBm]`. Networks that are
    already saved in the same band are hidden.
-3. **Wi-Fi password** (text) takes the password. It is kept in memory only and
-   the state always shows `********`, so it never reaches the history.
-4. **Add selected network** (button) saves it. Mobile data stays preferred.
+3. **Wi-Fi password** (text) takes the password. A secured network needs one
+   of at least 8 characters; leave it empty for an open network. It is kept in
+   memory only and the state always shows `********`, so it never reaches the
+   history.
+4. **Add selected network** (button) saves it. Without a password for a
+   secured network, Home Assistant shows "Enter the Wi-Fi password (at least 8
+   characters) first". Mobile data stays preferred.
 5. **Last Wi-Fi action** (sensor) shows the result, for example
    `Saved Camp5` or `Scan failed: ...`.
 
@@ -572,19 +577,19 @@ automation:
   configuration, radios, WireGuard instances) are read again: 30 to 3600
   seconds, default 300. Actions of the integration read them again at once.
   The DHCP client list is read at most every two minutes.
+- **Internet check URL**: must answer HTTP 204 when the internet works.
+  Leave empty to turn the check off.
+- **VPN check host** and **VPN check port**: optional, see
+  [VPN check](#vpn-check).
 
 The integration reads the pages one after the other and keeps the load on the
 router low, because a RUTC50 has a weak CPU. If the router still feels slow,
 raise both intervals; the **CPU load** sensor of the router device shows the
 effect. A value measured while the integration polls is higher than the
 router's own display at rest.
-- **Internet check URL**: must answer HTTP 204 when the internet works.
-  Leave empty to turn the check off.
 
 The internet check runs on the Home Assistant host. It is only meaningful if
 Home Assistant reaches the internet through this router.
-
-- **VPN check host** and **VPN check port**: optional, see [VPN check](#vpn-check).
 
 ## Known Limitations
 
@@ -593,8 +598,8 @@ Home Assistant reaches the internet through this router.
   and as 5 GHz Multi AP entry), the one that is the active uplink is shown.
 - The GPS field names are taken from the router API as used by other
   projects. Position, speed, altitude, satellites and accuracy are confirmed
-  on a RUTC50 while driving and parked. The heading field exists and reads 0
-  when parked; its values while driving are not confirmed yet. The fix status
+  on a RUTC50. The heading field exists and reads 0 when parked; its values
+  while driving are not confirmed yet. The fix status
   shows the router's own code unchanged (`1` with 9 satellites on a RUTC50);
   its other values are not mapped. If an entity stays empty although the
   router has a fix, open an issue with the diagnostics.

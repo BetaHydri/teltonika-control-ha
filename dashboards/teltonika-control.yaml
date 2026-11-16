@@ -10,7 +10,9 @@
 #   my_router  ->  entity ID prefix of the router device
 #   my_modem   ->  entity ID prefix of the modem device
 # The access point switches contain the name of your own Wi-Fi (my_wifi),
-# adjust those two entity IDs as well.
+# adjust those two entity IDs as well. The WireGuard pill uses the instance name
+# "homebase": replace it with the name of your WireGuard instance, or delete the
+# pill if you have none.
 #
 # Two columns like a phone or tablet layout; every action that interrupts a
 # connection asks for confirmation. The "tap_action" and "button_action" blocks
