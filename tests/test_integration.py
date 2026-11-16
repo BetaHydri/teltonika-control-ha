@@ -779,6 +779,90 @@ async def test_saved_networks_include_multi_ap_entries(
     assert not requests(aioclient_mock, "DELETE", "/wireless/multi_ap/config/cfg1")
 
 
+async def test_router_with_multi_ap_on_2_4_ghz_and_a_client_on_5_ghz(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    """The opposite of the RUTC50: Multi AP on radio0, a normal client on radio1."""
+    wireless = [
+        item for item in deepcopy(WIRELESS_CONFIG) if item["id"] != "6"
+    ] + [
+        {
+            "id": "multi_radio0",
+            "mode": "multi_ap",
+            "device": ["radio0"],
+            "network": "wifi24",
+        },
+        {
+            "id": "7",
+            "mode": "sta",
+            "ssid": "Dedicated5",
+            "network": "wifi5",
+            "device": ["radio1"],
+        },
+    ]
+    aioclient_mock.get(
+        f"{BASE}/wireless/interfaces/config", json={"success": True, "data": wireless}
+    )
+    aioclient_mock.get(
+        f"{BASE}/wireless/multi_ap/config",
+        json={"success": True, "data": [{"id": "cfg1", "ssid": "Home"}]},
+    )
+    aioclient_mock.post(f"{BASE}/wireless/multi_ap/config", json=OK)
+    aioclient_mock.post(f"{BASE}/wireless/actions/join", json=OK)
+    mock_router(aioclient_mock)
+    mock_scan(
+        aioclient_mock,
+        {
+            "radio0": [{**CAMP_5GHZ, "ssid": "Camp24", "channel": 6}],
+            "radio1": [CAMP_5GHZ],
+        },
+    )
+    await setup_entry(hass, entry)
+
+    # Each list is labelled with the band of its own radio.
+    assert hass.states.get(entity_id(hass, "select", "saved_networks")).attributes[
+        "options"
+    ] == ["Dedicated5 (5 GHz)", "Home (2.4 GHz, Multi AP)"]
+
+    await press(hass, entity_id(hass, "button", "scan_wifi"))
+    found = entity_id(hass, "select", "found_networks")
+    password = entity_id(hass, "text", "wifi_password")
+    add = entity_id(hass, "button", "add_network")
+
+    async def choose(prefix: str) -> None:
+        option = next(
+            o
+            for o in hass.states.get(found).attributes["options"]
+            if o.startswith(prefix)
+        )
+        await hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": found, "option": option},
+            blocking=True,
+        )
+        await hass.services.async_call(
+            "text",
+            "set_value",
+            {"entity_id": password, "value": "pw12345678"},
+            blocking=True,
+        )
+
+    # A 2.4 GHz network goes into the Multi AP list ...
+    await choose("Camp24")
+    await press(hass, add)
+    assert requests(aioclient_mock, "POST", "/wireless/multi_ap/config")[0][2]["data"][
+        "ssid"
+    ] == "Camp24"
+    assert not requests(aioclient_mock, "POST", "/wireless/actions/join")
+
+    # ... while the 5 GHz radio already holds a client, so it is refused.
+    await choose("Camp5")
+    with pytest.raises(HomeAssistantError, match="already has a Wi-Fi client"):
+        await press(hass, add)
+    assert not requests(aioclient_mock, "POST", "/wireless/actions/join")
+
+
 async def test_router_time_sensor_needs_a_date_header(
     hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
 ) -> None:

@@ -332,7 +332,11 @@ in the service data still work.
 On some routers the 5 GHz radio runs as Multi AP (the RUTC50 does). The router
 does not accept a normal Wi-Fi client there, so `join_wifi` for that radio adds
 the network to the Multi AP list, or changes its password if the SSID is
-already listed. The router allows only one client or one Multi AP per radio;
+already listed. Which radio is the Multi AP radio is read from the router, so
+the opposite layout (Multi AP on 2.4 GHz, a normal client on 5 GHz) works the
+same way. A router has one Multi AP list, separate from the saved Wi-Fi client
+networks; **Saved networks** shows both, labelled with the band, for example
+`Home (5 GHz, Multi AP)`. The router allows only one client or one Multi AP per radio;
 `join_wifi` tells you when a radio is taken. `forget_wifi` removes Multi AP
 entries by `ssid`. The last entry of the list cannot be removed: an empty list
 makes the router service restart every few seconds. Remove it in the router
