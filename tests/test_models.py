@@ -118,6 +118,24 @@ def test_wifi_client() -> None:
     assert client.band == "2.4 GHz"
 
 
+def test_wifi_client_falls_back_to_the_configuration_when_status_is_missing() -> None:
+    data = payloads(wifi_metric=0)
+    built = TeltonikaData.build(
+        interfaces=data["interfaces"],
+        interface_config=data["config"],
+        wireless_config=data["wireless_config"],
+        wireless_status=[],
+        wireless_devices=data["wireless_devices"],
+        modems=data["modems"],
+    )
+    client = built.wifi_client
+    assert client is not None
+    assert client.ssid == "CampWifi"
+    assert client.band == "2.4 GHz"
+    assert client.signal is None
+    assert client.bitrate is None
+
+
 def test_no_wifi_client_when_not_associated() -> None:
     data = payloads()
     data["wireless_status"][0]["wpa_state"] = "SCANNING"
@@ -164,6 +182,8 @@ def test_stations_map_network_to_interface() -> None:
     [
         (True, False, None, None, "waiting"),
         (False, False, None, None, "no_wifi"),
+        (False, False, "wifi", True, "online"),
+        (False, False, "wifi", False, "login_required"),
         (False, True, "wifi", False, "login_required"),
         (False, True, "wifi", True, "online"),
         (False, True, "mobile", True, "idle"),

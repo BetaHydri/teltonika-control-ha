@@ -585,7 +585,9 @@ Home Assistant reaches the internet through this router.
 - If one page of the router (for example the Wi-Fi status) does not answer in
   time, its entities show the last known values and the page is asked again
   after two minutes. Only when the interface list itself does not answer, all
-  entities become unavailable.
+  entities become unavailable. Without a Wi-Fi status, the name and band of
+  the Wi-Fi network come from the router configuration; signal and link speed
+  stay unknown.
 - The VPN check is a reachability test from the Home Assistant host, not a
   read-out of the tunnel. It says nothing when Home Assistant reaches the
   remote network another way. The WireGuard handshake time is not available,

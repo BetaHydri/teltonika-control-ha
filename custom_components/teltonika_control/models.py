@@ -318,6 +318,24 @@ def derive_wifi_client(
             band=band,
             channel=to_int(row.get("channel")),
         )
+    # Without a connected status row (the Wi-Fi status page can be slow or
+    # missing), an uplink on a Wi-Fi interface still tells which saved network
+    # it is. Signal and speed stay unknown.
+    if uplink_network:
+        for config_id, config in configs.items():
+            if (
+                config.get("mode") in WIFI_CLIENT_MODES
+                and config.get("network") == uplink_network
+            ):
+                return WifiClient(
+                    config_id=config_id,
+                    ssid=config.get("ssid"),
+                    network=uplink_network,
+                    signal=None,
+                    bitrate=None,
+                    band=radio_band(_first_text(config.get("device")), devices),
+                    channel=None,
+                )
     return None
 
 
@@ -468,9 +486,12 @@ def derive_portal_state(
     """Return the captive portal state shown on the dashboard."""
     if waiting:
         return PORTAL_WAITING
-    if wifi_client is None:
+    wifi_is_uplink = uplink is not None and uplink.kind == UPLINK_WIFI
+    # The Wi-Fi status page can be slow or missing while the Wi-Fi interface
+    # clearly carries the default route, so that counts as connected too.
+    if wifi_client is None and not wifi_is_uplink:
         return PORTAL_NO_WIFI
-    if uplink is not None and uplink.kind == UPLINK_WIFI:
+    if wifi_is_uplink:
         if internet is False:
             return PORTAL_LOGIN_REQUIRED
         if internet:

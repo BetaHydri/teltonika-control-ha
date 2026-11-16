@@ -14,7 +14,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import PORTAL_LOGIN_REQUIRED
+from .const import PORTAL_LOGIN_REQUIRED, UPLINK_WIFI
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
 from .entity import (
     TeltonikaEntity,
@@ -39,7 +39,8 @@ ROUTER_BINARY_SENSORS: tuple[RouterBinarySensorDescription, ...] = (
         key="wifi_connected",
         translation_key="wifi_connected",
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
-        value_fn=lambda d: d.wifi_client is not None,
+        value_fn=lambda d: d.wifi_client is not None
+        or (d.uplink is not None and d.uplink.kind == UPLINK_WIFI),
     ),
     RouterBinarySensorDescription(
         key="internet",

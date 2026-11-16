@@ -32,7 +32,7 @@ views:
         color: >-
           {% set u = states('sensor.my_router_uplink') %}{% if u == 'wifi' %}green{% elif u == 'mobile' %}orange{% else %}red{% endif %}
         content: >-
-          {% if is_state('sensor.my_router_uplink', 'wifi') %}{{ states('sensor.my_router_wi_fi_network') }}{% else %}{{ state_translated('sensor.my_router_uplink') }}{% endif %}
+          {% if is_state('sensor.my_router_uplink', 'wifi') %}{% set n = states('sensor.my_router_wi_fi_network') %}{{ n if n not in ['unknown', 'unavailable'] else state_translated('sensor.my_router_uplink') }}{% else %}{{ state_translated('sensor.my_router_uplink') }}{% endif %}
       - type: custom:mushroom-template-badge
         entity: sensor.my_modem_rsrp
         icon: mdi:signal-variant
@@ -61,7 +61,7 @@ views:
         color: >-
           {% set v = states('sensor.my_router_wi_fi_link_speed') | float(0) %}{% if is_state('sensor.my_router_uplink', 'wifi') %}{{ 'green' if v >= 50 else ('orange' if v >= 20 else 'red') }}{% else %}grey{% endif %}
         content: >-
-          {% if is_state('sensor.my_router_uplink', 'wifi') %}{{ states('sensor.my_router_wi_fi_link_speed') }} Mbit/s{% else %}mobile{% endif %}
+          {% set v = states('sensor.my_router_wi_fi_link_speed') | float(0) %}{% if is_state('sensor.my_router_uplink', 'wifi') %}{% if v > 0 %}{{ v | round(0) | int }} Mbit/s{% else %}–{% endif %}{% else %}mobile{% endif %}
         tap_action:
           action: none
     sections:

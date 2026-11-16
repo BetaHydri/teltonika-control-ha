@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-16
+
+### Fixed
+
+- While the router's Wi-Fi status page does not answer, the Wi-Fi sensors no
+  longer claim "unknown" or "no Wi-Fi": when a Wi-Fi interface carries the
+  uplink, the name and band of the saved network are taken from the router
+  configuration, **Wi-Fi connected** is on and the hotspot state follows the
+  internet check. Signal and link speed stay unknown until the page answers.
+- Sample dashboard: the Uplink badge falls back to the uplink type when the
+  Wi-Fi name is unknown, and the speed badge shows a dash instead of
+  "unknown Mbit/s".
+
 ## [0.5.1] - 2026-11-16
 
 ### Fixed

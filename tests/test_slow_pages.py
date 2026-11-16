@@ -26,6 +26,22 @@ async def test_setup_works_while_the_wireless_status_hangs(
     assert hass.states.get(entity_id(hass, "sensor", "2-1.1_operator")).state == "Testnet"
 
 
+async def test_wifi_name_and_state_survive_a_hanging_wireless_status(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    aioclient_mock.get(f"{BASE}/wireless/interfaces/status", exc=TimeoutError())
+    mock_router(aioclient_mock, wifi_metric=0)
+    await setup_entry(hass, entry)
+
+    assert hass.states.get(entity_id(hass, "sensor", "uplink")).state == "wifi"
+    assert hass.states.get(entity_id(hass, "sensor", "wifi_ssid")).state == "CampWifi"
+    assert hass.states.get(entity_id(hass, "sensor", "wifi_band")).state == "2.4 GHz"
+    assert hass.states.get(entity_id(hass, "binary_sensor", "wifi_connected")).state == (
+        "on"
+    )
+    assert hass.states.get(entity_id(hass, "sensor", "portal_state")).state == "online"
+
+
 async def test_last_known_values_are_kept_and_the_page_is_left_alone(
     hass: HomeAssistant,
     aioclient_mock: Any,
