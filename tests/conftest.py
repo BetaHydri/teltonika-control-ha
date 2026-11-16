@@ -117,8 +117,18 @@ def entity_id(hass: HomeAssistant, platform: str, key: str) -> str:
     return found
 
 
+def find_device(hass: HomeAssistant, identifier: tuple[str, str]) -> dr.DeviceEntry:
+    """Look up a device by identifier on old and new Home Assistant versions."""
+    registry = dr.async_get(hass)
+    if hasattr(registry, "async_get_devices"):
+        devices = registry.async_get_devices(identifiers={identifier})
+        assert len(devices) == 1
+        return devices[0]
+    device = registry.async_get_device(identifiers={identifier})
+    assert device is not None
+    return device
+
+
 def router_device_id(hass: HomeAssistant) -> str:
     """Return the device registry id of the router."""
-    devices = dr.async_get(hass).async_get_devices(identifiers={(DOMAIN, SERIAL)})
-    assert len(devices) == 1
-    return devices[0].id
+    return find_device(hass, (DOMAIN, SERIAL)).id

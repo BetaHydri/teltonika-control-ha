@@ -155,23 +155,28 @@ entities need a modem with a SIM.
 
 ## Step 8: Build a first dashboard card
 
-Entity IDs start with your router name, so the easiest way is to add the
-card in the dashboard editor and pick the entities from the list. As a
-starting point, switch the card editor to **Show code editor** and paste the
-following. It assumes a router named `RUTC50`; replace `rutc50` with the
-name in your entity IDs.
+Entity IDs depend on the router name, the area you put it in and your
+language, so the easiest way is to add the card in the dashboard editor and
+pick the entities from the list. For example, a router named `RUTC50.lan` in
+the area `IT-Equipment` with Home Assistant in English gets IDs such as
+`sensor.it_equipment_rutc50_lan_uplink`; without an area it is
+`sensor.rutc50_lan_uplink`.
+
+As a starting point, switch the card editor to **Show code editor** and
+paste the following. It assumes IDs that start with `rutc50_lan`. Replace
+that part with the beginning of your own entity IDs.
 
 ```yaml
 type: entities
 title: Router
 entities:
-  - entity: sensor.rutc50_uplink
-  - entity: sensor.rutc50_wi_fi_network
-  - entity: sensor.rutc50_wi_fi_signal
-  - entity: binary_sensor.rutc50_internet
-  - entity: select.rutc50_uplink_priority
-  - entity: button.rutc50_reconnect_wi_fi
-  - entity: button.rutc50_reboot_router
+  - entity: sensor.rutc50_lan_uplink
+  - entity: sensor.rutc50_lan_wi_fi_network
+  - entity: sensor.rutc50_lan_wi_fi_signal
+  - entity: binary_sensor.rutc50_lan_internet
+  - entity: select.rutc50_lan_uplink_priority
+  - entity: button.rutc50_lan_reconnect_wi_fi
+  - entity: button.rutc50_lan_reboot_router
     name: Reboot router (careful)
 ```
 

@@ -11,13 +11,13 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.teltonika_control.const import DOMAIN, EVENT_PORTAL_RESULT
 
 from .conftest import (
     entity_id,
+    find_device,
     mock_login_failure,
     mock_router,
     mock_unreachable,
@@ -287,11 +287,8 @@ async def test_modem_is_a_child_device_of_the_router(
     mock_router(aioclient_mock)
     await setup_entry(hass, entry)
 
-    modem = dr.async_get(hass).async_get_device_by_identifier(
-        (DOMAIN, f"{SERIAL}_2-1.1"), entry.entry_id
-    )
+    modem = find_device(hass, (DOMAIN, f"{SERIAL}_2-1.1"))
 
-    assert modem is not None
     assert modem.via_device_id == router_device_id(hass)
 
 
