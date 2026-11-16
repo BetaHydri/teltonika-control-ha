@@ -31,8 +31,13 @@ from homeassistant.helpers.typing import StateType
 
 from .const import BANDS, PORTAL_STATES, UPLINK_KINDS
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
-from .entity import TeltonikaEntity, TeltonikaModemEntity, async_add_discovered
-from .models import TeltonikaData, modem_temperature, to_float
+from .entity import (
+    TeltonikaEntity,
+    TeltonikaModemEntity,
+    TeltonikaTunnelEntity,
+    async_add_discovered,
+)
+from .models import TeltonikaData, VpnTunnel, modem_temperature, to_float
 
 PARALLEL_UPDATES = 0
 
@@ -82,6 +87,73 @@ VPN_LATENCY_SENSOR = RouterSensorDescription(
     suggested_display_precision=0,
     entity_category=EntityCategory.DIAGNOSTIC,
     value_fn=lambda d: d.vpn_latency,
+)
+
+def _usage(data: TeltonikaData, name: str) -> StateType:
+    return getattr(data.system_usage, name, None) if data.system_usage else None
+
+
+def _dhcp_attributes(data: TeltonikaData) -> dict[str, Any]:
+    return {
+        "devices": [
+            {
+                "hostname": str(lease.get("hostname") or ""),
+                "ip": str(lease.get("ipaddr") or ""),
+                "interface": str(lease.get("interface") or ""),
+            }
+            for lease in data.dhcp_leases or []
+        ]
+    }
+
+
+SYSTEM_SENSORS: tuple[RouterSensorDescription, ...] = (
+    RouterSensorDescription(
+        key="uptime",
+        translation_key="uptime",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        suggested_unit_of_measurement=UnitOfTime.HOURS,
+        suggested_display_precision=1,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: _usage(d, "uptime"),
+    ),
+    RouterSensorDescription(
+        key="cpu_load",
+        translation_key="cpu_load",
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=0,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: _usage(d, "cpu_load"),
+    ),
+    RouterSensorDescription(
+        key="ram_usage",
+        translation_key="ram_usage",
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=0,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: _usage(d, "ram_usage"),
+    ),
+    RouterSensorDescription(
+        key="flash_usage",
+        translation_key="flash_usage",
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=0,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda d: _usage(d, "flash_usage"),
+    ),
+)
+
+DHCP_CLIENTS_SENSOR = RouterSensorDescription(
+    key="dhcp_clients",
+    translation_key="dhcp_clients",
+    state_class=SensorStateClass.MEASUREMENT,
+    value_fn=lambda d: len(d.dhcp_leases) if d.dhcp_leases is not None else None,
+    attrs_fn=_dhcp_attributes,
 )
 
 GPS_SENSORS: tuple[RouterSensorDescription, ...] = (
@@ -354,6 +426,44 @@ async def async_setup_entry(
         async_add_entities,
         lambda c: (
             (
+                description.key,
+                lambda desc=description: TeltonikaRouterSensor(c, desc),
+            )
+            for description in SYSTEM_SENSORS
+            if c.data.system_usage is not None
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                DHCP_CLIENTS_SENSOR.key,
+                lambda: TeltonikaRouterSensor(c, DHCP_CLIENTS_SENSOR),
+            ),
+        )
+        if c.data.dhcp_leases is not None
+        else (),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"vpn_{tunnel.tunnel_id}_{description.key}",
+                lambda t=tunnel.tunnel_id, desc=description: TeltonikaTunnelSensor(
+                    c, t, desc
+                ),
+            )
+            for tunnel in c.data.vpn_tunnels
+            for description in TUNNEL_SENSORS
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
                 f"{modem_id}_{description.key}",
                 lambda m=modem_id, desc=description: TeltonikaModemSensor(c, m, desc),
             )
@@ -361,6 +471,58 @@ async def async_setup_entry(
             for description in MODEM_SENSORS
         ),
     )
+
+
+@dataclass(frozen=True, kw_only=True)
+class TunnelSensorDescription(SensorEntityDescription):
+    """Describes a sensor of a VPN tunnel."""
+
+    value_fn: Callable[[VpnTunnel], StateType]
+
+
+TUNNEL_SENSORS: tuple[TunnelSensorDescription, ...] = (
+    TunnelSensorDescription(
+        key="received",
+        translation_key="tunnel_received",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda t: t.rx_bytes,
+    ),
+    TunnelSensorDescription(
+        key="sent",
+        translation_key="tunnel_sent",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda t: t.tx_bytes,
+    ),
+)
+
+
+class TeltonikaTunnelSensor(TeltonikaTunnelEntity, SensorEntity):
+    """A traffic counter of a VPN tunnel."""
+
+    entity_description: TunnelSensorDescription
+
+    def __init__(
+        self,
+        coordinator: TeltonikaCoordinator,
+        tunnel_id: str,
+        description: TunnelSensorDescription,
+    ) -> None:
+        super().__init__(coordinator, tunnel_id, description.key)
+        self.entity_description = description
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the counter."""
+        tunnel = self.tunnel
+        return self.entity_description.value_fn(tunnel) if tunnel else None
 
 
 class TeltonikaLastActionSensor(TeltonikaEntity, SensorEntity):

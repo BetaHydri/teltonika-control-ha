@@ -420,6 +420,29 @@ views:
                     text: Reconnect the router's Wi-Fi client? Wi-Fi is briefly interrupted.
                 button_action:
                   tap_action: *reconnect_wifi
+          # WireGuard tunnel (optional). Appears only while the instance is
+          # switched on. Replace "homebase" with the name of your instance.
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: switch.my_router_wireguard_homebase_enabled
+                state: "on"
+            card:
+              type: custom:bubble-card
+              card_type: button
+              button_type: name
+              name: Restart WireGuard tunnel
+              icon: mdi:shield-sync
+              styles: *style_blue
+              tap_action: &reconnect_vpn
+                action: perform-action
+                perform_action: button.press
+                target:
+                  entity_id: button.my_router_reconnect_wireguard_homebase
+                confirmation:
+                  text: Restart the WireGuard tunnel? The VPN is down for a few seconds.
+              button_action:
+                tap_action: *reconnect_vpn
           # Hotspot with a login page: the button changes with the state.
           - type: vertical-stack
             cards:
@@ -544,6 +567,46 @@ views:
                   data, Home Assistant) are down for about 2 to 3 minutes.
             button_action:
               tap_action: *reboot
+          - type: heading
+            heading: Router health
+            heading_style: subtitle
+            icon: mdi:heart-pulse
+          - type: horizontal-stack
+            cards:
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
+                entity: sensor.my_router_uptime
+                name: Uptime
+                icon: mdi:timer-outline
+                show_name: true
+                show_state: true
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
+                entity: sensor.my_router_dhcp_clients
+                name: Clients
+                icon: mdi:devices
+                show_name: true
+                show_state: true
+          - type: horizontal-stack
+            cards:
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
+                entity: sensor.my_router_cpu_load
+                name: CPU load
+                icon: mdi:cpu-64-bit
+                show_name: true
+                show_state: true
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
+                entity: sensor.my_router_memory_usage
+                name: Memory
+                icon: mdi:memory
+                show_name: true
+                show_state: true
       - type: grid
         cards:
           - type: heading

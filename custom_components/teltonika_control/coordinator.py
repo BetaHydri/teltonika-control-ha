@@ -44,6 +44,8 @@ from .const import (
     PRIORITY_VERIFY_DELAY,
     PROBE_TIMEOUT,
     UPLINK_WIFI,
+    VPN_RECONNECT_DELAY,
+    VPN_REFRESH_DELAY,
     VPN_TIMEOUT,
 )
 from .models import (
@@ -51,6 +53,7 @@ from .models import (
     RouterInfo,
     ScanNetwork,
     TeltonikaData,
+    VpnTunnel,
     WifiStation,
     build_scan_networks,
     is_modem_online,
@@ -146,6 +149,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 client.async_wireless_devices_status(),
                 client.async_modems_status(),
                 client.async_gps_status(),
+                client.async_usage_status(),
+                client.async_dhcp_leases(),
+                client.async_wireguard_config(),
                 return_exceptions=True,
             )
         except TeltonikaAuthError as err:
@@ -156,8 +162,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         parts: list[Any] = []
         for result in optional:
             if isinstance(result, TeltonikaApiError):
-                # Router without Wi-Fi, modem or GPS: the endpoint is missing.
-                parts.append([])
+                # Router without Wi-Fi, modem or GPS, or a user without the
+                # right to read the page: the endpoint is missing.
+                parts.append(None)
             elif isinstance(result, TeltonikaAuthError):
                 raise ConfigEntryAuthFailed(str(result)) from result
             elif isinstance(result, TeltonikaConnectionError):
@@ -166,7 +173,20 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 raise UpdateFailed(f"Unexpected error: {result}") from result
             else:
                 parts.append(result)
-        wireless_config, wireless_status, wireless_devices, modems, gps = parts
+        (
+            wireless_config,
+            wireless_status,
+            wireless_devices,
+            modems,
+            gps,
+            usage,
+            dhcp_leases,
+            wireguard_config,
+        ) = parts
+        wireless_config = wireless_config or []
+        wireless_status = wireless_status or []
+        wireless_devices = wireless_devices or []
+        modems = modems or []
 
         multi_ap: list[dict[str, Any]] = []
         if any(item.get("mode") == "multi_ap" for item in wireless_config):
@@ -189,6 +209,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             gps=gps if isinstance(gps, dict) else None,
             multi_ap=multi_ap,
             router_time=client.server_time,
+            usage=usage if isinstance(usage, dict) else None,
+            dhcp_leases=dhcp_leases if isinstance(dhcp_leases, list) else None,
+            wireguard_config=wireguard_config or [],
         )
         data.portal_waiting = self.portal_waiting
         probe_internet = bool(self._probe_url) and data.uplink is not None
@@ -268,6 +291,46 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             await self.client.async_set_wireless_enabled(config_id, enabled)
         await asyncio.sleep(AP_REFRESH_DELAY)
         await self.async_request_refresh()
+
+    async def async_set_vpn_tunnel(self, tunnel_id: str, enabled: bool) -> None:
+        """Enable or disable a WireGuard tunnel."""
+        self._require_switchable_tunnel(tunnel_id)
+        async with translate_errors():
+            await self.client.async_set_wireguard_enabled(tunnel_id, enabled)
+        await asyncio.sleep(VPN_REFRESH_DELAY)
+        await self.async_request_refresh()
+
+    async def async_reconnect_vpn(self, tunnel_id: str) -> None:
+        """Restart a WireGuard tunnel by switching its instance off and on."""
+        tunnel = self._require_switchable_tunnel(tunnel_id)
+        if tunnel.enabled is False:
+            raise HomeAssistantError(
+                f"The tunnel {tunnel_id} is switched off. Switch it on instead."
+            )
+        async with translate_errors():
+            await self.client.async_set_wireguard_enabled(tunnel_id, False)
+        await asyncio.sleep(VPN_RECONNECT_DELAY)
+        try:
+            async with translate_errors():
+                await self.client.async_set_wireguard_enabled(tunnel_id, True)
+        except HomeAssistantError as err:
+            raise HomeAssistantError(
+                f"The tunnel {tunnel_id} was switched off but could not be "
+                f"switched on again: {err}. Switch it on manually."
+            ) from err
+        await asyncio.sleep(VPN_REFRESH_DELAY)
+        await self.async_request_refresh()
+
+    def _require_switchable_tunnel(self, tunnel_id: str) -> VpnTunnel:
+        for tunnel in self.data.vpn_tunnels:
+            if tunnel.tunnel_id == tunnel_id:
+                if tunnel.enabled is None:
+                    raise HomeAssistantError(
+                        "The router user may not read or change the WireGuard "
+                        "configuration."
+                    )
+                return tunnel
+        raise HomeAssistantError(f"Tunnel {tunnel_id} not found")
 
     async def async_switch_sim(self, modem_id: str, target_sim: int) -> None:
         """Switch a dual SIM modem to the requested slot."""

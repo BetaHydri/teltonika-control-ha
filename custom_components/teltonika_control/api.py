@@ -253,6 +253,29 @@ class TeltonikaClient:
         data = await self.async_request("GET", "/gps/position/status")
         return data if isinstance(data, dict) else {}
 
+    async def async_usage_status(self) -> dict[str, Any]:
+        """Return uptime, load, memory and the clock of the router."""
+        data = await self.async_request("GET", "/system/device/usage/status")
+        return data if isinstance(data, dict) else {}
+
+    async def async_dhcp_leases(self) -> list[dict[str, Any]]:
+        """Return the IPv4 DHCP leases (the clients of the router)."""
+        return await self._async_list("/dhcp/leases/ipv4/status")
+
+    async def async_wireguard_config(self) -> list[dict[str, Any]]:
+        """Return the configured WireGuard instances."""
+        return await self._async_list("/wireguard/config")
+
+    async def async_set_wireguard_enabled(
+        self, instance_id: str, enabled: bool
+    ) -> None:
+        """Enable or disable a WireGuard instance."""
+        await self.async_request(
+            "PUT",
+            f"/wireguard/config/{quote(instance_id, safe='')}",
+            json={"data": {"enabled": "1" if enabled else "0"}},
+        )
+
     async def async_restart_modem_connection(self, modem_id: str) -> None:
         """Re-establish the mobile data connection."""
         await self.async_request(

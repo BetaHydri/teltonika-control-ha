@@ -8,6 +8,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
+### Added
+
+- WireGuard control: for every WireGuard instance a binary sensor for the
+  interface state, a switch to enable or disable it, a **Reconnect WireGuard**
+  button (off, wait, on) and traffic counters. Without the right to read the
+  configuration, a tunnel is only watched, not switched.
+- Router health sensors: uptime, CPU load, memory usage (flash usage is
+  disabled by default) and **DHCP clients** with a list of the connected
+  devices as attribute (no MAC addresses).
+- The router clock now comes from the system usage status, with the `Date`
+  header as fallback.
+- All new endpoints are optional: if the router user may not read a page, the
+  matching entities are simply not created.
+- The sample dashboard has a **Restart WireGuard tunnel** pill and a **Router
+  health** block. Docs: new setup step 13, permissions, troubleshooting.
+
 ### Fixed
 
 - The diagnostics download now hides the VPN check host and includes the VPN

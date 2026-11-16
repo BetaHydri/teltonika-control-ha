@@ -40,6 +40,8 @@ def no_delays(monkeypatch: pytest.MonkeyPatch) -> None:
     """Skip the waiting built into actions and portal mode."""
     for name in (
         "AP_REFRESH_DELAY",
+        "VPN_RECONNECT_DELAY",
+        "VPN_REFRESH_DELAY",
         "PORTAL_FIRST_DELAY",
         "PORTAL_POLL_INTERVAL",
         "PRIORITY_VERIFY_DELAY",
@@ -55,6 +57,15 @@ def no_delays(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+def forbidden(aioclient_mock: Any, path: str) -> None:
+    """The router user may not read this page."""
+    aioclient_mock.get(
+        f"{BASE}{path}",
+        status=403,
+        json={"success": False, "errors": [{"code": 403, "error": "Forbidden"}]},
+    )
+
+
 def mock_router(
     aioclient_mock: Any,
     *,
@@ -62,18 +73,32 @@ def mock_router(
     internet: bool = True,
     gps: dict[str, Any] | bool = True,
     date: str | None = None,
+    usage: bool = True,
+    dhcp: bool = True,
+    wireguard: bool = True,
 ) -> None:
     """Register answers for every endpoint the integration polls.
 
     ``gps`` is True for the default position, a dict for a custom answer and
-    False for a router without GPS (the endpoint is missing).
+    False for a router without GPS (the endpoint is missing). ``usage``,
+    ``dhcp`` and ``wireguard`` False simulate a user without the right to
+    read that page.
     """
-    data = payloads(wifi_metric=wifi_metric)
+    data = payloads(wifi_metric=wifi_metric, wireguard=wireguard)
     headers = {"Date": date} if date else None
     aioclient_mock.post(
         f"{BASE}/login",
         json={"success": True, "data": {"token": "tok", "expires": 299}},
     )
+    for enabled, path, body in (
+        (usage, "/system/device/usage/status", data["usage"]),
+        (dhcp, "/dhcp/leases/ipv4/status", data["dhcp"]),
+        (wireguard, "/wireguard/config", data["wireguard"]),
+    ):
+        if enabled:
+            aioclient_mock.get(f"{BASE}{path}", json={"success": True, "data": body})
+        else:
+            forbidden(aioclient_mock, path)
     if gps is False:
         aioclient_mock.get(
             f"{BASE}/gps/position/status",
@@ -108,6 +133,7 @@ def mock_router(
         method(f"{BASE}/interfaces/config/wan2", json={"success": True})
         method(f"{BASE}/wireless/interfaces/config/default_radio1", json={"success": True})
         method(f"{BASE}/wireless/interfaces/config/6", json={"success": True})
+        method(f"{BASE}/wireguard/config/HOMEBASE", json={"success": True})
 
 
 def mock_login_failure(aioclient_mock: Any) -> None:

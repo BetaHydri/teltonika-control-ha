@@ -877,7 +877,7 @@ async def test_router_time_sensor_needs_a_date_header(
 async def test_no_router_time_sensor_without_a_date_header(
     hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
 ) -> None:
-    mock_router(aioclient_mock)
+    mock_router(aioclient_mock, usage=False)
     await setup_entry(hass, entry)
 
     registry = er.async_get(hass)

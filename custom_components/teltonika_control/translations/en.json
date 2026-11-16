@@ -113,7 +113,14 @@
       "gps_fix": { "name": "GPS fix status" },
       "last_action": { "name": "Last Wi-Fi action" },
       "router_time": { "name": "Router time" },
-      "vpn_latency": { "name": "VPN latency" }
+      "vpn_latency": { "name": "VPN latency" },
+      "uptime": { "name": "Uptime" },
+      "cpu_load": { "name": "CPU load" },
+      "ram_usage": { "name": "Memory usage" },
+      "flash_usage": { "name": "Flash usage" },
+      "dhcp_clients": { "name": "DHCP clients" },
+      "tunnel_received": { "name": "WireGuard {name} received" },
+      "tunnel_sent": { "name": "WireGuard {name} sent" }
     },
     "device_tracker": {
       "gps": { "name": "Position" }
@@ -123,7 +130,8 @@
       "internet": { "name": "Internet" },
       "login_required": { "name": "Hotspot login required" },
       "mobile_connected": { "name": "Mobile data connected" },
-      "vpn_reachable": { "name": "VPN reachable" }
+      "vpn_reachable": { "name": "VPN reachable" },
+      "tunnel_up": { "name": "WireGuard {name}" }
     },
     "button": {
       "reboot": { "name": "Reboot router" },
@@ -131,7 +139,8 @@
       "restart_mobile": { "name": "Restart mobile connection" },
       "scan_wifi": { "name": "Scan for Wi-Fi networks" },
       "add_network": { "name": "Add selected network" },
-      "remove_network": { "name": "Remove selected network" }
+      "remove_network": { "name": "Remove selected network" },
+      "reconnect_vpn": { "name": "Reconnect WireGuard {name}" }
     },
     "select": {
       "priority": {
@@ -155,7 +164,8 @@
       "wifi_password": { "name": "Wi-Fi password" }
     },
     "switch": {
-      "access_point": { "name": "Access point {name}" }
+      "access_point": { "name": "Access point {name}" },
+      "tunnel": { "name": "WireGuard {name} enabled" }
     }
   },
   "exceptions": {

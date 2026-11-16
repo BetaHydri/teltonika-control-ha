@@ -49,6 +49,12 @@ respective owners and are used here only to say which routers are supported.
   IPv4 or IPv6 address, for example the router at home) and get a
   **VPN reachable** sensor with the latency. It works with any VPN type,
   such as WireGuard, OpenVPN or IPsec. See [VPN check](#vpn-check).
+- **WireGuard control**: for every WireGuard instance on the router, an
+  interface state, traffic counters, a switch and a **Reconnect WireGuard**
+  button that restarts the tunnel, for example from an automation. See
+  [WireGuard tunnels](#wireguard-tunnels).
+- **Router health**: uptime, CPU load, memory usage and the number of DHCP
+  clients (connected devices).
 - **Ready-made dashboard**: a complete dashboard with coloured pills, two
   columns and badges. It needs the Bubble Card and Mushroom frontend cards,
   for this dashboard only. See
@@ -67,12 +73,11 @@ respective owners and are used here only to say which routers are supported.
 
 Ideas that are not implemented yet: data usage limits and monthly counters
 (until then, use a Utility Meter helper, see the
-[step-by-step guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter)), router
-uptime and system temperature, per-interface WAN failover control, SMS
-notifications, the WireGuard handshake state and a **Reconnect VPN** button
-(both wait for a verified RutOS API or SSH approach, see
-[VPN check](#vpn-check)) and setting the Home Assistant home zone from the
-router's GPS (see the
+[step-by-step guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter)),
+system temperature, failover state per interface, switches for port forwards,
+SMS notifications, the WireGuard handshake time (the router offers no status
+endpoint for it, see [WireGuard tunnels](#wireguard-tunnels)) and setting the
+Home Assistant home zone from the router's GPS (see the
 [automation example](#move-the-home-zone-with-the-camper)).
 
 ## Supported routers
@@ -152,6 +157,10 @@ to:
 | Access point switches, reconnect Wi-Fi, scan, save and remove networks | Network, Wireless, SSIDs | Write |
 | Modem sensors | Network, Mobile | Read |
 | GPS position | Services, GPS | Read |
+| Uptime, CPU load, memory, router clock | Status, Overview (system usage) | Read |
+| DHCP clients | Status, Network, LAN (DHCP leases) | Read |
+| WireGuard interface state and counters | Network, Interfaces | Read |
+| WireGuard switch and reconnect | Services, VPN, WireGuard | Read and write |
 | Restart mobile connection, SIM slot | Network, Mobile, Modems | Write |
 | Reboot router | System, Administration, General | Write |
 
@@ -160,6 +169,12 @@ operation. The table maps operations to web interface pages as the API
 description does. If an action is refused, Home Assistant shows the router's
 error message; grant read or write on that page to the group and try again.
 
+Read-only extras are optional. If the user may not read the system usage, the
+DHCP leases or the WireGuard configuration, the router answers with an error
+and the integration simply does not create those entities. Nothing else is
+affected. A tunnel whose configuration cannot be read is shown (interface
+state and counters) but gets no switch and no reconnect button.
+
 #### What the Integration Changes on the Router
 
 Knowing this helps you decide how much to allow:
@@ -167,6 +182,8 @@ Knowing this helps you decide how much to allow:
 - Routing metric of the Wi-Fi client interfaces (0 for Wi-Fi first, 10 for
   mobile first), followed by a Wi-Fi reconnect.
 - The on/off flag of the router's own access points.
+- The on/off flag of WireGuard instances (switch and **Reconnect WireGuard**,
+  which switches the instance off and on again).
 - Saved Wi-Fi client networks (`join_wifi` and `forget_wifi`).
 - Restart of the mobile connection, SIM slot switch and router reboot.
 
@@ -239,7 +256,13 @@ automatically.
 | Saved networks | select | Wi-Fi clients and Multi AP list entries saved on the router |
 | Remove selected network | button | Removes the selected saved network |
 | Last Wi-Fi action | sensor | Result of the last scan, add or remove |
-| Router time | sensor | The router's clock from the HTTP `Date` header. Diagnostic, disabled by default, only when the router sends the header |
+| Router time | sensor | The router's clock. Diagnostic, disabled by default |
+| Uptime, CPU load, Memory usage | sensors | Diagnostic. Flash usage is also available, disabled by default |
+| DHCP clients | sensor | Number of leases; the attribute `devices` lists host name, IP address and interface (no MAC addresses) |
+| WireGuard *name* | binary sensor | The tunnel interface is up. One per WireGuard instance, see [WireGuard tunnels](#wireguard-tunnels) |
+| WireGuard *name* enabled | switch | Turns the instance on or off. Needs the right to change the WireGuard configuration |
+| Reconnect WireGuard *name* | button | Switches the instance off and on |
+| WireGuard *name* received, sent | sensors | Traffic counters of the tunnel interface. Diagnostic |
 | Reboot router | button | Add a confirmation in your dashboard |
 | Position | device tracker | Only on routers with GPS, see [GPS](#gps) |
 | GPS speed, altitude, satellites, accuracy | sensors | Only on routers with GPS. Heading and fix status are disabled by default |
@@ -399,6 +422,56 @@ automation:
           message: "The VPN tunnel to home is down although the router is online."
 ```
 
+## WireGuard tunnels
+
+The integration reads the WireGuard instances of the router (**Services,
+VPN, WireGuard**) and creates entities for each one, named after the instance,
+for example `RUTC2AVM`:
+
+| Entity | What it tells you |
+|---|---|
+| WireGuard *name* (binary sensor) | The tunnel interface is up on the router. It does not prove that the other end answers, use the [VPN check](#vpn-check) for that. |
+| WireGuard *name* enabled (switch) | The instance is switched on in the router configuration. Turning it off removes the interface. |
+| Reconnect WireGuard *name* (button) | Switches the instance off, waits a few seconds and switches it on again. This renews the connection, for example after the uplink changed. |
+| WireGuard *name* received, sent (sensors) | Traffic counters of the tunnel interface. Diagnostic. |
+
+**Reconnect** works on instances that are switched on. If the tunnel is
+switched off, the button refuses and tells you to use the switch. If switching
+it back on fails, the error message says so and the tunnel stays off until you
+switch it on.
+
+The RutOS REST API offers no WireGuard peer status, so the integration cannot
+show the time of the last handshake. The probe tool answers `501` for the
+status endpoints. Combine the interface state with the VPN check instead.
+
+Example: restart the tunnel when the VPN check has been failing for five
+minutes while the router has internet.
+
+```yaml
+automation:
+  - alias: "Router: restart the WireGuard tunnel to home"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.my_router_vpn_reachable
+        to: "off"
+        for: "00:05:00"
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.my_router_internet
+        state: "on"
+      - condition: state
+        entity_id: switch.my_router_wireguard_homebase_enabled
+        state: "on"
+    actions:
+      - action: button.press
+        target:
+          entity_id: button.my_router_reconnect_wireguard_homebase
+      - delay: "00:02:00"
+```
+
+The delay keeps the automation from restarting the tunnel again right away,
+because the default mode `single` ignores new triggers while it runs.
+
 ## Services
 
 | Service | Purpose |
@@ -510,9 +583,11 @@ Home Assistant reaches the internet through this router.
   back automatically.
 - Switching off the access point you are connected through disconnects you.
 - The VPN check is a reachability test from the Home Assistant host, not a
-  read-out of the tunnel. It cannot show the WireGuard handshake or restart a
-  tunnel, and it says nothing when Home Assistant reaches the remote network
-  another way.
+  read-out of the tunnel. It says nothing when Home Assistant reaches the
+  remote network another way. The WireGuard handshake time is not available,
+  because the router offers no status endpoint for it.
+- The WireGuard entities cover WireGuard only. OpenVPN, IPsec and other
+  tunnels are not listed yet; use the VPN check for them.
 - Field names in the modem, Wi-Fi and interface answers differ slightly
   between RutOS releases. Open an issue with the diagnostics download if an
   entity stays empty.

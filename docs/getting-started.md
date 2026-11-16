@@ -65,6 +65,8 @@ own login.
 | Wi-Fi and access point state | Network, Wireless, SSIDs | Read |
 | Access point switches, reconnect, scan, add and remove networks | Network, Wireless, SSIDs | Write |
 | Modem sensors | Network, Mobile | Read |
+| Uptime, load, memory, DHCP clients, WireGuard state | Status pages, Network, Interfaces | Read |
+| WireGuard switch and reconnect | Services, VPN, WireGuard | Read and write |
 | Restart mobile connection, switch SIM | Network, Mobile, Modems | Write |
 | Reboot the router | System, Administration, General | Write |
 
@@ -161,6 +163,11 @@ the router device. You should see:
   altitude, satellites and accuracy.
 - If you set a VPN check host ([step 12](#step-12-optional-vpn-check)): the
   binary sensor **VPN reachable** and the sensor **VPN latency**.
+- Router health sensors: **Uptime**, **CPU load**, **Memory usage** and
+  **DHCP clients**.
+- For every WireGuard instance on the router
+  ([step 13](#step-13-optional-restart-a-wireguard-tunnel)): a binary sensor,
+  a switch, a **Reconnect WireGuard** button and traffic counters.
 
 Select the modem device to see operator, network type, signal values
 (RSRP, RSRQ, SINR), temperature, SIM state and data counters, the
@@ -392,7 +399,36 @@ entities then remain in the entity list as unavailable until you delete them.
 What the check does and does not tell you is described in the
 [README](../README.md#vpn-check). In short: it tests the whole path through
 the tunnel from the Home Assistant host, but it does not show the WireGuard
-handshake and it cannot restart the tunnel.
+handshake. To restart a WireGuard tunnel, see
+[WireGuard tunnels](../README.md#wireguard-tunnels).
+
+## Step 13: Optional: restart a WireGuard tunnel
+
+This step is optional and needs a WireGuard instance on the router (**Services**,
+**VPN**, **WireGuard**). No extra setup in Home Assistant is needed: the
+entities appear by themselves for every instance.
+
+1. Make sure the router user of step 2 may read and change the WireGuard
+   configuration (**Services**, **VPN**, **WireGuard**, read and write). Without
+   the right to change it, you still get the interface state and the traffic
+   counters, but no switch and no button.
+2. Open the router device in Home Assistant. For an instance named `HOMEBASE`
+   you see **WireGuard HOMEBASE** (binary sensor), **WireGuard HOMEBASE
+   enabled** (switch), **Reconnect WireGuard HOMEBASE** (button) and the
+   counters **received** and **sent**.
+3. Press **Reconnect WireGuard HOMEBASE** to test it. The router switches the
+   instance off, waits a few seconds and switches it on again. Traffic through
+   the tunnel is interrupted for that time. Do not test it while you are
+   connected to the router through that tunnel.
+4. To restart the tunnel automatically when the [VPN check](#step-12-optional-vpn-check)
+   fails, use the automation in the
+   [README](../README.md#wireguard-tunnels).
+
+If the tunnel is switched off, the button refuses. Use the switch to turn it
+on. The tunnel entities show nothing about the last handshake, because the
+router does not offer it through its API. The binary sensor tells you that
+the interface is up, and the VPN check tells you whether the other end
+answers.
 
 ## Troubleshooting
 
@@ -408,6 +444,9 @@ handshake and it cannot restart the tunnel.
 | The Internet sensor is off although the router has internet | Home Assistant may not reach the internet through this router, or your network blocks the check URL. Change the URL in the options or empty it. |
 | VPN reachable is off although the tunnel works | The device or port you chose does not answer. Pick an always-on device inside the tunnel's network and a port it answers or rejects (a firewall that silently drops the port looks like a dead tunnel). Do not use the WireGuard endpoint and its UDP port, TCP never reaches it. Check that Home Assistant itself reaches the remote network through this router. |
 | VPN reachable is on although the tunnel looks dead | The name or address resolves to a device on the local network, or Home Assistant reaches the remote network by another route. Use an address that only exists behind the tunnel. |
+| No uptime, CPU load, DHCP client or WireGuard entities | The router user may not read those pages (the router answers with an error), or the router has no WireGuard instance. Give the group read access, see step 2, and reload the integration. |
+| A WireGuard tunnel has no switch and no reconnect button | The user may not read and change **Services**, **VPN**, **WireGuard**. Give the group read and write there and reload the integration. |
+| **Reconnect WireGuard** says the tunnel is switched off | The reconnect button only works on a tunnel that is switched on. Turn the **WireGuard ... enabled** switch on instead. |
 | Values look wrong or an entity stays empty | Field names differ slightly between RutOS releases. Download the diagnostics and open an issue. |
 
 ### Download diagnostics

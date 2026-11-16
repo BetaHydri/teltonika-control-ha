@@ -14,7 +14,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
-from .models import is_modem_online
+from .models import VpnTunnel, is_modem_online
 
 
 def _via_router(coordinator: TeltonikaCoordinator) -> dict[str, Any]:
@@ -78,6 +78,30 @@ class TeltonikaModemEntity(TeltonikaEntity):
         """Return False while the modem reports no full status."""
         modem = self.modem
         return super().available and modem is not None and is_modem_online(modem)
+
+
+class TeltonikaTunnelEntity(TeltonikaEntity):
+    """An entity that belongs to one VPN tunnel of the router."""
+
+    def __init__(
+        self, coordinator: TeltonikaCoordinator, tunnel_id: str, key: str
+    ) -> None:
+        super().__init__(coordinator, f"vpn_{tunnel_id}_{key}")
+        self._tunnel_id = tunnel_id
+        self._attr_translation_placeholders = {"name": tunnel_id}
+
+    @property
+    def tunnel(self) -> VpnTunnel | None:
+        """Return the current state of this tunnel."""
+        for tunnel in self.coordinator.data.vpn_tunnels:
+            if tunnel.tunnel_id == self._tunnel_id:
+                return tunnel
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the tunnel was removed from the router."""
+        return super().available and self.tunnel is not None
 
 
 @callback

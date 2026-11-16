@@ -1,4 +1,4 @@
-"""Switches for the router's own access points."""
+"""Switches for the router's own access points and WireGuard tunnels."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
-from .entity import TeltonikaEntity, async_add_discovered
+from .entity import TeltonikaEntity, TeltonikaTunnelEntity, async_add_discovered
 from .models import AccessPoint
 
 PARALLEL_UPDATES = 1
@@ -33,6 +33,41 @@ async def async_setup_entry(
             for ap in c.data.access_points
         ),
     )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"vpn_{tunnel.tunnel_id}",
+                lambda t=tunnel.tunnel_id: TeltonikaTunnelSwitch(c, t),
+            )
+            for tunnel in c.data.vpn_tunnels
+            if tunnel.enabled is not None
+        ),
+    )
+
+
+class TeltonikaTunnelSwitch(TeltonikaTunnelEntity, SwitchEntity):
+    """Turns a WireGuard instance on or off (its configuration flag)."""
+
+    _attr_translation_key = "tunnel"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, tunnel_id: str) -> None:
+        super().__init__(coordinator, tunnel_id, "switch")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the instance is enabled."""
+        tunnel = self.tunnel
+        return tunnel.enabled if tunnel else None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable the tunnel."""
+        await self.coordinator.async_set_vpn_tunnel(self._tunnel_id, True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable the tunnel."""
+        await self.coordinator.async_set_vpn_tunnel(self._tunnel_id, False)
 
 
 class TeltonikaAccessPointSwitch(TeltonikaEntity, SwitchEntity):

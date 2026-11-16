@@ -136,7 +136,51 @@ SCAN_RESULT = [
 ]
 
 
-def payloads(*, wifi_metric: int | None = None) -> dict[str, Any]:
+USAGE_STATUS = {
+    "load": {"min1": 0.33, "min5": 0.42, "min15": 0.44},
+    "loadavg": 0.0864,
+    "localtime": 1794839356,
+    "memory": {"ram_percentage": 39.17, "flash_percentage": 1.64},
+    "uptime": "5h 35m",
+    "uptime_seconds": 20117,
+}
+
+DHCP_LEASES = [
+    {
+        "expires": 2070,
+        "hostname": "laptop",
+        "interface": "lan",
+        "ipaddr": "192.168.1.10",
+        "macaddr": "AA:BB:CC:00:00:01",
+    },
+    {
+        "expires": 900,
+        "hostname": "",
+        "interface": "lan",
+        "ipaddr": "192.168.1.11",
+        "macaddr": "AA:BB:CC:00:00:02",
+    },
+]
+
+WIREGUARD_CONFIG = [
+    {"id": "HOMEBASE", "enabled": "1", "listen_port": "51820"},
+    {"id": "SPARE", "enabled": "0", "listen_port": "51821"},
+]
+
+WIREGUARD_INTERFACE = {
+    "id": "HOMEBASE",
+    "name": "HOMEBASE",
+    "proto": "wireguard",
+    "up": True,
+    "is_up": True,
+    "rx_bytes": 4088912,
+    "tx_bytes": 10434104,
+    "uptime": 19695,
+    "ipaddrs": ["10.0.0.2/24"],
+}
+
+
+def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[str, Any]:
     """Return fresh copies; optionally give Wi-Fi a better metric than mobile."""
     data = {
         "interfaces": deepcopy(INTERFACES_STATUS),
@@ -146,7 +190,12 @@ def payloads(*, wifi_metric: int | None = None) -> dict[str, Any]:
         "wireless_devices": deepcopy(WIRELESS_DEVICES),
         "modems": deepcopy(MODEMS),
         "gps": deepcopy(GPS_STATUS),
+        "usage": deepcopy(USAGE_STATUS),
+        "dhcp": deepcopy(DHCP_LEASES),
+        "wireguard": deepcopy(WIREGUARD_CONFIG),
     }
+    if wireguard:
+        data["interfaces"].append(deepcopy(WIREGUARD_INTERFACE))
     if wifi_metric is not None:
         data["interfaces"][2]["metric"] = wifi_metric
         data["config"][1]["metric"] = str(wifi_metric)

@@ -16,7 +16,12 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import PORTAL_LOGIN_REQUIRED
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
-from .entity import TeltonikaEntity, TeltonikaModemEntity, async_add_discovered
+from .entity import (
+    TeltonikaEntity,
+    TeltonikaModemEntity,
+    TeltonikaTunnelEntity,
+    async_add_discovered,
+)
 from .models import TeltonikaData
 
 PARALLEL_UPDATES = 0
@@ -77,12 +82,43 @@ async def async_setup_entry(
         async_add_entities,
         lambda c: (
             (
+                f"vpn_{tunnel.tunnel_id}_up",
+                lambda t=tunnel.tunnel_id: TeltonikaTunnelUp(c, t),
+            )
+            for tunnel in c.data.vpn_tunnels
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
                 f"{modem_id}_mobile_connected",
                 lambda m=modem_id: TeltonikaMobileConnected(c, m),
             )
             for modem_id in c.modem_ids()
         ),
     )
+
+
+class TeltonikaTunnelUp(TeltonikaTunnelEntity, BinarySensorEntity):
+    """Whether the tunnel interface is up on the router.
+
+    This says the interface exists and has an address, not that the other
+    end answers. Use the VPN check for that.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_translation_key = "tunnel_up"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, tunnel_id: str) -> None:
+        super().__init__(coordinator, tunnel_id, "up")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return the interface state."""
+        tunnel = self.tunnel
+        return tunnel.up if tunnel else None
 
 
 class TeltonikaRouterBinarySensor(TeltonikaEntity, BinarySensorEntity):

@@ -97,6 +97,12 @@ differ. These are the entities the dashboard uses:
 | Internet | `binary_sensor.my_router_internet` |
 | VPN reachable (optional) | `binary_sensor.my_router_vpn_reachable` |
 | VPN latency (optional) | `sensor.my_router_vpn_latency` |
+| WireGuard enabled (optional, one per instance) | `switch.my_router_wireguard_homebase_enabled` |
+| Reconnect WireGuard (optional) | `button.my_router_reconnect_wireguard_homebase` |
+| Uptime | `sensor.my_router_uptime` |
+| DHCP clients | `sensor.my_router_dhcp_clients` |
+| CPU load | `sensor.my_router_cpu_load` |
+| Memory usage | `sensor.my_router_memory_usage` |
 | Uplink priority | `select.my_router_uplink_priority` |
 | Reconnect Wi-Fi | `button.my_router_reconnect_wi_fi` |
 | Reboot router | `button.my_router_reboot_router` |
@@ -153,7 +159,12 @@ list. Fix that entity and save again.
   first, the integration goes back to mobile data when the Wi-Fi has no
   internet after 25 seconds.
 - **Router control**: restart the mobile connection, reconnect the Wi-Fi and
-  reboot the router. The hotspot button changes with the state: it starts
+  reboot the router. With a WireGuard instance on the router, a **Restart
+  WireGuard tunnel** pill appears while the instance is switched on (replace
+  `homebase` in its two entity IDs with the name of your instance, or delete
+  the pill). Below the reboot pill, **Router health** shows uptime, DHCP
+  clients, CPU load and memory usage. The hotspot button changes with the
+  state: it starts
   `teltonika_control.portal_mode`, shows that it waits, and reports when
   the Wi-Fi has internet. See
   [hotspots with a login page](../README.md#hotspots-with-a-login-page).

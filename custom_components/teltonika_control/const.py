@@ -23,6 +23,10 @@ PROBE_TIMEOUT = 6
 # still proves that the host answered through the tunnel.
 DEFAULT_VPN_PORT = 443
 VPN_TIMEOUT = 4
+# Seconds to wait between switching a WireGuard tunnel off and on, and for the
+# router to bring the interface up before the state is read again.
+VPN_RECONNECT_DELAY = 3
+VPN_REFRESH_DELAY = 4
 
 # RutOS wants metrics as strings. The mobile interface usually uses 4, so 0
 # makes Wi-Fi win and 10 keeps mobile data in front.

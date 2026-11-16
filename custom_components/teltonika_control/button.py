@@ -9,7 +9,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
-from .entity import TeltonikaEntity, TeltonikaModemEntity, async_add_discovered
+from .entity import (
+    TeltonikaEntity,
+    TeltonikaModemEntity,
+    TeltonikaTunnelEntity,
+    async_add_discovered,
+)
 
 PARALLEL_UPDATES = 1
 
@@ -38,12 +43,37 @@ async def async_setup_entry(
         async_add_entities,
         lambda c: (
             (
+                f"vpn_{tunnel.tunnel_id}_reconnect",
+                lambda t=tunnel.tunnel_id: TeltonikaReconnectVpnButton(c, t),
+            )
+            for tunnel in c.data.vpn_tunnels
+            if tunnel.enabled is not None
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
                 f"{modem_id}_restart_mobile",
                 lambda m=modem_id: TeltonikaRestartMobileButton(c, m),
             )
             for modem_id in c.modem_ids()
         ),
     )
+
+
+class TeltonikaReconnectVpnButton(TeltonikaTunnelEntity, ButtonEntity):
+    """Restarts a WireGuard tunnel by switching it off and on."""
+
+    _attr_translation_key = "reconnect_vpn"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, tunnel_id: str) -> None:
+        super().__init__(coordinator, tunnel_id, "reconnect")
+
+    async def async_press(self) -> None:
+        """Restart the tunnel."""
+        await self.coordinator.async_reconnect_vpn(self._tunnel_id)
 
 
 class TeltonikaRebootButton(TeltonikaEntity, ButtonEntity):

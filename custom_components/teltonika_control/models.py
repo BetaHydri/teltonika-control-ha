@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from .const import (
@@ -633,6 +633,90 @@ def derive_gps(raw: dict[str, Any] | None) -> GpsPosition | None:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class SystemUsage:
+    """Uptime, load and memory of the router."""
+
+    uptime: int | None
+    cpu_load: float | None
+    ram_usage: float | None
+    flash_usage: float | None
+    router_time: datetime | None
+
+
+def derive_system_usage(raw: Any) -> SystemUsage | None:
+    """Read ``/system/device/usage/status``; None if the router has none."""
+    if not isinstance(raw, dict) or not raw:
+        return None
+    memory = raw.get("memory") if isinstance(raw.get("memory"), dict) else {}
+    load = to_float(raw.get("loadavg"))
+    stamp = to_float(raw.get("localtime"))
+    return SystemUsage(
+        uptime=to_int(raw.get("uptime_seconds")),
+        cpu_load=round(load * 100, 1) if load is not None else None,
+        ram_usage=to_float(memory.get("ram_percentage")),
+        flash_usage=to_float(memory.get("flash_percentage")),
+        router_time=datetime.fromtimestamp(stamp, UTC) if stamp else None,
+    )
+
+
+VPN_PROTOCOLS = ("wireguard",)
+
+
+@dataclass(frozen=True, slots=True)
+class VpnTunnel:
+    """One VPN tunnel interface of the router."""
+
+    tunnel_id: str
+    protocol: str
+    up: bool | None
+    rx_bytes: int | None
+    tx_bytes: int | None
+    uptime: int | None
+    # None when the router gave no configuration (missing rights): the
+    # tunnel can be watched but not switched.
+    enabled: bool | None
+
+
+def derive_vpn_tunnels(
+    interfaces: Iterable[dict[str, Any]], wireguard_config: Iterable[dict[str, Any]]
+) -> list[VpnTunnel]:
+    """Combine the interface state and the configuration of WireGuard tunnels."""
+    configs = {
+        str(item["id"]): item for item in wireguard_config if item.get("id")
+    }
+    tunnels: dict[str, VpnTunnel] = {}
+    for interface in interfaces:
+        protocol = str(interface.get("proto") or "").lower()
+        tunnel_id = str(interface.get("id") or "")
+        if protocol not in VPN_PROTOCOLS or not tunnel_id:
+            continue
+        config = configs.get(tunnel_id)
+        up = interface.get("up", interface.get("is_up"))
+        tunnels[tunnel_id] = VpnTunnel(
+            tunnel_id=tunnel_id,
+            protocol=protocol,
+            up=up if isinstance(up, bool) else None,
+            rx_bytes=to_int(interface.get("rx_bytes")),
+            tx_bytes=to_int(interface.get("tx_bytes")),
+            uptime=to_int(interface.get("uptime")),
+            enabled=_flag(config.get("enabled"), True) if config else None,
+        )
+    for tunnel_id, config in configs.items():
+        if tunnel_id not in tunnels:
+            # A disabled instance has no interface.
+            tunnels[tunnel_id] = VpnTunnel(
+                tunnel_id=tunnel_id,
+                protocol="wireguard",
+                up=False,
+                rx_bytes=None,
+                tx_bytes=None,
+                uptime=None,
+                enabled=_flag(config.get("enabled"), True),
+            )
+    return sorted(tunnels.values(), key=lambda tunnel: tunnel.tunnel_id)
+
+
 @dataclass(slots=True)
 class TeltonikaData:
     """One snapshot of the router state."""
@@ -657,6 +741,9 @@ class TeltonikaData:
     portal_waiting: bool = False
     vpn_reachable: bool | None = None
     vpn_latency: float | None = None
+    system_usage: SystemUsage | None = None
+    dhcp_leases: list[dict[str, Any]] | None = None
+    vpn_tunnels: list[VpnTunnel] = field(default_factory=list)
 
     @classmethod
     def build(
@@ -671,11 +758,15 @@ class TeltonikaData:
         gps: dict[str, Any] | None = None,
         multi_ap: list[dict[str, Any]] | None = None,
         router_time: datetime | None = None,
+        usage: dict[str, Any] | None = None,
+        dhcp_leases: list[dict[str, Any]] | None = None,
+        wireguard_config: list[dict[str, Any]] | None = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
         uplink = derive_uplink(interfaces, networks)
         multi_ap = multi_ap or []
+        system_usage = derive_system_usage(usage)
         return cls(
             interfaces=interfaces,
             interface_config=interface_config,
@@ -701,7 +792,12 @@ class TeltonikaData:
             saved_networks=derive_saved_networks(
                 wireless_config, multi_ap, wireless_devices
             ),
-            router_time=router_time,
+            router_time=system_usage.router_time
+            if system_usage and system_usage.router_time
+            else router_time,
+            system_usage=system_usage,
+            dhcp_leases=dhcp_leases,
+            vpn_tunnels=derive_vpn_tunnels(interfaces, wireguard_config or []),
         )
 
     @property
