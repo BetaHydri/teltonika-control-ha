@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from functools import partial
+
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -21,6 +23,15 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     async_add_entities(
         [TeltonikaRebootButton(coordinator), TeltonikaReconnectWifiButton(coordinator)]
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (key, partial(button_class, c))
+            for key, button_class in WIFI_MANAGEMENT_BUTTONS
+            if c.data.wireless_devices
+        ),
     )
     async_add_discovered(
         entry,
@@ -73,3 +84,49 @@ class TeltonikaRestartMobileButton(TeltonikaModemEntity, ButtonEntity):
     async def async_press(self) -> None:
         """Restart the mobile connection."""
         await self.coordinator.async_restart_mobile(self._modem_id)
+
+
+class TeltonikaScanWifiButton(TeltonikaEntity, ButtonEntity):
+    """Scans for Wi-Fi networks and fills the list of found networks."""
+
+    _attr_translation_key = "scan_wifi"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "scan_wifi")
+
+    async def async_press(self) -> None:
+        """Scan with all radios."""
+        await self.coordinator.async_scan_networks()
+
+
+class TeltonikaAddNetworkButton(TeltonikaEntity, ButtonEntity):
+    """Saves the selected found network with the entered password."""
+
+    _attr_translation_key = "add_network"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "add_network")
+
+    async def async_press(self) -> None:
+        """Save the selected network."""
+        await self.coordinator.async_add_selected_network()
+
+
+class TeltonikaRemoveNetworkButton(TeltonikaEntity, ButtonEntity):
+    """Removes the selected saved network."""
+
+    _attr_translation_key = "remove_network"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "remove_network")
+
+    async def async_press(self) -> None:
+        """Remove the selected network."""
+        await self.coordinator.async_remove_selected_network()
+
+
+WIFI_MANAGEMENT_BUTTONS = (
+    ("scan_wifi", TeltonikaScanWifiButton),
+    ("add_network", TeltonikaAddNetworkButton),
+    ("remove_network", TeltonikaRemoveNetworkButton),
+)

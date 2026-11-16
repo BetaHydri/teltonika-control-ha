@@ -29,6 +29,15 @@ async def async_setup_entry(
         entry,
         async_add_entities,
         lambda c: (
+            (key, partial(select_class, c))
+            for key, select_class in WIFI_MANAGEMENT_SELECTS
+            if c.data.wireless_devices
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
             (f"{m.get('id')}_sim", partial(TeltonikaSimSelect, c, str(m.get("id"))))
             for m in c.data.modems
             if m.get("id") and int(m.get("sim_count") or 0) == 2
@@ -86,3 +95,59 @@ class TeltonikaSimSelect(TeltonikaModemEntity, SelectEntity):
         await self.coordinator.async_switch_sim(
             self._modem_id, SIM_OPTIONS.index(option) + 1
         )
+
+
+class TeltonikaFoundNetworksSelect(TeltonikaEntity, SelectEntity):
+    """The networks found by the last scan that are not saved yet."""
+
+    _attr_translation_key = "found_networks"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "found_networks")
+
+    @property
+    def options(self) -> list[str]:
+        """Return the networks of the last scan."""
+        return [network.label for network in self.coordinator.scan_results]
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the network that Add network would save."""
+        selected = self.coordinator.selected_scan
+        return selected if selected in self.options else None
+
+    async def async_select_option(self, option: str) -> None:
+        """Remember the selection."""
+        self.coordinator.selected_scan = option
+        self.coordinator.async_update_listeners()
+
+
+class TeltonikaSavedNetworksSelect(TeltonikaEntity, SelectEntity):
+    """The Wi-Fi networks saved on the router."""
+
+    _attr_translation_key = "saved_networks"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "saved_networks")
+
+    @property
+    def options(self) -> list[str]:
+        """Return the saved client networks and Multi AP list entries."""
+        return [network.label for network in self.coordinator.data.saved_networks]
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the network that Remove network would delete."""
+        selected = self.coordinator.selected_saved
+        return selected if selected in self.options else None
+
+    async def async_select_option(self, option: str) -> None:
+        """Remember the selection."""
+        self.coordinator.selected_saved = option
+        self.coordinator.async_update_listeners()
+
+
+WIFI_MANAGEMENT_SELECTS = (
+    ("found_networks", TeltonikaFoundNetworksSelect),
+    ("saved_networks", TeltonikaSavedNetworksSelect),
+)

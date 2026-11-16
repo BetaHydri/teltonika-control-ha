@@ -14,8 +14,9 @@ The file is [dashboards/teltonika-control.yaml](../dashboards/teltonika-control.
 
 - Teltonika Control installed and set up, see the
   [getting started guide](getting-started.md).
-- A version of the integration that accepts a service target (release 0.2.0
-  or newer). The buttons call services with
+- A version of the integration that accepts a service target and has the
+  Wi-Fi management entities (release 0.3.0 or newer). The buttons call
+  services with
   an entity of your router as target, so no device ID is needed.
 - Home Assistant 2024.8 or newer for the `perform-action` button setting.
 
@@ -86,10 +87,19 @@ differ. These are the entities the dashboard uses:
 | Mobile data connected | `binary_sensor.my_modem_mobile_data_connected` |
 | Restart mobile connection | `button.my_modem_restart_mobile_connection` |
 | SIM slot | `select.my_modem_sim_slot` |
+| Scan for Wi-Fi networks | `button.my_router_scan_for_wi_fi_networks` |
+| Found networks | `select.my_router_found_networks` |
+| Wi-Fi password | `text.my_router_wi_fi_password` |
+| Add selected network | `button.my_router_add_selected_network` |
+| Last Wi-Fi action | `sensor.my_router_last_wi_fi_action` |
+| Saved networks | `select.my_router_saved_networks` |
+| Remove selected network | `button.my_router_remove_selected_network` |
+| Position | `device_tracker.my_router_position` |
+| GPS speed, altitude, satellites, accuracy | `sensor.my_router_gps_speed`, `_gps_altitude`, `_gps_satellites`, `_gps_accuracy` |
 
-A router without a second SIM has no **SIM slot** select, and a router
-without Wi-Fi has no Wi-Fi entities. Delete the cards for entities you do
-not have.
+A router without a second SIM has no **SIM slot** select, a router without
+Wi-Fi has no Wi-Fi entities and a router without GPS has no GPS entities.
+Delete the cards for entities you do not have.
 
 ## Step 3: Create the dashboard
 
@@ -119,15 +129,23 @@ list. Fix that entity and save again.
 - **Mobile data**: operator, network type, signal values, the active SIM with
   SIM 1 and SIM 2 buttons, modem temperature and the data counters.
 - **Router's own Wi-Fi**: switches for the access points of the router.
+- **Add a Wi-Fi network**: press **Scan**, pick a network from the list,
+  type the password and press **Add**. The list hides networks that are
+  already saved in the same band and shows each network once per band with its
+  best signal. The result line tells you what happened. Mobile data stays
+  preferred, so a new network never breaks your connection by itself.
+- **Saved Wi-Fi networks**: choose a saved network (a Wi-Fi client or an entry
+  of the Multi AP list) and remove it. The last Multi AP entry cannot be
+  removed.
+- **GPS**: a map with the router's position plus speed, altitude, satellites
+  and accuracy, on routers with GPS.
 
 Every action that interrupts the connection asks for confirmation first.
 
 ## What is not included
 
-Scanning, adding and removing Wi-Fi networks, GPS and a monthly data limit
-are not part of this dashboard. Scanning and managing networks are available
-as actions, see the
-[getting started guide](getting-started.md#step-9-everyday-tasks).
+A monthly data limit is not part of this dashboard. Use a `utility_meter`
+helper on the data counters of the modem if you need one.
 
 ## See also
 

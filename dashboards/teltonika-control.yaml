@@ -423,3 +423,80 @@ views:
                     text: >-
                       Switch the router's own 5 GHz Wi-Fi? Devices connected
                       through it are disconnected when it goes off.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Add a Wi-Fi network
+            heading_style: title
+            icon: mdi:wifi-plus
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: button.my_router_scan_for_wi_fi_networks
+                name: Scan for Wi-Fi networks
+              - entity: select.my_router_found_networks
+                name: Found networks
+              - entity: text.my_router_wi_fi_password
+                name: Password
+              - entity: button.my_router_add_selected_network
+                name: Add selected network
+              - entity: sensor.my_router_last_wi_fi_action
+                name: Result
+          - type: markdown
+            content: >-
+              1. Press **Scan**, 2. choose a network, 3. type the password
+              (empty for open networks), 4. press **Add**. Mobile data stays
+              preferred until you switch to Wi-Fi first.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Saved Wi-Fi networks
+            heading_style: title
+            icon: mdi:wifi-cog
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: select.my_router_saved_networks
+                name: Saved network
+              - entity: button.my_router_remove_selected_network
+                name: Remove selected network
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.my_router_remove_selected_network
+                  confirmation:
+                    text: >-
+                      Remove the selected network? The password is lost.
+      - type: grid
+        cards:
+          - type: heading
+            heading: GPS
+            heading_style: title
+            icon: mdi:crosshairs-gps
+          - type: map
+            default_zoom: 16
+            aspect_ratio: "16:9"
+            entities:
+              - entity: device_tracker.my_router_position
+          - type: tile
+            entity: device_tracker.my_router_position
+            name: Position
+            icon: mdi:crosshairs-gps
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: sensor.my_router_gps_speed
+                name: Speed
+              - type: tile
+                entity: sensor.my_router_gps_altitude
+                name: Altitude
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: sensor.my_router_gps_satellites
+                name: Satellites
+                icon: mdi:satellite-variant
+              - type: tile
+                entity: sensor.my_router_gps_accuracy
+                name: Accuracy

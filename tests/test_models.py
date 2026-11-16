@@ -8,10 +8,14 @@ from custom_components.teltonika_control.models import (
     AccessPoint,
     GpsPosition,
     RouterInfo,
+    SavedNetwork,
     TeltonikaData,
+    build_scan_networks,
     derive_gps,
     derive_portal_state,
+    derive_saved_networks,
     derive_uplink,
+    derive_wifi_client,
     derive_wifi_first,
     is_protected_interface,
     modem_temperature,
@@ -27,6 +31,7 @@ from .payloads import (
     INTERFACES_CONFIG,
     INTERFACES_STATUS,
     WIRELESS_CONFIG,
+    WIRELESS_DEVICES,
     payloads,
 )
 
@@ -287,3 +292,90 @@ def test_gps_available_even_without_a_fix() -> None:
         wireless_devices=[],
         modems=[],
     ).gps_available
+
+
+MIXED_CONFIG = [
+    {
+        "id": "6",
+        "mode": "sta",
+        "ssid": "ArtSpot",
+        "network": "wifi4",
+        "device": ["radio0"],
+    },
+    {"id": "m1", "mode": "multi_ap", "ssid": "", "network": "wifi5", "device": ["radio1"]},
+]
+MIXED_STATUS = [
+    {
+        "id": "6",
+        "mode": "sta",
+        "ssid": "ArtSpot",
+        "wpa_state": "COMPLETED",
+        "signal": -66,
+        "bitrate": 117000000,
+        "freq": 2437,
+    },
+    {
+        "id": "m1",
+        "mode": "multi_ap",
+        "ssid": "ArtSpot",
+        "wpa_state": "COMPLETED",
+        "signal": -78,
+        "bitrate": 6000000,
+        "freq": 5180,
+    },
+]
+
+
+@pytest.mark.parametrize(
+    ("uplink", "band", "signal"),
+    [
+        ("wifi4", "2.4 GHz", -66),
+        ("wifi5", "5 GHz", -78),
+        (None, "2.4 GHz", -66),
+        ("unrelated", "2.4 GHz", -66),
+    ],
+)
+def test_wifi_client_is_the_connection_that_carries_the_uplink(
+    uplink, band, signal
+) -> None:
+    client = derive_wifi_client(MIXED_STATUS, MIXED_CONFIG, WIRELESS_DEVICES, uplink)
+
+    assert client is not None
+    assert (client.band, client.signal) == (band, signal)
+    assert client.ssid == "ArtSpot"
+
+
+def test_saved_networks_list_clients_and_multi_ap_entries() -> None:
+    saved = derive_saved_networks(
+        [*WIRELESS_CONFIG, MIXED_CONFIG[1]],
+        [{"id": "cfg1", "ssid": "Home"}, {"id": "cfg2", "ssid": ""}],
+        WIRELESS_DEVICES,
+    )
+
+    assert [(s.label, s.kind, s.config_id, s.band) for s in saved] == [
+        ("CampWifi (2.4 GHz)", "client", "6", "2.4 GHz"),
+        ("Home (5 GHz, Multi AP)", "multi_ap", None, "5 GHz"),
+    ]
+
+
+def test_scan_networks_are_unique_per_band_sorted_and_hide_saved_ones() -> None:
+    results = [
+        {"ssid": "Camp", "bssid": "a", "signal": -70, "band": "5 GHz", "encrypted": True, "radio": "radio1"},
+        {"ssid": "Camp", "bssid": "b", "signal": -55, "band": "5 GHz", "encrypted": True, "radio": "radio1"},
+        {"ssid": "Camp", "bssid": "c", "signal": -60, "band": "2.4 GHz", "encrypted": True, "radio": "radio0"},
+        {"ssid": "Free", "bssid": "d", "signal": -80, "band": "2.4 GHz", "encrypted": False, "radio": "radio0"},
+        {"ssid": "", "bssid": "e", "signal": -40, "band": "2.4 GHz", "encrypted": False, "radio": "radio0"},
+        {"ssid": "Known", "bssid": "f", "signal": -30, "band": "2.4 GHz", "encrypted": True, "radio": "radio0"},
+    ]
+    saved = [SavedNetwork("Known (2.4 GHz)", "Known", "client", "6", "2.4 GHz")]
+
+    networks, seen, hidden = build_scan_networks(results, saved)
+
+    assert [n.label for n in networks] == [
+        "Camp [5 GHz · secured · -55 dBm]",
+        "Camp [2.4 GHz · secured · -60 dBm]",
+        "Free [2.4 GHz · open · -80 dBm]",
+    ]
+    assert (seen, hidden) == (4, 1)
+    assert networks[0].bssid == "b"
+    assert networks[2].encrypted is False

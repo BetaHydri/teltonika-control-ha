@@ -13,6 +13,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMockResponse,
+)
 
 from custom_components.teltonika_control.const import DOMAIN, EVENT_PORTAL_RESULT
 
@@ -634,3 +637,164 @@ async def test_service_without_any_target_is_rejected(
             {"entity_id": "sensor.not_a_router_entity", "wifi_first": True},
             blocking=True,
         )
+
+
+CAMP_5GHZ = {
+    "ssid": "Camp5",
+    "bssid": "aa:bb:cc:dd:ee:01",
+    "signal": -60,
+    "channel": 36,
+    "encryption": {"enabled": True},
+    "encryption_description": "WPA2",
+}
+ALREADY_SAVED_24GHZ = {
+    "ssid": "CampWifi",
+    "bssid": "aa:bb:cc:dd:ee:02",
+    "signal": -50,
+    "channel": 6,
+    "encryption": {"enabled": True},
+}
+
+
+def mock_scan(aioclient_mock: Any, results: dict[str, list[dict[str, Any]]]) -> None:
+    """Answer a scan with the networks of the radio named in the request."""
+
+    async def respond(method: str, url: Any, data: Any) -> AiohttpClientMockResponse:
+        radio = ((data or {}).get("data") or {}).get("device")
+        return AiohttpClientMockResponse(
+            method, url, json={"success": True, "data": results.get(radio, [])}
+        )
+
+    aioclient_mock.post(f"{BASE}/wireless/actions/scan", side_effect=respond)
+
+
+async def press(hass: HomeAssistant, entity: str) -> None:
+    await hass.services.async_call("button", "press", {"entity_id": entity}, blocking=True)
+
+
+async def test_wifi_entities_scan_and_add_a_network(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    mock_scan(aioclient_mock, {"radio0": [ALREADY_SAVED_24GHZ], "radio1": [CAMP_5GHZ]})
+    aioclient_mock.post(
+        f"{BASE}/wireless/actions/join", json={"success": True, "data": {}}
+    )
+    await setup_entry(hass, entry)
+    found = entity_id(hass, "select", "found_networks")
+    password = entity_id(hass, "text", "wifi_password")
+    action = entity_id(hass, "sensor", "last_action")
+
+    await press(hass, entity_id(hass, "button", "scan_wifi"))
+
+    label = "Camp5 [5 GHz · secured · -60 dBm]"
+    assert hass.states.get(found).attributes["options"] == [label]
+    assert hass.states.get(found).state == label
+    # The saved network of the same band is hidden.
+    assert hass.states.get(action).state == "1 new networks (2 seen, 1 already saved)"
+
+    await hass.services.async_call(
+        "text", "set_value", {"entity_id": password, "value": "pw12345678"}, blocking=True
+    )
+    assert hass.states.get(password).state == "********"
+
+    await press(hass, entity_id(hass, "button", "add_network"))
+
+    assert requests(aioclient_mock, "POST", "/wireless/actions/join")[0][2] == {
+        "data": {"device": "radio1", "ssid": "Camp5", "password": "pw12345678"}
+    }
+    assert hass.states.get(password).state == ""
+    assert hass.states.get(found).attributes["options"] == []
+    assert hass.states.get(action).state == "Saved Camp5"
+
+
+async def test_adding_needs_a_selection_and_a_password(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    mock_scan(aioclient_mock, {"radio1": [CAMP_5GHZ]})
+    await setup_entry(hass, entry)
+    add = entity_id(hass, "button", "add_network")
+
+    with pytest.raises(HomeAssistantError, match="Scan for networks"):
+        await press(hass, add)
+
+    await press(hass, entity_id(hass, "button", "scan_wifi"))
+    with pytest.raises(HomeAssistantError, match="at least 8"):
+        await press(hass, add)
+
+    assert not requests(aioclient_mock, "POST", "/wireless/actions/join")
+
+
+async def test_saved_networks_select_and_remove_button(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    saved = entity_id(hass, "select", "saved_networks")
+    remove = entity_id(hass, "button", "remove_network")
+    assert hass.states.get(saved).attributes["options"] == ["CampWifi (2.4 GHz)"]
+
+    with pytest.raises(HomeAssistantError, match="Select a saved network"):
+        await press(hass, remove)
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": saved, "option": "CampWifi (2.4 GHz)"},
+        blocking=True,
+    )
+    await press(hass, remove)
+
+    assert len(requests(aioclient_mock, "DELETE", "/wireless/interfaces/config/6")) == 1
+    assert hass.states.get(entity_id(hass, "sensor", "last_action")).state == (
+        "Removed CampWifi"
+    )
+
+
+async def test_saved_networks_include_multi_ap_entries(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_multi_ap_router(
+        aioclient_mock,
+        [{"id": "cfg1", "ssid": "Home"}, {"id": "cfg2", "ssid": "Camp5"}],
+    )
+    await setup_entry(hass, entry)
+    saved = entity_id(hass, "select", "saved_networks")
+    assert hass.states.get(saved).attributes["options"] == [
+        "CampWifi (2.4 GHz)",
+        "Home (5 GHz, Multi AP)",
+        "Camp5 (5 GHz, Multi AP)",
+    ]
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": saved, "option": "Camp5 (5 GHz, Multi AP)"},
+        blocking=True,
+    )
+    await press(hass, entity_id(hass, "button", "remove_network"))
+
+    assert len(requests(aioclient_mock, "DELETE", "/wireless/multi_ap/config/cfg2")) == 1
+    assert not requests(aioclient_mock, "DELETE", "/wireless/multi_ap/config/cfg1")
+
+
+async def test_router_time_sensor_needs_a_date_header(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock, date="Mon, 16 Nov 2026 12:00:00 GMT")
+    await setup_entry(hass, entry)
+
+    registry = er.async_get(hass)
+    entity = registry.async_get(entity_id(hass, "sensor", "router_time"))
+    assert entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+
+
+async def test_no_router_time_sensor_without_a_date_header(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    registry = er.async_get(hass)
+    assert registry.async_get_entity_id("sensor", DOMAIN, f"{SERIAL}_router_time") is None

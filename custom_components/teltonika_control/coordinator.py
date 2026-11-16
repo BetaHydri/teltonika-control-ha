@@ -42,9 +42,12 @@ from .const import (
     UPLINK_WIFI,
 )
 from .models import (
+    SAVED_MULTI_AP,
     RouterInfo,
+    ScanNetwork,
     TeltonikaData,
     WifiStation,
+    build_scan_networks,
     is_modem_online,
     is_protected_interface,
     next_multi_ap_priority,
@@ -99,6 +102,12 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self.router = router
         self.portal_waiting = False
         self._probe_url: str = entry.options.get(CONF_PROBE_URL, DEFAULT_PROBE_URL)
+        # State of the Wi-Fi management entities; the password is never stored.
+        self.scan_results: list[ScanNetwork] = []
+        self.selected_scan: str | None = None
+        self.selected_saved: str | None = None
+        self.wifi_password = ""
+        self.last_action: str | None = None
 
     @property
     def router_device_info(self) -> DeviceInfo:
@@ -147,6 +156,17 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 parts.append(result)
         wireless_config, wireless_status, wireless_devices, modems, gps = parts
 
+        multi_ap: list[dict[str, Any]] = []
+        if any(item.get("mode") == "multi_ap" for item in wireless_config):
+            try:
+                multi_ap = await client.async_multi_ap_config()
+            except TeltonikaAuthError as err:
+                raise ConfigEntryAuthFailed(str(err)) from err
+            except TeltonikaConnectionError as err:
+                raise UpdateFailed(str(err)) from err
+            except TeltonikaApiError:
+                multi_ap = []
+
         data = TeltonikaData.build(
             interfaces=interfaces,
             interface_config=interface_config,
@@ -155,6 +175,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             wireless_devices=wireless_devices,
             modems=modems,
             gps=gps if isinstance(gps, dict) else None,
+            multi_ap=multi_ap,
+            router_time=client.server_time,
         )
         data.portal_waiting = self.portal_waiting
         if self._probe_url and data.uplink is not None:
@@ -394,6 +416,63 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 except TeltonikaApiError as err:
                     _LOGGER.debug("Interface %s not removed: %s", interface_id, err)
         await self.async_request_refresh()
+
+    def _report(self, text: str) -> None:
+        """Remember the result of the last Wi-Fi action for the sensor."""
+        self.last_action = text
+        self.async_update_listeners()
+
+    async def async_scan_networks(self) -> None:
+        """Scan with all radios and fill the list of networks that can be added."""
+        try:
+            found = await self.async_scan_wifi(None)
+        except HomeAssistantError as err:
+            self._report(f"Scan failed: {err}")
+            raise
+        networks, seen, hidden = build_scan_networks(found, self.data.saved_networks)
+        self.scan_results = networks
+        self.selected_scan = networks[0].label if networks else None
+        self._report(f"{len(networks)} new networks ({seen} seen, {hidden} already saved)")
+
+    async def async_add_selected_network(self) -> None:
+        """Save the selected scan result with the entered password."""
+        network = next((n for n in self.scan_results if n.label == self.selected_scan), None)
+        if network is None:
+            raise HomeAssistantError("Scan for networks and select one first")
+        password = self.wifi_password or None
+        if network.encrypted and (password is None or len(password) < 8):
+            raise HomeAssistantError("Enter the Wi-Fi password (at least 8 characters) first")
+        try:
+            await self.async_join_wifi(
+                radio=network.radio,
+                ssid=network.ssid,
+                password=password if network.encrypted else None,
+            )
+        except HomeAssistantError as err:
+            self._report(f"{network.ssid} not saved: {err}")
+            raise
+        self.wifi_password = ""
+        self.scan_results = [n for n in self.scan_results if n.label != network.label]
+        self.selected_scan = self.scan_results[0].label if self.scan_results else None
+        self._report(f"Saved {network.ssid}")
+
+    async def async_remove_selected_network(self) -> None:
+        """Remove the selected saved network."""
+        saved = next(
+            (s for s in self.data.saved_networks if s.label == self.selected_saved), None
+        )
+        if saved is None:
+            raise HomeAssistantError("Select a saved network first")
+        try:
+            if saved.kind == SAVED_MULTI_AP:
+                await self.async_forget_wifi(ssid=saved.ssid)
+            else:
+                await self.async_forget_wifi(config_id=saved.config_id)
+        except HomeAssistantError as err:
+            self._report(f"{saved.ssid} not removed: {err}")
+            raise
+        self.selected_saved = None
+        self._report(f"Removed {saved.ssid}")
 
     async def async_start_portal_mode(self, minutes: int) -> None:
         """Prefer Wi-Fi and wait until the hotspot login page is confirmed."""

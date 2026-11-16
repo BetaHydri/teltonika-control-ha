@@ -103,7 +103,9 @@
       "gps_satellites": { "name": "GPS-Satelliten" },
       "gps_accuracy": { "name": "GPS-Genauigkeit" },
       "gps_heading": { "name": "GPS-Kurs" },
-      "gps_fix": { "name": "GPS-Fix-Status" }
+      "gps_fix": { "name": "GPS-Fix-Status" },
+      "last_action": { "name": "Letzte WLAN-Aktion" },
+      "router_time": { "name": "Routerzeit" }
     },
     "device_tracker": {
       "gps": { "name": "Position" }
@@ -117,7 +119,10 @@
     "button": {
       "reboot": { "name": "Router neu starten" },
       "reconnect_wifi": { "name": "WLAN neu verbinden" },
-      "restart_mobile": { "name": "Mobilfunk neu verbinden" }
+      "restart_mobile": { "name": "Mobilfunk neu verbinden" },
+      "scan_wifi": { "name": "WLANs suchen" },
+      "add_network": { "name": "Ausgewähltes WLAN hinzufügen" },
+      "remove_network": { "name": "Ausgewähltes WLAN entfernen" }
     },
     "select": {
       "priority": {
@@ -133,7 +138,12 @@
           "sim_1": "SIM 1",
           "sim_2": "SIM 2"
         }
-      }
+      },
+      "found_networks": { "name": "Gefundene WLANs" },
+      "saved_networks": { "name": "Gespeicherte WLANs" }
+    },
+    "text": {
+      "wifi_password": { "name": "WLAN-Passwort" }
     },
     "switch": {
       "access_point": { "name": "Access Point {name}" }

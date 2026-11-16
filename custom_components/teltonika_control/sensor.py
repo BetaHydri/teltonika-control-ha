@@ -63,6 +63,15 @@ def _rounded(value: float | None, digits: int = 0) -> float | None:
     return None if value is None else round(value, digits)
 
 
+ROUTER_TIME_SENSOR = RouterSensorDescription(
+    key="router_time",
+    translation_key="router_time",
+    device_class=SensorDeviceClass.TIMESTAMP,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    entity_registry_enabled_default=False,
+    value_fn=lambda d: d.router_time,
+)
+
 GPS_SENSORS: tuple[RouterSensorDescription, ...] = (
     RouterSensorDescription(
         key="gps_speed",
@@ -310,6 +319,27 @@ async def async_setup_entry(
         async_add_entities,
         lambda c: (
             (
+                ROUTER_TIME_SENSOR.key,
+                lambda: TeltonikaRouterSensor(c, ROUTER_TIME_SENSOR),
+            ),
+        )
+        if c.data.router_time is not None
+        else (),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (("last_action", lambda: TeltonikaLastActionSensor(c)),)
+            if c.data.wireless_devices
+            else ()
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
                 f"{modem_id}_{description.key}",
                 lambda m=modem_id, desc=description: TeltonikaModemSensor(c, m, desc),
             )
@@ -317,6 +347,21 @@ async def async_setup_entry(
             for description in MODEM_SENSORS
         ),
     )
+
+
+class TeltonikaLastActionSensor(TeltonikaEntity, SensorEntity):
+    """The result of the last Wi-Fi scan, add or remove."""
+
+    _attr_translation_key = "last_action"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "last_action")
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the message, cut to the length Home Assistant allows."""
+        message = self.coordinator.last_action
+        return message[:255] if message else None
 
 
 class TeltonikaRouterSensor(TeltonikaEntity, SensorEntity):

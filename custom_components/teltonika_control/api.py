@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -74,6 +76,17 @@ def _first_error(body: dict[str, Any]) -> tuple[str | None, int | None]:
     return None, None
 
 
+def _http_date(value: str | None) -> datetime | None:
+    """Parse the Date header of an answer, None if missing or invalid."""
+    if not value:
+        return None
+    try:
+        parsed = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
 class TeltonikaClient:
     """Token based client for one router."""
 
@@ -95,11 +108,17 @@ class TeltonikaClient:
         self._token: str | None = None
         self._token_expires_at = 0.0
         self._login_lock = asyncio.Lock()
+        self._server_time: datetime | None = None
 
     @property
     def host(self) -> str:
         """Return host[:port] of the router."""
         return self._host
+
+    @property
+    def server_time(self) -> datetime | None:
+        """Return the router clock from the Date header of the last answer."""
+        return self._server_time
 
     async def async_login(self) -> None:
         """Log in and remember the session token."""
@@ -165,6 +184,9 @@ class TeltonikaClient:
             ) as response:
                 status = response.status
                 body = await _read_body(response)
+                self._server_time = _http_date(response.headers.get("Date")) or (
+                    self._server_time
+                )
         except (aiohttp.ClientError, TimeoutError) as err:
             raise TeltonikaConnectionError(
                 f"Cannot reach {self._host}: {err}"

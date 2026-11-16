@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -114,6 +115,30 @@ async def test_api_error_carries_router_message(
         await make_client(hass).async_reboot()
     assert err.value.status == 422
     assert err.value.code == 7
+
+
+async def test_client_remembers_the_router_clock(
+    hass: HomeAssistant, aioclient_mock: Any
+) -> None:
+    aioclient_mock.post(f"{BASE}/login", json=LOGIN_OK)
+    aioclient_mock.get(
+        f"{BASE}/system/device/status",
+        json={"success": True, "data": {}},
+        headers={"Date": "Mon, 16 Nov 2026 12:00:00 GMT"},
+    )
+    client = make_client(hass)
+    assert client.server_time is None
+
+    await client.async_device_status()
+
+    assert client.server_time == datetime(2026, 11, 16, 12, 0, tzinfo=UTC)
+
+
+@pytest.mark.parametrize("value", [None, "", "yesterday"])
+def test_http_date_ignores_missing_and_invalid_values(value: str | None) -> None:
+    from custom_components.teltonika_control.api import _http_date
+
+    assert _http_date(value) is None
 
 
 async def test_actions_use_documented_paths_and_bodies(

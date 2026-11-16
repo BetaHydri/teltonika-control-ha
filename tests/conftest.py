@@ -61,6 +61,7 @@ def mock_router(
     wifi_metric: int | None = None,
     internet: bool = True,
     gps: dict[str, Any] | bool = True,
+    date: str | None = None,
 ) -> None:
     """Register answers for every endpoint the integration polls.
 
@@ -68,6 +69,7 @@ def mock_router(
     False for a router without GPS (the endpoint is missing).
     """
     data = payloads(wifi_metric=wifi_metric)
+    headers = {"Date": date} if date else None
     aioclient_mock.post(
         f"{BASE}/login",
         json={"success": True, "data": {"token": "tok", "expires": 299}},
@@ -92,7 +94,11 @@ def mock_router(
         ("/wireless/devices/status", data["wireless_devices"]),
         ("/modems/status", data["modems"]),
     ):
-        aioclient_mock.get(f"{BASE}{path}", json={"success": True, "data": body})
+        aioclient_mock.get(
+            f"{BASE}{path}",
+            json={"success": True, "data": body},
+            headers=headers,
+        )
     aioclient_mock.get(PROBE_URL, status=204 if internet else 200)
     for method in (aioclient_mock.post, aioclient_mock.put, aioclient_mock.delete):
         method(f"{BASE}/system/actions/reboot", json={"success": True})

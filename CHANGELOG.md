@@ -8,6 +8,28 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
+### Added
+
+- Native Wi-Fi management entities: buttons **Scan for Wi-Fi networks**,
+  **Add selected network** and **Remove selected network**, selects **Found
+  networks** and **Saved networks**, a **Wi-Fi password** text entity (shows a
+  mask only) and a **Last Wi-Fi action** sensor. Saved networks include the
+  Multi AP list.
+- **Router time** diagnostic sensor from the `Date` header of the router's
+  answers (disabled by default, only when the header is present).
+- Ready-made dashboard: sections for adding and removing Wi-Fi networks and
+  for GPS. Guides updated.
+- `tools/live_smoke_test.py` prints the field names of the device status, the
+  GPS answer and the router clock.
+
+### Fixed
+
+- The Wi-Fi sensors (network, signal, band, speed) now describe the connection
+  that carries the uplink. Before, the first connected entry was shown, which
+  was wrong when the router was connected to the same network twice.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

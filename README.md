@@ -24,9 +24,10 @@ web page.
   Wi-Fi shows a login page. One service prefers the Wi-Fi, waits until you
   confirmed the page, and falls back to mobile data if nothing happens.
   A result event drives your notifications.
-- **Wi-Fi network management**: scan for networks, save and remove them from
-  Home Assistant. Routers whose 5 GHz radio runs as Multi AP, such as the
-  RUTC50, are handled correctly.
+- **Wi-Fi network management**: scan for networks, pick one, enter the
+  password and add it, or remove a saved one, all with entities you can put on
+  a dashboard. Routers whose 5 GHz radio runs as Multi AP, such as the RUTC50,
+  are handled correctly. The same is available as services for automations.
 - **Mobile data monitoring**: operator, network type, band, RSRP, RSRQ, SINR,
   modem temperature, SIM state and the data counters for each modem.
 - **SIM and modem control**: switch the SIM slot of dual SIM modems and
@@ -42,16 +43,18 @@ web page.
 
 - Buttons to reconnect the Wi-Fi client and to reboot the router.
 - An internet check that tells a working Wi-Fi from one behind a login page.
+- The router's clock as a diagnostic sensor, when the router reports it.
 - Re-authentication, reconfiguration and options in the user interface.
 - Diagnostics download with passwords and personal data removed.
 - English and German translations.
 
 ### Planned
 
-Ideas that are not implemented yet: scanning, adding and removing Wi-Fi
-networks as entities (today they are services), data usage limits and monthly
-counters, per-interface WAN failover control, SMS notifications and setting
-the Home Assistant home zone from the router's GPS.
+Ideas that are not implemented yet: data usage limits and monthly counters
+(until then, use a `utility_meter` on the modem's data counters), router
+uptime and system temperature, per-interface WAN failover control, SMS
+notifications and setting the Home Assistant home zone from the router's GPS
+(see the [automation example](#move-the-home-zone-with-the-camper)).
 
 ## Supported routers
 
@@ -208,6 +211,14 @@ automatically.
 | Access point *name* | switch | The router's own Wi-Fi, real state |
 | Uplink priority | select | Wi-Fi first or mobile first |
 | Reconnect Wi-Fi | button | Reconnects all saved networks |
+| Scan for Wi-Fi networks | button | Scans with all radios, see [Managing Wi-Fi networks](#managing-wi-fi-networks) |
+| Found networks | select | The networks of the last scan that are not saved yet |
+| Wi-Fi password | text | Password for the next network; only a mask is shown, never the text |
+| Add selected network | button | Saves the found network with the password |
+| Saved networks | select | Wi-Fi clients and Multi AP list entries saved on the router |
+| Remove selected network | button | Removes the selected saved network |
+| Last Wi-Fi action | sensor | Result of the last scan, add or remove |
+| Router time | sensor | The router's clock from the HTTP `Date` header. Diagnostic, disabled by default, only when the router sends the header |
 | Reboot router | button | Add a confirmation in your dashboard |
 | Position | device tracker | Only on routers with GPS, see [GPS](#gps) |
 | GPS speed, altitude, satellites, accuracy | sensors | Only on routers with GPS. Heading and fix status are disabled by default |
@@ -278,6 +289,29 @@ automation:
 
 Adjust the entity IDs to your router. The same pattern works for
 `binary_sensor.*_wifi_connected` going to `off` for "Wi-Fi lost".
+
+## Managing Wi-Fi networks
+
+Everything needed to add a network is an entity of the router device, so a
+dashboard needs no helpers or scripts:
+
+1. **Scan for Wi-Fi networks** (button) scans with all radios.
+2. **Found networks** (select) lists each network once per band with its best
+   signal, for example `Camp5 [5 GHz · secured · -60 dBm]`. Networks that are
+   already saved in the same band are hidden.
+3. **Wi-Fi password** (text) takes the password. It is kept in memory only and
+   the state always shows `********`, so it never reaches the history.
+4. **Add selected network** (button) saves it. Mobile data stays preferred.
+5. **Last Wi-Fi action** (sensor) shows the result, for example
+   `Saved Camp5` or `Scan failed: ...`.
+
+To remove a network, choose it in **Saved networks** and press **Remove
+selected network**. The list holds the Wi-Fi client networks and the entries of
+the Multi AP list. See [Multi AP radios](#multi-ap-radios) for the rules the
+router sets.
+
+The entities appear on routers with Wi-Fi radios. The services below do the
+same for automations and scripts.
 
 ## Services
 
@@ -370,12 +404,16 @@ Home Assistant reaches the internet through this router.
 
 ## Known Limitations
 
-- Saved Multi AP list entries are not shown as entities yet, and a Multi AP
-  radio is not asked what it is currently connected to beyond the Wi-Fi
-  client sensors.
+- The Wi-Fi sensors describe the connection that carries the uplink. If the
+  router is connected to the same network twice (for example as 2.4 GHz client
+  and as 5 GHz Multi AP entry), the one that is the active uplink is shown.
 - The GPS field names are taken from the router API as used by other
-  projects and are not yet confirmed on every router. If the GPS entities stay
-  empty although the router has a fix, open an issue with the diagnostics.
+  projects. Position, speed, altitude, satellites and accuracy are confirmed
+  on a RUTC50; heading and fix status are not yet. If an entity stays empty
+  although the router has a fix, open an issue with the diagnostics.
+- The router clock comes from the `Date` header of the router's answers. If
+  your RutOS version does not send it, the **Router time** sensor does not
+  appear.
 - Changing the SIM drops mobile data for about a minute and is not rolled
   back automatically.
 - Switching off the access point you are connected through disconnects you.

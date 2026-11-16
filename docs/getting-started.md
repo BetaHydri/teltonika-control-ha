@@ -143,6 +143,12 @@ the router device. You should see:
 - One switch for each access point of the router.
 - The **Uplink priority** select, the **Reconnect Wi-Fi** and **Reboot
   router** buttons.
+- To manage Wi-Fi networks: the buttons **Scan for Wi-Fi networks**,
+  **Add selected network** and **Remove selected network**, the selects
+  **Found networks** and **Saved networks**, the **Wi-Fi password** field and
+  the **Last Wi-Fi action** sensor.
+- On routers with GPS: the **Position** device tracker and sensors for speed,
+  altitude, satellites and accuracy.
 
 Select the modem device to see operator, network type, signal values
 (RSRP, RSRQ, SINR), temperature, SIM state and data counters, the
@@ -201,60 +207,78 @@ Wi-Fi has no internet, call the action `teltonika_control.set_priority`:
 
 ```yaml
 action: teltonika_control.set_priority
+target:
+  entity_id: sensor.my_router_uplink
 data:
-  device_id: <your router>
   wifi_first: true
   verify: true
 ```
 
+Use any entity of your router as target. Replace `sensor.my_router_uplink`
+with the entity ID of the **Uplink** sensor from your list.
+
 ### Add a Wi-Fi network
 
-Scanning and saving a network are actions. Run them in **Developer tools**,
-**Actions**. In the form, choose the router in the **Router** field, or
-switch to YAML mode and use the UI mode once to copy the `device_id`.
+Use the entities of the router device, for example on the
+[dashboard](dashboard.md):
 
-1. Scan for networks:
+1. Press **Scan for Wi-Fi networks**. The scan takes a few seconds per radio.
+2. Choose a network in **Found networks**. Each network appears once per
+   band with its best signal, and networks you already saved are hidden.
+3. Type the password into **Wi-Fi password** and press Enter. Leave it empty
+   for open networks. Home Assistant only keeps the password in memory and
+   shows `********` instead of the text.
+4. Press **Add selected network**.
 
-   ```yaml
-   action: teltonika_control.scan_wifi
-   data:
-     device_id: <your router>
-   ```
-
-   The response lists `ssid`, `signal`, `band`, `encrypted` and the `radio`
-   that found each network.
-
-2. Save the network you want, using the `radio` from the scan:
-
-   ```yaml
-   action: teltonika_control.join_wifi
-   data:
-     device_id: <your router>
-     radio: radio0
-     ssid: CampsiteWifi
-     password: "the Wi-Fi password"
-   ```
-
+**Last Wi-Fi action** tells you what happened, for example `Saved CampsiteWifi`.
 Mobile data stays preferred until you switch to **Wi-Fi first**, so a new
 network never breaks your connection by itself.
 
 A router radio can hold only one Wi-Fi client or one Multi AP list. If a
-radio is already used, the action tells you which network occupies it.
+radio is already used, the button tells you which network occupies it.
 On a radio that runs in Multi AP mode (the 5 GHz radio of the RUTC50), the
 network is added to the Multi AP list instead. See
 [Multi AP radios](../README.md#multi-ap-radios) for details.
 
+The same is possible as actions, for automations or scripts. Run them in
+**Developer tools**, **Actions**, with any entity of the router as target:
+
+```yaml
+action: teltonika_control.scan_wifi
+target:
+  entity_id: sensor.my_router_uplink
+```
+
+The response lists `ssid`, `signal`, `band`, `encrypted` and the `radio`
+that found each network. Save one with the `radio` from the scan:
+
+```yaml
+action: teltonika_control.join_wifi
+target:
+  entity_id: sensor.my_router_uplink
+data:
+  radio: radio0
+  ssid: CampsiteWifi
+  password: "the Wi-Fi password"
+```
+
 ### Remove a Wi-Fi network
+
+Choose the network in **Saved networks** and press **Remove selected
+network**. The list shows Wi-Fi clients and the entries of a Multi AP list.
+The last Multi AP entry cannot be removed through Home Assistant.
+
+As an action:
 
 ```yaml
 action: teltonika_control.forget_wifi
+target:
+  entity_id: sensor.my_router_uplink
 data:
-  device_id: <your router>
   station_id: "6"
 ```
 
-Use `ssid` instead of `station_id` for networks in a Multi AP list. The last
-Multi AP entry cannot be removed through Home Assistant.
+Use `ssid` instead of `station_id` for networks in a Multi AP list.
 
 ### Use a hotspot that shows a login page
 

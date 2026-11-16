@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from .const import (
@@ -259,15 +260,33 @@ def radio_band(radio: str | None, wireless_devices: Iterable[dict[str, Any]]) ->
     return None
 
 
+def _network_of(row: dict[str, Any], configs: dict[str, dict[str, Any]]) -> str | None:
+    config = configs.get(str(row.get("id")), {})
+    network = config.get("network") or row.get("network")
+    return str(network) if network else None
+
+
 def derive_wifi_client(
     wireless_status: Iterable[dict[str, Any]],
     wireless_config: Iterable[dict[str, Any]],
     wireless_devices: Iterable[dict[str, Any]],
+    uplink_network: str | None = None,
 ) -> WifiClient | None:
-    """Return the connected Wi-Fi client, if the router is one."""
+    """Return the connected Wi-Fi client, if the router is one.
+
+    A router can be connected twice to the same network (for example a 2.4 GHz
+    client and a 5 GHz Multi AP entry). The connection that carries the uplink
+    wins; without an uplink match the first connected one is used.
+    """
     configs = {str(item.get("id")): item for item in wireless_config}
     devices = list(wireless_devices)
-    for row in wireless_status:
+    rows = sorted(
+        wireless_status,
+        key=lambda row: (
+            uplink_network is None or _network_of(row, configs) != uplink_network
+        ),
+    )
+    for row in rows:
         if (
             row.get("mode") not in WIFI_CLIENT_MODES
             or row.get("wpa_state") != WPA_CONNECTED
@@ -460,6 +479,114 @@ def derive_portal_state(
 
 
 @dataclass(frozen=True, slots=True)
+class SavedNetwork:
+    """A Wi-Fi network saved on the router, as client or in the Multi AP list."""
+
+    label: str
+    ssid: str
+    kind: str
+    config_id: str | None
+    band: str | None
+
+
+SAVED_CLIENT = "client"
+SAVED_MULTI_AP = "multi_ap"
+
+
+def derive_saved_networks(
+    wireless_config: Iterable[dict[str, Any]],
+    multi_ap: Iterable[dict[str, Any]],
+    wireless_devices: Iterable[dict[str, Any]],
+) -> list[SavedNetwork]:
+    """Return the saved Wi-Fi client networks and the Multi AP list entries."""
+    configs = list(wireless_config)
+    devices = list(wireless_devices)
+    saved: list[SavedNetwork] = []
+    for item in configs:
+        ssid = item.get("ssid")
+        if item.get("mode") != "sta" or not ssid:
+            continue
+        band = radio_band(_first_text(item.get("device")), devices)
+        label = f"{ssid} ({band})" if band else str(ssid)
+        saved.append(SavedNetwork(label, str(ssid), SAVED_CLIENT, str(item.get("id")), band))
+
+    multi_band = next(
+        (
+            radio_band(_first_text(item.get("device")), devices)
+            for item in configs
+            if item.get("mode") == "multi_ap"
+        ),
+        None,
+    )
+    for entry in multi_ap:
+        ssid = entry.get("ssid")
+        if not ssid:
+            continue
+        detail = f"{multi_band}, Multi AP" if multi_band else "Multi AP"
+        saved.append(
+            SavedNetwork(f"{ssid} ({detail})", str(ssid), SAVED_MULTI_AP, None, multi_band)
+        )
+    return saved
+
+
+@dataclass(frozen=True, slots=True)
+class ScanNetwork:
+    """A network found by a scan, ready to be saved."""
+
+    label: str
+    ssid: str
+    bssid: str | None
+    radio: str
+    band: str | None
+    signal: float | None
+    encrypted: bool
+
+
+def build_scan_networks(
+    results: Iterable[dict[str, Any]], saved: Iterable[SavedNetwork]
+) -> tuple[list[ScanNetwork], int, int]:
+    """Return the new networks, how many were seen and how many were hidden.
+
+    The same SSID is listed once per band with its best signal. Networks that
+    are already saved in the same band are hidden.
+    """
+    saved_keys = {(item.ssid, item.band) for item in saved}
+    best: dict[tuple[str, str | None], dict[str, Any]] = {}
+    for item in results:
+        ssid = item.get("ssid")
+        if not ssid:
+            continue
+        key = (str(ssid), item.get("band"))
+        signal = to_float(item.get("signal"))
+        current = best.get(key)
+        if current is None or (signal or -999) > (to_float(current.get("signal")) or -999):
+            best[key] = item
+
+    networks: list[ScanNetwork] = []
+    for (ssid, band), item in best.items():
+        if (ssid, band) in saved_keys:
+            continue
+        signal = to_float(item.get("signal"))
+        encrypted = bool(item.get("encrypted"))
+        parts = [band or str(item.get("radio")), "secured" if encrypted else "open"]
+        if signal is not None:
+            parts.append(f"{signal:.0f} dBm")
+        networks.append(
+            ScanNetwork(
+                label=f"{ssid} [{' · '.join(parts)}]",
+                ssid=ssid,
+                bssid=item.get("bssid"),
+                radio=str(item.get("radio")),
+                band=band,
+                signal=signal,
+                encrypted=encrypted,
+            )
+        )
+    networks.sort(key=lambda n: n.signal if n.signal is not None else -999, reverse=True)
+    return networks, len(best), len(best) - len(networks)
+
+
+@dataclass(frozen=True, slots=True)
 class GpsPosition:
     """A GPS fix of the router."""
 
@@ -523,6 +650,9 @@ class TeltonikaData:
     access_points: list[AccessPoint] = field(default_factory=list)
     gps: GpsPosition | None = None
     gps_available: bool = False
+    multi_ap: list[dict[str, Any]] = field(default_factory=list)
+    saved_networks: list[SavedNetwork] = field(default_factory=list)
+    router_time: datetime | None = None
     internet: bool | None = None
     portal_waiting: bool = False
 
@@ -537,9 +667,13 @@ class TeltonikaData:
         wireless_devices: list[dict[str, Any]],
         modems: list[dict[str, Any]],
         gps: dict[str, Any] | None = None,
+        multi_ap: list[dict[str, Any]] | None = None,
+        router_time: datetime | None = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
+        uplink = derive_uplink(interfaces, networks)
+        multi_ap = multi_ap or []
         return cls(
             interfaces=interfaces,
             interface_config=interface_config,
@@ -547,9 +681,12 @@ class TeltonikaData:
             wireless_status=wireless_status,
             wireless_devices=wireless_devices,
             modems=modems,
-            uplink=derive_uplink(interfaces, networks),
+            uplink=uplink,
             wifi_client=derive_wifi_client(
-                wireless_status, wireless_config, wireless_devices
+                wireless_status,
+                wireless_config,
+                wireless_devices,
+                uplink.name if uplink else None,
             ),
             wifi_first=derive_wifi_first(interfaces, interface_config, networks),
             stations=derive_stations(wireless_config, interfaces),
@@ -558,6 +695,11 @@ class TeltonikaData:
             ),
             gps=derive_gps(gps),
             gps_available=bool(gps),
+            multi_ap=multi_ap,
+            saved_networks=derive_saved_networks(
+                wireless_config, multi_ap, wireless_devices
+            ),
+            router_time=router_time,
         )
 
     @property

@@ -69,7 +69,8 @@ async def main() -> int:
     ) as session:
         client = TeltonikaClient(session, host, user, password, use_ssl=use_ssl)
         await client.async_login()
-        info = RouterInfo.from_device_status(host, await client.async_device_status())
+        status = await client.async_device_status()
+        info = RouterInfo.from_device_status(host, status)
         interfaces = await client.async_interfaces_status()
         try:
             gps_raw = await client.async_gps_status()
@@ -87,6 +88,14 @@ async def main() -> int:
         )
 
     print(f"Router     : {info.model} fw {info.firmware} serial {mask(info.serial)}")
+    print(
+        "Status keys:",
+        {
+            key: (sorted(value) if isinstance(value, dict) else type(value).__name__)
+            for key, value in status.items()
+        },
+    )
+    print("Router time:", client.server_time or "no Date header")
     print(
         "Interfaces :",
         [(i.get("id"), i.get("name"), i.get("metric")) for i in interfaces],
