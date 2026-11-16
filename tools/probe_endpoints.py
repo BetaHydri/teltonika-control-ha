@@ -139,12 +139,20 @@ SENSITIVE = re.compile(
     re.IGNORECASE,
 )
 MAX_LINE = 1800
+ADDRESS_KEY = re.compile(
+    r"^(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}$|^\d{1,3}(?:\.\d{1,3}){3}(?:/\d+)?$",
+    re.IGNORECASE,
+)
 
 
 def describe(value: Any, key: str = "") -> Any:
     """Return a harmless picture of a JSON value: names and types, few values."""
     if isinstance(value, dict):
-        return {k: describe(v, k) for k, v in sorted(value.items())}
+        shape: dict[str, Any] = {}
+        for k, v in sorted(value.items()):
+            name = "<address>" if ADDRESS_KEY.match(str(k)) else k
+            shape.setdefault(name, describe(v, name))
+        return shape
     if isinstance(value, list):
         if not value:
             return "[]"

@@ -29,6 +29,7 @@ SECRETS = (
     "CampWifi",  # SSID
     "10.1.2.3",  # uplink address
     "192.168.1.1",  # router address
+    "AA:BB:CC:DD:EE:01",  # MAC address of a Wi-Fi client (a key in the answer)
 )
 
 
@@ -67,6 +68,27 @@ def test_describe_shape_shows_structure_but_no_secrets() -> None:
         "rxbytes": 1234,
         "ssid": "str(8)",
     }
+
+
+def test_keys_that_are_addresses_are_hidden() -> None:
+    shape = describe_shape(
+        {
+            "assoclist": {
+                "48:55:19:EE:5F:C8": {"device": "radio0", "signal": -60},
+                "a8-31-62-c5-cc-ab": {"device": "radio0", "signal": -70},
+            },
+            "leases": {"192.168.1.20": {"name": "x"}, "fd00::1": {"name": "y"}},
+            "wan": {"up": True},
+        }
+    )
+    assert shape == {
+        "assoclist": {"<mac>": {"device": "str(6)", "signal": -60}},
+        "leases": {"<ip>": {"name": "str(1)"}},
+        "wan": {"up": True},
+    }
+    text = json.dumps(shape)
+    for leaked in ("48:55", "a8-31", "192.168", "fd00"):
+        assert leaked not in text
 
 
 def test_shape_text_is_cut() -> None:
@@ -170,3 +192,4 @@ async def test_diagnostics_show_pages_and_structure_without_secrets(
     assert "operator_state" in result["answer_structure"]["modems"]
     for secret in SECRETS[2:6]:
         assert secret not in text, secret
+    assert "AA:BB:CC:DD:EE:01" not in text

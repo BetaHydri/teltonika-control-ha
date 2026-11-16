@@ -81,7 +81,13 @@ WIRELESS_STATUS = [
         "freq": 2437,
         "channel": 6,
     },
-    {"id": "default_radio0", "mode": "ap", "freq": 2437, "channel": 6},
+    {
+        "id": "default_radio0",
+        "mode": "ap",
+        "freq": 2437,
+        "channel": 6,
+        "assoclist": {"AA:BB:CC:DD:EE:01": {"device": "radio0", "tx_rate": 54000000}},
+    },
 ]
 
 WIRELESS_DEVICES = [

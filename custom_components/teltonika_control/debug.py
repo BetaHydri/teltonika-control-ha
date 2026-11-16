@@ -44,6 +44,20 @@ SENSITIVE_KEY = re.compile(
     re.IGNORECASE,
 )
 MAX_DEPTH = 6
+_MAC_KEY = re.compile(r"^(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}$", re.IGNORECASE)
+_IP_KEY = re.compile(
+    r"^(?:\d{1,3}(?:\.\d{1,3}){3}(?:/\d+)?|[0-9a-f]*:[0-9a-f:]*:[0-9a-f:./]*)$",
+    re.IGNORECASE,
+)
+
+
+def _key_name(key: str) -> str:
+    """Replace keys that are addresses, they identify devices of the user."""
+    if _MAC_KEY.match(key):
+        return "<mac>"
+    if _IP_KEY.match(key):
+        return "<ip>"
+    return key
 
 
 def describe_shape(value: Any, key: str = "", depth: int = 0) -> Any:
@@ -51,10 +65,13 @@ def describe_shape(value: Any, key: str = "", depth: int = 0) -> Any:
     if depth > MAX_DEPTH:
         return "..."
     if isinstance(value, dict):
-        return {
-            str(k): describe_shape(v, str(k), depth + 1)
-            for k, v in sorted(value.items(), key=lambda item: str(item[0]))
-        }
+        shape: dict[str, Any] = {}
+        for k, v in sorted(value.items(), key=lambda item: str(item[0])):
+            name = _key_name(str(k))
+            # Keys that are addresses (the client list of a radio is keyed by
+            # MAC address) collapse into one entry that shows the structure.
+            shape.setdefault(name, describe_shape(v, name, depth + 1))
+        return shape
     if isinstance(value, list):
         if not value:
             return "[]"

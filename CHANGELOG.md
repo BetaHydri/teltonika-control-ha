@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-16
+
+### Fixed
+
+- The debug log and the diagnostics download no longer show MAC or IP
+  addresses that appear as key names in router answers. The Wi-Fi status of a
+  radio lists its connected devices keyed by MAC address, and the structure
+  view printed those keys. Such keys now show as `<mac>` or `<ip>` (one entry
+  for the structure). The probe tool has the same protection. A test with a
+  MAC address in the router data checks this.
+
 ## [0.9.0] - 2026-11-16
 
 ### Added
