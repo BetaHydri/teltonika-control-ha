@@ -185,6 +185,9 @@ changes interrupt the connection, so it is wise to put them behind a
 confirmation in your dashboard (a button card with a `confirmation` entry in
 its tap action).
 
+For a complete ready-made dashboard, see the
+[dashboard guide](dashboard.md).
+
 ## Step 9: Everyday tasks
 
 ### Switch between Wi-Fi and mobile data

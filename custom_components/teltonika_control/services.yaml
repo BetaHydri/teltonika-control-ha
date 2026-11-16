@@ -1,10 +1,10 @@
 portal_mode:
+  target:
+    device:
+      integration: teltonika_control
+    entity:
+      integration: teltonika_control
   fields:
-    device_id:
-      required: true
-      selector:
-        device:
-          integration: teltonika_control
     minutes:
       required: false
       default: 10
@@ -14,12 +14,12 @@ portal_mode:
           max: 30
           unit_of_measurement: min
 set_priority:
+  target:
+    device:
+      integration: teltonika_control
+    entity:
+      integration: teltonika_control
   fields:
-    device_id:
-      required: true
-      selector:
-        device:
-          integration: teltonika_control
     wifi_first:
       required: true
       selector:
@@ -30,24 +30,24 @@ set_priority:
       selector:
         boolean:
 scan_wifi:
+  target:
+    device:
+      integration: teltonika_control
+    entity:
+      integration: teltonika_control
   fields:
-    device_id:
-      required: true
-      selector:
-        device:
-          integration: teltonika_control
     radio:
       required: false
       example: radio0
       selector:
         text:
 join_wifi:
+  target:
+    device:
+      integration: teltonika_control
+    entity:
+      integration: teltonika_control
   fields:
-    device_id:
-      required: true
-      selector:
-        device:
-          integration: teltonika_control
     radio:
       required: true
       example: radio0
@@ -67,12 +67,12 @@ join_wifi:
         text:
           type: password
 forget_wifi:
+  target:
+    device:
+      integration: teltonika_control
+    entity:
+      integration: teltonika_control
   fields:
-    device_id:
-      required: true
-      selector:
-        device:
-          integration: teltonika_control
     station_id:
       required: false
       example: "6"

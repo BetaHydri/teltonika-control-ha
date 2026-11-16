@@ -6,6 +6,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import (
     HomeAssistant,
     ServiceCall,
@@ -16,6 +17,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 from .const import DEFAULT_PORTAL_MINUTES, DOMAIN
 from .coordinator import TeltonikaCoordinator
@@ -28,12 +30,27 @@ SERVICE_SCAN_WIFI = "scan_wifi"
 SERVICE_JOIN_WIFI = "join_wifi"
 SERVICE_FORGET_WIFI = "forget_wifi"
 
-BASE_SCHEMA = {vol.Required(ATTR_DEVICE_ID): cv.string}
+# The router is named by device or by any of its entities (a service target).
+BASE_SCHEMA = {
+    vol.Optional(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string]),
+    vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
+}
 
 
-def _coordinator(hass: HomeAssistant, device_id: str) -> TeltonikaCoordinator:
-    device = dr.async_get(hass).async_get(device_id)
-    if device is not None:
+def _coordinator(hass: HomeAssistant, call: ServiceCall) -> TeltonikaCoordinator:
+    device_ids = set(call.data.get(ATTR_DEVICE_ID, []))
+    entity_registry = er.async_get(hass)
+    for entity_id in call.data.get(ATTR_ENTITY_ID, []):
+        entity = entity_registry.async_get(entity_id)
+        if entity is not None and entity.device_id:
+            device_ids.add(entity.device_id)
+
+    device_registry = dr.async_get(hass)
+    coordinators: dict[str, TeltonikaCoordinator] = {}
+    for device_id in device_ids:
+        device = device_registry.async_get(device_id)
+        if device is None:
+            continue
         for entry_id in device.config_entries:
             entry = hass.config_entries.async_get_entry(entry_id)
             if (
@@ -41,10 +58,17 @@ def _coordinator(hass: HomeAssistant, device_id: str) -> TeltonikaCoordinator:
                 and entry.domain == DOMAIN
                 and entry.state is ConfigEntryState.LOADED
             ):
-                return entry.runtime_data
-    raise ServiceValidationError(
-        translation_domain=DOMAIN, translation_key="router_not_found"
-    )
+                coordinators[entry.entry_id] = entry.runtime_data
+
+    if not coordinators:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="router_not_found"
+        )
+    if len(coordinators) > 1:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="one_router_only"
+        )
+    return next(iter(coordinators.values()))
 
 
 @callback
@@ -52,23 +76,23 @@ def async_register_services(hass: HomeAssistant) -> None:
     """Register all services."""
 
     async def portal_mode(call: ServiceCall) -> None:
-        coordinator = _coordinator(hass, call.data[ATTR_DEVICE_ID])
+        coordinator = _coordinator(hass, call)
         await coordinator.async_start_portal_mode(call.data["minutes"])
 
     async def set_priority(call: ServiceCall) -> ServiceResponse:
-        coordinator = _coordinator(hass, call.data[ATTR_DEVICE_ID])
+        coordinator = _coordinator(hass, call)
         success = await coordinator.async_set_wifi_priority(
             call.data["wifi_first"], verify=call.data["verify"]
         )
         return {"success": success}
 
     async def scan_wifi(call: ServiceCall) -> ServiceResponse:
-        coordinator = _coordinator(hass, call.data[ATTR_DEVICE_ID])
+        coordinator = _coordinator(hass, call)
         networks = await coordinator.async_scan_wifi(call.data.get("radio"))
         return {"networks": networks}
 
     async def join_wifi(call: ServiceCall) -> None:
-        coordinator = _coordinator(hass, call.data[ATTR_DEVICE_ID])
+        coordinator = _coordinator(hass, call)
         await coordinator.async_join_wifi(
             radio=call.data["radio"],
             ssid=call.data["ssid"],
@@ -77,7 +101,7 @@ def async_register_services(hass: HomeAssistant) -> None:
         )
 
     async def forget_wifi(call: ServiceCall) -> None:
-        coordinator = _coordinator(hass, call.data[ATTR_DEVICE_ID])
+        coordinator = _coordinator(hass, call)
         await coordinator.async_forget_wifi(
             call.data.get("station_id"), call.data.get("ssid")
         )
@@ -120,6 +144,10 @@ def async_register_services(hass: HomeAssistant) -> None:
                 cv.has_at_least_one_key("station_id", "ssid"),
             )
         ),
+    }
+    schemas = {
+        name: vol.All(schema, cv.has_at_least_one_key(ATTR_DEVICE_ID, ATTR_ENTITY_ID))
+        for name, schema in schemas.items()
     }
 
     hass.services.async_register(

@@ -133,18 +133,17 @@
   "exceptions": {
     "router_not_found": {
       "message": "Das gewählte Gerät ist kein geladener Teltonika-Control-Router."
+    },
+    "one_router_only": {
+      "message": "Wähle genau einen Router."
     }
   },
   "services": {
     "portal_mode": {
       "name": "Auf Hotspot-Anmeldung warten",
-      "description": "Bevorzugt WLAN und wartet, bis die Anmeldeseite des Hotspots bestätigt ist. Fällt auf Mobilfunk zurück, wenn rechtzeitig kein Internet da ist. Löst das Ereignis teltonika_control_portal_result aus.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "Der zu steuernde Router."
-        },
-        "minutes": {
+      "description": "Bevorzugt WLAN und wartet, bis die Anmeldeseite des Hotspots bestätigt ist. Fällt auf Mobilfunk zurück, wenn rechtzeitig kein Internet da ist.       Löst das Ereignis teltonika_control_portal_result aus.",
+            "fields": {
+              "minutes": {
           "name": "Wartezeit",
           "description": "Wie lange auf die Anmeldung gewartet wird."
         }
@@ -152,13 +151,9 @@
     },
     "set_priority": {
       "name": "Uplink-Priorität setzen",
-      "description": "Bevorzugt WLAN oder Mobilfunk. Mit Prüfung wird WLAN zurückgestellt, wenn es nach 25 Sekunden kein Internet hat.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "Der zu steuernde Router."
-        },
-        "wifi_first": {
+      "description": "Bevorzugt WLAN oder Mobilfunk. Mit Prüfung wird WLAN zurückgestellt,       wenn es nach 25 Sekunden kein Internet hat.",
+            "fields": {
+              "wifi_first": {
           "name": "WLAN zuerst",
           "description": "An bevorzugt WLAN, aus bevorzugt Mobilfunk."
         },
@@ -170,13 +165,9 @@
     },
     "scan_wifi": {
       "name": "Nach WLAN-Netzen suchen",
-      "description": "Sucht Netze und gibt sie zurück. Ohne Radio werden alle Radios abgefragt.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "Der zu steuernde Router."
-        },
-        "radio": {
+      "description": "Sucht Netze und gibt sie zurück.       Ohne Radio werden alle Radios abgefragt.",
+            "fields": {
+              "radio": {
           "name": "Radio",
           "description": "Radio für die Suche, z. B. radio0."
         }
@@ -184,13 +175,9 @@
     },
     "join_wifi": {
       "name": "WLAN-Netz speichern",
-      "description": "Speichert ein Netz als WLAN-Client. Läuft das Radio als Multi AP (beim RUTC50 das 5-GHz-Radio), kommt das Netz stattdessen in die Multi-AP-Liste. Mobilfunk bleibt bevorzugt, bis du die Priorität änderst.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "Der zu steuernde Router."
-        },
-        "radio": {
+      "description": "Speichert ein Netz als WLAN-Client. Läuft das Radio als Multi AP (beim RUTC50 das 5-GHz-Radio), kommt das Netz stattdessen in die Multi-AP-Liste. Mobilfunk bleibt bevorzugt,       bis du die Priorität änderst.",
+            "fields": {
+              "radio": {
           "name": "Radio",
           "description": "Radio, das das Netz gefunden hat."
         },
@@ -210,13 +197,9 @@
     },
     "forget_wifi": {
       "name": "WLAN-Netz entfernen",
-      "description": "Entfernt ein gespeichertes WLAN-Client-Netz über die Netz-ID oder einen Eintrag der Multi-AP-Liste über die SSID. Gib eines von beiden an. Der letzte Multi-AP-Eintrag kann nicht entfernt werden.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "Der zu steuernde Router."
-        },
-        "station_id": {
+      "description": "Entfernt ein gespeichertes WLAN-Client-Netz über die Netz-ID oder einen Eintrag der Multi-AP-Liste über die SSID. Gib eines von beiden an. Der letzte Multi-AP-Eintrag       kann nicht entfernt werden.",
+            "fields": {
+              "station_id": {
           "name": "Netz-ID",
           "description": "Konfigurations-ID des gespeicherten WLAN-Client-Netzes."
         },

@@ -1,0 +1,425 @@
+# Teltonika Control dashboard
+#
+# Uses only Home Assistant core cards. Before you paste it, replace the two
+# placeholders with the beginning of your own entity IDs, see
+# docs/dashboard.md:
+#   my_router  ->  entity ID prefix of the router device
+#   my_modem   ->  entity ID prefix of the modem device
+# The access point switches contain the name of your own Wi-Fi, adjust those
+# two entity IDs as well.
+title: Teltonika Control
+views:
+  - title: Router
+    path: teltonika-control
+    icon: mdi:router-wireless
+    type: sections
+    max_columns: 2
+    dense_section_placement: true
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Connection
+            heading_style: title
+            icon: mdi:router-network
+          - type: vertical-stack
+            cards:
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_uplink
+                    state: wifi
+                card:
+                  type: tile
+                  entity: sensor.my_router_uplink
+                  name: Active uplink
+                  icon: mdi:wifi
+                  color: green
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_uplink
+                    state: mobile
+                card:
+                  type: tile
+                  entity: sensor.my_router_uplink
+                  name: Active uplink
+                  icon: mdi:signal-5g
+                  color: orange
+              - type: conditional
+                conditions:
+                  - condition: state_not
+                    entity: sensor.my_router_uplink
+                    state_not: wifi
+                  - condition: state_not
+                    entity: sensor.my_router_uplink
+                    state_not: mobile
+                card:
+                  type: tile
+                  entity: sensor.my_router_uplink
+                  name: Active uplink
+                  icon: mdi:router-network
+                  color: red
+          - type: tile
+            entity: sensor.my_router_uplink_ip_address
+            name: Uplink IP
+            icon: mdi:ip-network
+          - type: vertical-stack
+            cards:
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_hotspot_login
+                    state: no_wifi
+                card:
+                  type: tile
+                  entity: sensor.my_router_wi_fi_network
+                  name: Wi-Fi disconnected
+                  icon: mdi:wifi-off
+                  color: red
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_hotspot_login
+                    state: login_required
+                card:
+                  type: tile
+                  entity: sensor.my_router_wi_fi_network
+                  name: Wi-Fi without internet
+                  icon: mdi:wifi-alert
+                  color: orange
+              - type: conditional
+                conditions:
+                  - condition: state_not
+                    entity: sensor.my_router_hotspot_login
+                    state_not: no_wifi
+                  - condition: state_not
+                    entity: sensor.my_router_hotspot_login
+                    state_not: login_required
+                card:
+                  type: tile
+                  entity: sensor.my_router_wi_fi_network
+                  name: Wi-Fi connection
+                  icon: mdi:wifi
+                  color: green
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: sensor.my_router_wi_fi_signal
+                name: Signal
+              - type: tile
+                entity: sensor.my_router_wi_fi_band
+                name: Band
+              - type: tile
+                entity: sensor.my_router_wi_fi_link_speed
+                name: Speed
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: binary_sensor.my_router_internet
+                name: Internet
+              - type: tile
+                entity: sensor.my_router_hotspot_login
+                name: Hotspot login
+                icon: mdi:form-select
+          - type: tile
+            entity: select.my_router_uplink_priority
+            name: Uplink priority
+            icon: mdi:swap-vertical
+            features:
+              - type: select-options
+            features_position: bottom
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: select.my_router_uplink_priority
+                name: Wi-Fi first
+                icon: mdi:wifi
+                color: blue
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: teltonika_control.set_priority
+                  target:
+                    entity_id: sensor.my_router_uplink
+                  data:
+                    wifi_first: true
+                    verify: true
+                  confirmation:
+                    text: >-
+                      Prefer Wi-Fi over mobile data? The connection can drop
+                      briefly. Without internet on the Wi-Fi the router goes
+                      back to mobile data automatically.
+              - type: tile
+                entity: select.my_router_uplink_priority
+                name: Mobile first
+                icon: mdi:signal-5g
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: teltonika_control.set_priority
+                  target:
+                    entity_id: sensor.my_router_uplink
+                  data:
+                    wifi_first: false
+                    verify: false
+      - type: grid
+        cards:
+          - type: heading
+            heading: Router control
+            heading_style: title
+            icon: mdi:restart
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.my_modem_restart_mobile_connection
+                name: Restart mobile
+                icon: mdi:signal-cellular-outline
+                color: orange
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.my_modem_restart_mobile_connection
+                  confirmation:
+                    text: Restart the mobile connection? Mobile data is briefly interrupted.
+              - type: tile
+                entity: button.my_router_reconnect_wi_fi
+                name: Reconnect Wi-Fi
+                icon: mdi:wifi-sync
+                color: blue
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.my_router_reconnect_wi_fi
+                  confirmation:
+                    text: Reconnect the router's Wi-Fi client? Wi-Fi is briefly interrupted.
+          - type: vertical-stack
+            cards:
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_hotspot_login
+                    state: idle
+                card:
+                  type: tile
+                  entity: sensor.my_router_hotspot_login
+                  name: Wi-Fi first (login page)
+                  icon: mdi:form-select
+                  color: purple
+                  hide_state: true
+                  tap_action:
+                    action: perform-action
+                    perform_action: teltonika_control.portal_mode
+                    target:
+                      entity_id: sensor.my_router_uplink
+                    data:
+                      minutes: 10
+                    confirmation:
+                      text: >-
+                        Prefer Wi-Fi and wait 10 minutes for the hotspot login
+                        page to be confirmed? Then open http://neverssl.com in
+                        a browser. Without internet the router goes back to
+                        mobile data.
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_hotspot_login
+                    state: waiting
+                card:
+                  type: tile
+                  entity: sensor.my_router_hotspot_login
+                  name: Waiting for login ...
+                  icon: mdi:timer-sand
+                  color: blue
+                  hide_state: true
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_hotspot_login
+                    state: login_required
+                card:
+                  type: tile
+                  entity: sensor.my_router_hotspot_login
+                  name: Confirm login page
+                  icon: mdi:alert-circle
+                  color: orange
+                  hide_state: true
+                  tap_action:
+                    action: perform-action
+                    perform_action: teltonika_control.portal_mode
+                    target:
+                      entity_id: sensor.my_router_uplink
+                    data:
+                      minutes: 10
+                    confirmation:
+                      text: >-
+                        Wait 10 minutes for the hotspot login page to be
+                        confirmed? Then open http://neverssl.com in a browser.
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_hotspot_login
+                    state: online
+                card:
+                  type: tile
+                  entity: sensor.my_router_hotspot_login
+                  name: Wi-Fi has internet
+                  icon: mdi:check-network
+                  color: green
+                  hide_state: true
+                  tap_action:
+                    action: perform-action
+                    perform_action: teltonika_control.portal_mode
+                    target:
+                      entity_id: sensor.my_router_uplink
+                    data:
+                      minutes: 10
+                    confirmation:
+                      text: >-
+                        Wi-Fi already has internet. Wait for a login page for
+                        10 minutes anyway?
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: sensor.my_router_hotspot_login
+                    state: no_wifi
+                card:
+                  type: tile
+                  entity: sensor.my_router_hotspot_login
+                  name: No Wi-Fi connected
+                  icon: mdi:wifi-off
+                  color: grey
+                  hide_state: true
+          - type: tile
+            entity: button.my_router_reboot_router
+            name: Reboot router
+            icon: mdi:restart-alert
+            color: red
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.my_router_reboot_router
+              confirmation:
+                text: >-
+                  Really reboot the router? All connections (Wi-Fi, mobile
+                  data, Home Assistant) are down for about 2 to 3 minutes.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Mobile data
+            heading_style: title
+            icon: mdi:signal-cellular-3
+          - type: tile
+            entity: sensor.my_modem_operator
+            name: Operator
+            icon: mdi:antenna
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: sensor.my_modem_network_type
+                name: Network
+                icon: mdi:signal-5g
+              - type: tile
+                entity: sensor.my_modem_band
+                name: Band
+              - type: tile
+                entity: binary_sensor.my_modem_mobile_data_connected
+                name: Data
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: sensor.my_modem_rsrp
+                name: RSRP
+              - type: tile
+                entity: sensor.my_modem_rsrq
+                name: RSRQ
+              - type: tile
+                entity: sensor.my_modem_sinr
+                name: SINR
+          - type: tile
+            entity: select.my_modem_sim_slot
+            name: Active SIM
+            icon: mdi:sim
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: select.my_modem_sim_slot
+                name: SIM 1
+                icon: mdi:sim
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: select.select_option
+                  target:
+                    entity_id: select.my_modem_sim_slot
+                  data:
+                    option: sim_1
+                  confirmation:
+                    text: >-
+                      Switch to SIM 1? Mobile data is interrupted for about a
+                      minute. Nothing happens if SIM 1 is already active.
+              - type: tile
+                entity: select.my_modem_sim_slot
+                name: SIM 2
+                icon: mdi:sim-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: select.select_option
+                  target:
+                    entity_id: select.my_modem_sim_slot
+                  data:
+                    option: sim_2
+                  confirmation:
+                    text: >-
+                      Switch to SIM 2? Only do this if slot 2 holds a SIM,
+                      otherwise the router loses mobile data. Nothing happens
+                      if SIM 2 is already active.
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: sensor.my_modem_temperature
+                name: Modem
+                icon: mdi:thermometer
+              - type: tile
+                entity: sensor.my_modem_data_received
+                name: Received
+                icon: mdi:download-network
+              - type: tile
+                entity: sensor.my_modem_data_sent
+                name: Sent
+                icon: mdi:upload-network
+      - type: grid
+        cards:
+          - type: heading
+            heading: Router's own Wi-Fi
+            heading_style: title
+            icon: mdi:access-point
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: switch.my_router_access_point_my_wifi_2_4_ghz
+                name: 2.4 GHz
+                icon: mdi:wifi
+                tap_action:
+                  action: toggle
+                  confirmation:
+                    text: >-
+                      Switch the router's own 2.4 GHz Wi-Fi? Devices connected
+                      through it are disconnected when it goes off.
+              - type: tile
+                entity: switch.my_router_access_point_my_wifi_5_ghz
+                name: 5 GHz
+                icon: mdi:wifi
+                tap_action:
+                  action: toggle
+                  confirmation:
+                    text: >-
+                      Switch the router's own 5 GHz Wi-Fi? Devices connected
+                      through it are disconnected when it goes off.

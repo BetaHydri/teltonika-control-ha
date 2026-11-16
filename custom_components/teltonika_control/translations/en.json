@@ -133,18 +133,17 @@
   "exceptions": {
     "router_not_found": {
       "message": "The selected device is not a loaded Teltonika Control router."
+    },
+    "one_router_only": {
+      "message": "Select exactly one router."
     }
   },
   "services": {
     "portal_mode": {
       "name": "Wait for hotspot login",
-      "description": "Prefers Wi-Fi and waits until the hotspot login page is confirmed. Falls back to mobile data if there is no internet in time. Fires the teltonika_control_portal_result event.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "The router to control."
-        },
-        "minutes": {
+      "description": "Prefers Wi-Fi and waits until the hotspot login page is confirmed. Falls back to mobile data if there is no internet in time.       Fires the teltonika_control_portal_result event.",
+            "fields": {
+              "minutes": {
           "name": "Wait time",
           "description": "How long to wait for the login."
         }
@@ -152,13 +151,9 @@
     },
     "set_priority": {
       "name": "Set uplink priority",
-      "description": "Prefers Wi-Fi or mobile data. With verification, Wi-Fi is rolled back when it has no internet after 25 seconds.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "The router to control."
-        },
-        "wifi_first": {
+      "description": "Prefers Wi-Fi or mobile data. With verification, Wi-Fi is rolled back when it       has no internet after 25 seconds.",
+            "fields": {
+              "wifi_first": {
           "name": "Wi-Fi first",
           "description": "On prefers Wi-Fi, off prefers mobile data."
         },
@@ -170,13 +165,9 @@
     },
     "scan_wifi": {
       "name": "Scan for Wi-Fi networks",
-      "description": "Scans for networks and returns them. Without a radio, all radios are scanned.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "The router to control."
-        },
-        "radio": {
+      "description": "Scans for networks and returns them.       Without a radio, all radios are scanned.",
+            "fields": {
+              "radio": {
           "name": "Radio",
           "description": "Radio to scan with, for example radio0."
         }
@@ -184,13 +175,9 @@
     },
     "join_wifi": {
       "name": "Save Wi-Fi network",
-      "description": "Saves a network as Wi-Fi client. On a radio running as Multi AP (the 5 GHz radio of the RUTC50) the network is added to the Multi AP list instead. Mobile data stays preferred until you change the priority.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "The router to control."
-        },
-        "radio": {
+      "description": "Saves a network as Wi-Fi client. On a radio running as Multi AP (the 5 GHz radio of the RUTC50) the network is added to the Multi AP list instead.       Mobile data stays preferred until you change the priority.",
+            "fields": {
+              "radio": {
           "name": "Radio",
           "description": "Radio that found the network."
         },
@@ -210,13 +197,9 @@
     },
     "forget_wifi": {
       "name": "Remove Wi-Fi network",
-      "description": "Removes a saved Wi-Fi client network by network ID, or an entry of the Multi AP list by SSID. Give one of the two. The last Multi AP entry cannot be removed.",
-      "fields": {
-        "device_id": {
-          "name": "Router",
-          "description": "The router to control."
-        },
-        "station_id": {
+      "description": "Removes a saved Wi-Fi client network by network ID, or an entry of the Multi AP list by SSID. Give one of the two.       The last Multi AP entry cannot be removed.",
+            "fields": {
+              "station_id": {
           "name": "Network ID",
           "description": "Configuration ID of the saved Wi-Fi client network."
         },

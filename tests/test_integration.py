@@ -520,3 +520,64 @@ async def test_forget_keeps_a_default_interface(
 
     assert len(requests(aioclient_mock, "DELETE", "/wireless/interfaces/config/6")) == 1
     assert not requests(aioclient_mock, "DELETE", "/interfaces/config/wan2")
+
+
+async def test_services_accept_an_entity_of_the_router_as_target(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    aioclient_mock.post(
+        f"{BASE}/wireless/actions/scan", json={"success": True, "data": SCAN_RESULT}
+    )
+    await setup_entry(hass, entry)
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "scan_wifi",
+        {"entity_id": entity_id(hass, "sensor", "uplink"), "radio": "radio0"},
+        blocking=True,
+        return_response=True,
+    )
+    assert result["networks"][0]["ssid"] == "CafeFreeWifi"
+
+    # An entity of the modem (a child device) reaches the same router.
+    await hass.services.async_call(
+        DOMAIN,
+        "set_priority",
+        {
+            "entity_id": [entity_id(hass, "select", "2-1.1_sim")],
+            "wifi_first": False,
+            "verify": False,
+        },
+        blocking=True,
+    )
+    assert requests(aioclient_mock, "PUT", "/interfaces/config/wan2")
+
+    # A device id as list, as a dashboard target sends it.
+    await hass.services.async_call(
+        DOMAIN,
+        "scan_wifi",
+        {"device_id": [router_device_id(hass)], "radio": "radio0"},
+        blocking=True,
+        return_response=True,
+    )
+
+
+async def test_service_without_any_target_is_rejected(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(
+            DOMAIN, "set_priority", {"wifi_first": True}, blocking=True
+        )
+
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(
+            DOMAIN,
+            "set_priority",
+            {"entity_id": "sensor.not_a_router_entity", "wifi_first": True},
+            blocking=True,
+        )

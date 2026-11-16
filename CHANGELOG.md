@@ -21,6 +21,10 @@ and this project adheres to
 - Diagnostics with personal data removed.
 - English and German translations.
 - Step-by-step guide in `docs/getting-started.md`.
+- Ready-made dashboard in `dashboards/teltonika-control.yaml` with a guide in
+  `docs/dashboard.md`.
+- Services accept a service target: the router device or any entity of the
+  router (also a modem entity). `device_id` in the data keeps working.
 - `join_wifi` saves networks of a Multi AP radio (5 GHz on the RUTC50) in the
   Multi AP list and refuses a radio that already has a client or Multi AP.
 - `forget_wifi` removes Multi AP list entries by `ssid` (never the last one)

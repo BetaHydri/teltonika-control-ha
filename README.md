@@ -219,7 +219,9 @@ Adjust the entity IDs to your router. The same pattern works for
 | `join_wifi` | Save a network as Wi-Fi client, or into the Multi AP list on a Multi AP radio; mobile stays preferred |
 | `forget_wifi` | Remove a saved client network (`station_id`) or a Multi AP list entry (`ssid`) |
 
-Each service takes the router as `device_id`.
+Each service takes the router as a service target: choose the router device
+or any entity of the router, including a modem entity. `device_id` in the
+service data still works.
 
 ### Multi AP radios
 
@@ -272,5 +274,6 @@ environment variables `TELTONIKA_HOST`, `TELTONIKA_USER` and
 ## See Also
 
 - [Step-by-step guide](docs/getting-started.md)
+- [Dashboard for Teltonika Control](docs/dashboard.md)
 - [Teltonika API documentation](https://developers.teltonika-networks.com/)
 - [Changelog](CHANGELOG.md)
