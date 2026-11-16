@@ -1,0 +1,525 @@
+"""Tests for setup, entities, actions and services."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any
+
+import pytest
+import voluptuous as vol
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.teltonika_control.const import DOMAIN, EVENT_PORTAL_RESULT
+
+from .conftest import (
+    entity_id,
+    mock_login_failure,
+    mock_router,
+    mock_unreachable,
+    router_device_id,
+)
+from .payloads import BASE, SCAN_RESULT, SERIAL, WIRELESS_CONFIG, payloads
+
+
+async def setup_entry(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED
+
+
+def requests(aioclient_mock: Any, method: str, suffix: str) -> list[Any]:
+    return [
+        c
+        for c in aioclient_mock.mock_calls
+        if c[0] == method and str(c[1]).split("?")[0].endswith(suffix)
+    ]
+
+
+async def test_entities_reflect_the_router(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    def state(platform: str, key: str) -> str:
+        return hass.states.get(entity_id(hass, platform, key)).state
+
+    assert state("sensor", "uplink") == "mobile"
+    assert state("sensor", "uplink_ip") == "10.1.2.3"
+    assert state("sensor", "wifi_ssid") == "CampWifi"
+    assert float(state("sensor", "wifi_signal")) == -61
+    assert float(state("sensor", "wifi_bitrate")) == 78
+    assert state("sensor", "wifi_band") == "2.4 GHz"
+    assert state("sensor", "portal_state") == "idle"
+    assert state("binary_sensor", "wifi_connected") == STATE_ON
+    assert state("binary_sensor", "internet") == STATE_ON
+    assert state("binary_sensor", "login_required") == STATE_OFF
+    assert float(state("sensor", "2-1.1_rsrp")) == -104
+    assert float(state("sensor", "2-1.1_temperature")) == 45
+    assert state("sensor", "2-1.1_operator") == "Testnet"
+    assert state("binary_sensor", "2-1.1_mobile_connected") == STATE_ON
+    assert state("select", "priority") == "mobile_first"
+    assert state("select", "2-1.1_sim") == "sim_1"
+    assert state("switch", "ap_default_radio0") == STATE_ON
+    assert state("switch", "ap_default_radio1") == STATE_OFF
+
+
+async def test_wifi_without_internet_shows_login_required(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock, wifi_metric=0, internet=False)
+    await setup_entry(hass, entry)
+
+    assert hass.states.get(entity_id(hass, "sensor", "uplink")).state == "wifi"
+    assert hass.states.get(entity_id(hass, "sensor", "portal_state")).state == (
+        "login_required"
+    )
+    assert hass.states.get(entity_id(hass, "binary_sensor", "login_required")).state == (
+        STATE_ON
+    )
+    assert hass.states.get(entity_id(hass, "binary_sensor", "internet")).state == (
+        STATE_OFF
+    )
+
+
+async def test_buttons_call_the_router(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    for key, suffix in (
+        ("reboot", "/system/actions/reboot"),
+        ("2-1.1_restart_mobile", "/modems/2-1.1/actions/restart_connection"),
+        ("reconnect_wifi", "/wireless/actions/reconnect"),
+    ):
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": entity_id(hass, "button", key)},
+            blocking=True,
+        )
+        assert requests(aioclient_mock, "POST", suffix), key
+
+
+async def test_access_point_switch_writes_enabled_flag(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": entity_id(hass, "switch", "ap_default_radio1")},
+        blocking=True,
+    )
+
+    put = requests(aioclient_mock, "PUT", "/wireless/interfaces/config/default_radio1")
+    assert put[0][2] == {"data": {"enabled": "1"}}
+
+
+async def test_priority_select_sets_metric_and_reconnects(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id(hass, "select", "priority"), "option": "wifi_first"},
+        blocking=True,
+    )
+
+    assert requests(aioclient_mock, "PUT", "/interfaces/config/wan2")[0][2] == {
+        "data": {"metric": "0"}
+    }
+    assert requests(aioclient_mock, "POST", "/wireless/actions/reconnect")[0][2] == {
+        "data": {"sta_id": "6"}
+    }
+
+
+async def test_sim_select_switches_only_when_different(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    sim = entity_id(hass, "select", "2-1.1_sim")
+
+    await hass.services.async_call(
+        "select", "select_option", {"entity_id": sim, "option": "sim_1"}, blocking=True
+    )
+    assert not requests(aioclient_mock, "POST", "/modems/2-1.1/actions/switch_sim")
+
+    await hass.services.async_call(
+        "select", "select_option", {"entity_id": sim, "option": "sim_2"}, blocking=True
+    )
+    assert requests(aioclient_mock, "POST", "/modems/2-1.1/actions/switch_sim")
+
+
+async def test_scan_service_returns_networks(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    aioclient_mock.post(
+        f"{BASE}/wireless/actions/scan", json={"success": True, "data": SCAN_RESULT}
+    )
+    await setup_entry(hass, entry)
+
+    result = await hass.services.async_call(
+        DOMAIN,
+        "scan_wifi",
+        {"device_id": router_device_id(hass), "radio": "radio0"},
+        blocking=True,
+        return_response=True,
+    )
+
+    assert result["networks"] == [
+        {
+            "ssid": "CafeFreeWifi",
+            "bssid": "00:11:22:33:44:55",
+            "signal": -55,
+            "channel": 11,
+            "band": "2.4 GHz",
+            "encrypted": False,
+            "security": "None",
+            "radio": "radio0",
+        }
+    ]
+
+
+async def test_portal_mode_success_fires_event(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    # Wi-Fi is the uplink and the probe answers 204: the first check succeeds.
+    mock_router(aioclient_mock, wifi_metric=0, internet=True)
+    await setup_entry(hass, entry)
+    events: list[Any] = []
+    hass.bus.async_listen(EVENT_PORTAL_RESULT, events.append)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "portal_mode",
+        {"device_id": router_device_id(hass), "minutes": 1},
+        blocking=True,
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert [e.data["success"] for e in events] == [True]
+    # Success keeps Wi-Fi first: only the "0" metric was written.
+    metrics = [c[2]["data"]["metric"] for c in requests(aioclient_mock, "PUT", "/interfaces/config/wan2")]
+    assert metrics == ["0"]
+
+
+async def test_portal_mode_rolls_back_without_internet(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock, wifi_metric=0, internet=False)
+    await setup_entry(hass, entry)
+    events: list[Any] = []
+    hass.bus.async_listen(EVENT_PORTAL_RESULT, events.append)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "portal_mode",
+        {"device_id": router_device_id(hass), "minutes": 1},
+        blocking=True,
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert [e.data["success"] for e in events] == [False]
+    metrics = [c[2]["data"]["metric"] for c in requests(aioclient_mock, "PUT", "/interfaces/config/wan2")]
+    assert metrics[0] == "0"
+    assert metrics[-1] == "10"
+
+
+async def test_service_with_unknown_device_is_rejected(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(
+            DOMAIN,
+            "portal_mode",
+            {"device_id": "does-not-exist"},
+            blocking=True,
+        )
+
+
+async def test_wrong_password_starts_reauth(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_login_failure(aioclient_mock)
+    entry.add_to_hass(hass)
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert any(
+        flow["context"]["source"] == "reauth"
+        for flow in hass.config_entries.flow.async_progress()
+    )
+
+
+async def test_unreachable_router_retries_later(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_unreachable(aioclient_mock)
+    entry.add_to_hass(hass)
+
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_modem_is_a_child_device_of_the_router(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    modem = dr.async_get(hass).async_get_device_by_identifier(
+        (DOMAIN, f"{SERIAL}_2-1.1"), entry.entry_id
+    )
+
+    assert modem is not None
+    assert modem.via_device_id == router_device_id(hass)
+
+
+async def test_unload_removes_the_entry_cleanly(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.NOT_LOADED
+
+
+MULTI_AP_RADIO = {
+    "id": "multi_radio1",
+    "mode": "multi_ap",
+    "device": ["radio1"],
+    "network": "wifi5",
+}
+OK = {"success": True}
+
+
+def mock_multi_ap_router(
+    aioclient_mock: Any, entries: list[dict[str, Any]], **kwargs: Any
+) -> None:
+    """Router whose 5 GHz radio runs as Multi AP (registered before the defaults)."""
+    wireless = [*deepcopy(WIRELESS_CONFIG), MULTI_AP_RADIO]
+    aioclient_mock.get(
+        f"{BASE}/wireless/interfaces/config", json={"success": True, "data": wireless}
+    )
+    aioclient_mock.get(
+        f"{BASE}/wireless/multi_ap/config", json={"success": True, "data": entries}
+    )
+    aioclient_mock.post(f"{BASE}/wireless/multi_ap/config", json=OK)
+    for entry_id in ("cfg1", "cfg2"):
+        aioclient_mock.put(f"{BASE}/wireless/multi_ap/config/{entry_id}", json=OK)
+        aioclient_mock.delete(f"{BASE}/wireless/multi_ap/config/{entry_id}", json=OK)
+    mock_router(aioclient_mock, **kwargs)
+
+
+async def test_join_on_multi_ap_radio_adds_to_the_list(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_multi_ap_router(aioclient_mock, [{"id": "cfg1", "ssid": "Home", "priority": "3"}])
+    await setup_entry(hass, entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "join_wifi",
+        {
+            "device_id": router_device_id(hass),
+            "radio": "radio1",
+            "ssid": "Camp5",
+            "password": "pw12345678",
+        },
+        blocking=True,
+    )
+
+    assert requests(aioclient_mock, "POST", "/wireless/multi_ap/config")[0][2] == {
+        "data": {
+            "ssid": "Camp5",
+            "enabled": "1",
+            "priority": "4",
+            "key": "pw12345678",
+        }
+    }
+    assert not requests(aioclient_mock, "POST", "/wireless/actions/join")
+
+
+async def test_join_known_multi_ap_network_updates_the_password(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_multi_ap_router(aioclient_mock, [{"id": "cfg1", "ssid": "Home"}])
+    await setup_entry(hass, entry)
+    device_id = router_device_id(hass)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "join_wifi",
+        {"device_id": device_id, "radio": "radio1", "ssid": "Home", "password": "newpass123"},
+        blocking=True,
+    )
+    assert requests(aioclient_mock, "PUT", "/wireless/multi_ap/config/cfg1")[0][2] == {
+        "data": {"key": "newpass123"}
+    }
+
+    with pytest.raises(HomeAssistantError, match="already in the Multi AP list"):
+        await hass.services.async_call(
+            DOMAIN,
+            "join_wifi",
+            {"device_id": device_id, "radio": "radio1", "ssid": "Home"},
+            blocking=True,
+        )
+
+
+async def test_join_on_busy_radio_is_rejected(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    with pytest.raises(HomeAssistantError, match="already has a Wi-Fi client"):
+        await hass.services.async_call(
+            DOMAIN,
+            "join_wifi",
+            {
+                "device_id": router_device_id(hass),
+                "radio": "radio0",
+                "ssid": "Other",
+                "password": "pw12345678",
+            },
+            blocking=True,
+        )
+
+    assert not requests(aioclient_mock, "POST", "/wireless/actions/join")
+
+
+async def test_forget_multi_ap_entry_by_ssid(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_multi_ap_router(
+        aioclient_mock,
+        [{"id": "cfg1", "ssid": "Home"}, {"id": "cfg2", "ssid": "Camp5"}],
+    )
+    await setup_entry(hass, entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "forget_wifi",
+        {"device_id": router_device_id(hass), "ssid": "Camp5"},
+        blocking=True,
+    )
+
+    assert len(requests(aioclient_mock, "DELETE", "/wireless/multi_ap/config/cfg2")) == 1
+    assert not requests(aioclient_mock, "DELETE", "/wireless/multi_ap/config/cfg1")
+
+
+async def test_last_multi_ap_entry_is_kept(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_multi_ap_router(aioclient_mock, [{"id": "cfg1", "ssid": "Home"}])
+    await setup_entry(hass, entry)
+
+    with pytest.raises(HomeAssistantError, match="last Multi AP entry"):
+        await hass.services.async_call(
+            DOMAIN,
+            "forget_wifi",
+            {"device_id": router_device_id(hass), "ssid": "Home"},
+            blocking=True,
+        )
+
+    assert not requests(aioclient_mock, "DELETE", "/wireless/multi_ap/config/cfg1")
+
+
+async def test_forget_by_network_id_refuses_multi_ap_radio(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_multi_ap_router(aioclient_mock, [{"id": "cfg1", "ssid": "Home"}])
+    aioclient_mock.delete(f"{BASE}/wireless/interfaces/config/multi_radio1", json=OK)
+    await setup_entry(hass, entry)
+
+    with pytest.raises(HomeAssistantError, match="removed by SSID"):
+        await hass.services.async_call(
+            DOMAIN,
+            "forget_wifi",
+            {"device_id": router_device_id(hass), "station_id": "multi_radio1"},
+            blocking=True,
+        )
+
+    assert not requests(aioclient_mock, "DELETE", "/wireless/interfaces/config/multi_radio1")
+
+
+async def test_forget_needs_exactly_one_target(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    device_id = router_device_id(hass)
+
+    for data in (
+        {"device_id": device_id},
+        {"device_id": device_id, "station_id": "6", "ssid": "CampWifi"},
+    ):
+        with pytest.raises(vol.Invalid):
+            await hass.services.async_call(DOMAIN, "forget_wifi", data, blocking=True)
+
+
+async def test_forget_removes_a_self_created_interface(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    data = payloads()
+    data["interfaces"][2]["id"] = "wifi4"
+    data["config"][1]["id"] = "wifi4"
+    aioclient_mock.get(
+        f"{BASE}/interfaces/status", json={"success": True, "data": data["interfaces"]}
+    )
+    aioclient_mock.get(
+        f"{BASE}/interfaces/config", json={"success": True, "data": data["config"]}
+    )
+    aioclient_mock.delete(f"{BASE}/interfaces/config/wifi4", json=OK)
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "forget_wifi",
+        {"device_id": router_device_id(hass), "station_id": "6"},
+        blocking=True,
+    )
+
+    assert len(requests(aioclient_mock, "DELETE", "/wireless/interfaces/config/6")) == 1
+    assert len(requests(aioclient_mock, "DELETE", "/interfaces/config/wifi4")) == 1
+
+
+async def test_forget_keeps_a_default_interface(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)  # the Wi-Fi client uses the default interface wan2
+    await setup_entry(hass, entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "forget_wifi",
+        {"device_id": router_device_id(hass), "station_id": "6"},
+        blocking=True,
+    )
+
+    assert len(requests(aioclient_mock, "DELETE", "/wireless/interfaces/config/6")) == 1
+    assert not requests(aioclient_mock, "DELETE", "/interfaces/config/wan2")

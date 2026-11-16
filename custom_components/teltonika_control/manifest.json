@@ -1,0 +1,14 @@
+{
+  "domain": "teltonika_control",
+  "name": "Teltonika Control",
+  "codeowners": ["@BetaHydri"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/BetaHydri/teltonika-control-ha",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/BetaHydri/teltonika-control-ha/issues",
+  "loggers": ["custom_components.teltonika_control"],
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,58 @@
+"""Constants for the Teltonika Control integration."""
+
+from __future__ import annotations
+
+DOMAIN = "teltonika_control"
+
+CONF_SCAN_INTERVAL = "scan_interval"
+CONF_PROBE_URL = "probe_url"
+
+DEFAULT_USERNAME = "admin"
+DEFAULT_SCAN_INTERVAL = 30
+MIN_SCAN_INTERVAL = 10
+MAX_SCAN_INTERVAL = 600
+
+# Returns HTTP 204 with working internet; a captive portal answers with
+# a redirect or a login page instead.
+DEFAULT_PROBE_URL = "http://connectivitycheck.gstatic.com/generate_204"
+PROBE_TIMEOUT = 6
+
+# RutOS wants metrics as strings. The mobile interface usually uses 4, so 0
+# makes Wi-Fi win and 10 keeps mobile data in front.
+METRIC_WIFI_FIRST = "0"
+METRIC_MOBILE_FIRST = "10"
+
+PRIORITY_WIFI_FIRST = "wifi_first"
+PRIORITY_MOBILE_FIRST = "mobile_first"
+
+DEFAULT_PORTAL_MINUTES = 10
+PORTAL_FIRST_DELAY = 20
+PORTAL_POLL_INTERVAL = 15
+PRIORITY_VERIFY_DELAY = 25
+AP_REFRESH_DELAY = 4
+
+EVENT_PORTAL_RESULT = f"{DOMAIN}_portal_result"
+
+UPLINK_WIFI = "wifi"
+UPLINK_MOBILE = "mobile"
+UPLINK_ETHERNET = "ethernet"
+UPLINK_OTHER = "other"
+UPLINK_KINDS = [UPLINK_WIFI, UPLINK_MOBILE, UPLINK_ETHERNET, UPLINK_OTHER]
+
+PORTAL_IDLE = "idle"
+PORTAL_NO_WIFI = "no_wifi"
+PORTAL_WAITING = "waiting"
+PORTAL_LOGIN_REQUIRED = "login_required"
+PORTAL_ONLINE = "online"
+PORTAL_STATES = [
+    PORTAL_IDLE,
+    PORTAL_NO_WIFI,
+    PORTAL_WAITING,
+    PORTAL_LOGIN_REQUIRED,
+    PORTAL_ONLINE,
+]
+
+BAND_24 = "2.4 GHz"
+BAND_5 = "5 GHz"
+BAND_6 = "6 GHz"
+BANDS = [BAND_24, BAND_5, BAND_6]

@@ -1,0 +1,218 @@
+"""Tests for the state derivation logic."""
+
+from __future__ import annotations
+
+import pytest
+
+from custom_components.teltonika_control.models import (
+    AccessPoint,
+    RouterInfo,
+    TeltonikaData,
+    derive_portal_state,
+    derive_uplink,
+    derive_wifi_first,
+    is_protected_interface,
+    modem_temperature,
+    next_multi_ap_priority,
+    normalize_band,
+    radio_occupant,
+    wifi_network_names,
+)
+
+from .payloads import (
+    DEVICE_STATUS,
+    INTERFACES_CONFIG,
+    INTERFACES_STATUS,
+    WIRELESS_CONFIG,
+    payloads,
+)
+
+
+def build(**kwargs) -> TeltonikaData:
+    data = payloads(**kwargs)
+    return TeltonikaData.build(
+        interfaces=data["interfaces"],
+        interface_config=data["config"],
+        wireless_config=data["wireless_config"],
+        wireless_status=data["wireless_status"],
+        wireless_devices=data["wireless_devices"],
+        modems=data["modems"],
+    )
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        ({"frequency": 2437}, "2.4 GHz"),
+        ({"frequency": 5180}, "5 GHz"),
+        ({"frequency": 5955}, "6 GHz"),
+        ({"frequency": "5.18"}, "5 GHz"),
+        ({"band": "2g"}, "2.4 GHz"),
+        ({"band": "5g"}, "5 GHz"),
+        ({"band": "11a"}, "5 GHz"),
+        ({"channel": 6}, "2.4 GHz"),
+        ({"channel": 36}, "5 GHz"),
+        ({}, None),
+    ],
+)
+def test_normalize_band(kwargs, expected) -> None:
+    assert normalize_band(**kwargs) == expected
+
+
+def test_router_info_from_device_status() -> None:
+    info = RouterInfo.from_device_status("192.168.1.1", DEVICE_STATUS)
+    assert info.unique_id == "1234567890"
+    assert info.model == "RUTC50"
+    assert info.firmware == "RUTC_R_00.07.26.2"
+    assert info.name == "Teltonika-RUTC50.com"
+
+
+def test_router_info_falls_back_to_host() -> None:
+    info = RouterInfo.from_device_status("10.0.0.1", {})
+    assert info.unique_id == "10.0.0.1"
+    assert info.name == "10.0.0.1"
+
+
+def test_uplink_is_mobile_when_wifi_has_worse_metric() -> None:
+    networks = wifi_network_names(WIRELESS_CONFIG)
+    uplink = derive_uplink(INTERFACES_STATUS, networks)
+    assert uplink is not None
+    assert (uplink.kind, uplink.ip, uplink.metric) == ("mobile", "10.1.2.3", 4)
+
+
+def test_uplink_is_wifi_with_best_metric() -> None:
+    data = build(wifi_metric=0)
+    assert data.uplink is not None
+    assert (data.uplink.kind, data.uplink.name) == ("wifi", "wifi4")
+    assert data.uplink.ip == "192.168.50.20"
+
+
+def test_no_default_route_means_no_uplink() -> None:
+    assert derive_uplink([{"id": "lan", "name": "lan"}], set()) is None
+
+
+@pytest.mark.parametrize(("wifi_metric", "expected"), [(10, False), (0, True)])
+def test_wifi_first(wifi_metric, expected) -> None:
+    assert build(wifi_metric=wifi_metric).wifi_first is expected
+
+
+def test_wifi_first_unknown_without_saved_wifi() -> None:
+    assert derive_wifi_first(INTERFACES_STATUS, INTERFACES_CONFIG, set()) is None
+
+
+def test_wifi_client() -> None:
+    client = build().wifi_client
+    assert client is not None
+    assert client.ssid == "CampWifi"
+    assert client.signal == -61
+    assert client.bitrate == 78
+    assert client.band == "2.4 GHz"
+
+
+def test_no_wifi_client_when_not_associated() -> None:
+    data = payloads()
+    data["wireless_status"][0]["wpa_state"] = "SCANNING"
+    built = TeltonikaData.build(
+        interfaces=data["interfaces"],
+        interface_config=data["config"],
+        wireless_config=data["wireless_config"],
+        wireless_status=data["wireless_status"],
+        wireless_devices=data["wireless_devices"],
+        modems=data["modems"],
+    )
+    assert built.wifi_client is None
+
+
+def test_access_points_report_real_state_and_band() -> None:
+    points = {p.config_id: p for p in build().access_points}
+    assert points["default_radio0"].enabled is True
+    assert points["default_radio0"].band == "2.4 GHz"
+    # The 5 GHz access point is off, so its band comes from the radio.
+    assert points["default_radio1"].enabled is False
+    assert points["default_radio1"].band == "5 GHz"
+    assert points["default_radio1"].label == "MyRouter 5 GHz"
+
+
+def test_access_point_label_without_band() -> None:
+    point = AccessPoint("x", None, True, "radio3", None)
+    assert point.label == "x radio3"
+
+
+@pytest.mark.parametrize(
+    ("raw", "celsius"), [(450, 45.0), (45, 45.0), (-5, -5.0), (None, None)]
+)
+def test_modem_temperature(raw, celsius) -> None:
+    assert modem_temperature({"temperature": raw}) == celsius
+
+
+def test_stations_map_network_to_interface() -> None:
+    stations = build().stations
+    assert [(s.config_id, s.interface_id) for s in stations] == [("6", "wan2")]
+
+
+@pytest.mark.parametrize(
+    ("waiting", "wifi", "uplink_kind", "internet", "expected"),
+    [
+        (True, False, None, None, "waiting"),
+        (False, False, None, None, "no_wifi"),
+        (False, True, "wifi", False, "login_required"),
+        (False, True, "wifi", True, "online"),
+        (False, True, "mobile", True, "idle"),
+    ],
+)
+def test_portal_state(waiting, wifi, uplink_kind, internet, expected) -> None:
+    data = build(wifi_metric=0 if uplink_kind == "wifi" else None)
+    if not wifi:
+        data.wifi_client = None
+    if uplink_kind is None:
+        data.uplink = None
+    data.portal_waiting = waiting
+    data.internet = internet
+    assert data.portal_state == expected
+    assert (
+        derive_portal_state(
+            waiting=waiting,
+            wifi_client=data.wifi_client,
+            uplink=data.uplink,
+            internet=internet,
+        )
+        == expected
+    )
+
+
+def test_radio_occupant_finds_client_and_multi_ap_but_not_access_points() -> None:
+    config = [
+        *WIRELESS_CONFIG,
+        {"id": "m1", "mode": "multi_ap", "device": "radio1", "network": "wifi5"},
+    ]
+
+    assert radio_occupant(config, "radio0")["id"] == "6"
+    assert radio_occupant(config, "radio1")["id"] == "m1"
+    assert radio_occupant(WIRELESS_CONFIG, "radio1") is None
+    assert radio_occupant([], "radio0") is None
+
+
+@pytest.mark.parametrize(
+    ("entries", "expected"),
+    [
+        ([], 1),
+        ([{"priority": "3"}, {"priority": 7}, {"priority": "x"}, {}], 8),
+    ],
+)
+def test_next_multi_ap_priority(entries, expected) -> None:
+    assert next_multi_ap_priority(entries) == expected
+
+
+@pytest.mark.parametrize(
+    ("interface_id", "protected"),
+    [
+        ("wan1", True),
+        ("LAN", True),
+        ("mob1s1a1", True),
+        ("VPN_1", True),
+        ("wifi4", False),
+        ("wifi_camp", False),
+    ],
+)
+def test_is_protected_interface(interface_id, protected) -> None:
+    assert is_protected_interface(interface_id) is protected

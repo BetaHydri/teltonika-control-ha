@@ -1,0 +1,230 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Teltonika-Router verbinden",
+        "description": "Verwende einen RutOS-Benutzer mit API-Zugriff. Empfohlen ist ein eigener Benutzer mit minimalen Rechten.",
+        "data": {
+          "host": "Host",
+          "username": "Benutzername",
+          "password": "Passwort",
+          "verify_ssl": "SSL-Zertifikat prüfen"
+        },
+        "data_description": {
+          "host": "IP-Adresse oder Hostname des Routers, z. B. 192.168.1.1. Mit vorangestelltem http:// wird unverschlüsseltes HTTP genutzt.",
+          "verify_ssl": "Ausgeschaltet lassen, wenn der Router sein selbstsigniertes Zertifikat nutzt."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Erneut anmelden",
+        "description": "Der Router {host} hat das gespeicherte Passwort abgelehnt.",
+        "data": {
+          "password": "Passwort"
+        }
+      },
+      "reconfigure": {
+        "title": "Verbindung zum Router ändern",
+        "data": {
+          "host": "Host",
+          "username": "Benutzername",
+          "password": "Passwort",
+          "verify_ssl": "SSL-Zertifikat prüfen"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen",
+      "invalid_auth": "Ungültige Anmeldedaten",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "abort": {
+      "already_configured": "Das Gerät ist bereits konfiguriert",
+      "reauth_successful": "Die erneute Anmeldung war erfolgreich",
+      "reconfigure_successful": "Die Neukonfiguration war erfolgreich",
+      "unique_id_mismatch": "Das ist ein anderer Router als der konfigurierte."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Aktualisierungsintervall (Sekunden)",
+          "probe_url": "URL für den Internettest"
+        },
+        "data_description": {
+          "scan_interval": "Wie oft der Router abgefragt wird.",
+          "probe_url": "Muss bei funktionierendem Internet HTTP 204 liefern. Erkennt die Anmeldeseite eines Hotspots. Leer lassen, um den Test auszuschalten."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "uplink": {
+        "name": "Uplink",
+        "state": {
+          "wifi": "WLAN",
+          "mobile": "Mobilfunk",
+          "ethernet": "Ethernet",
+          "other": "Andere"
+        }
+      },
+      "uplink_ip": { "name": "Uplink-IP-Adresse" },
+      "wifi_ssid": { "name": "WLAN-Netz" },
+      "wifi_signal": { "name": "WLAN-Signal" },
+      "wifi_bitrate": { "name": "WLAN-Verbindungsgeschwindigkeit" },
+      "wifi_band": { "name": "WLAN-Band" },
+      "portal_state": {
+        "name": "Hotspot-Anmeldung",
+        "state": {
+          "idle": "Nicht aktiv",
+          "no_wifi": "Kein WLAN",
+          "waiting": "Warte auf Anmeldung",
+          "login_required": "Anmeldung nötig",
+          "online": "Online"
+        }
+      },
+      "operator": { "name": "Netzbetreiber" },
+      "connection_type": { "name": "Netzwerktyp" },
+      "band": { "name": "Band" },
+      "rssi": { "name": "RSSI" },
+      "rsrp": { "name": "RSRP" },
+      "rsrq": { "name": "RSRQ" },
+      "sinr": { "name": "SINR" },
+      "signal_quality": { "name": "Signalqualität" },
+      "temperature": { "name": "Temperatur" },
+      "data_connection": { "name": "Datenverbindung" },
+      "sim_state": { "name": "SIM-Status" },
+      "active_sim": { "name": "Aktive SIM" },
+      "received": { "name": "Empfangene Daten" },
+      "sent": { "name": "Gesendete Daten" }
+    },
+    "binary_sensor": {
+      "wifi_connected": { "name": "WLAN verbunden" },
+      "internet": { "name": "Internet" },
+      "login_required": { "name": "Hotspot-Anmeldung nötig" },
+      "mobile_connected": { "name": "Mobile Daten verbunden" }
+    },
+    "button": {
+      "reboot": { "name": "Router neu starten" },
+      "reconnect_wifi": { "name": "WLAN neu verbinden" },
+      "restart_mobile": { "name": "Mobilfunk neu verbinden" }
+    },
+    "select": {
+      "priority": {
+        "name": "Uplink-Priorität",
+        "state": {
+          "wifi_first": "WLAN zuerst",
+          "mobile_first": "Mobilfunk zuerst"
+        }
+      },
+      "sim": {
+        "name": "SIM-Slot",
+        "state": {
+          "sim_1": "SIM 1",
+          "sim_2": "SIM 2"
+        }
+      }
+    },
+    "switch": {
+      "access_point": { "name": "Access Point {name}" }
+    }
+  },
+  "exceptions": {
+    "router_not_found": {
+      "message": "Das gewählte Gerät ist kein geladener Teltonika-Control-Router."
+    }
+  },
+  "services": {
+    "portal_mode": {
+      "name": "Auf Hotspot-Anmeldung warten",
+      "description": "Bevorzugt WLAN und wartet, bis die Anmeldeseite des Hotspots bestätigt ist. Fällt auf Mobilfunk zurück, wenn rechtzeitig kein Internet da ist. Löst das Ereignis teltonika_control_portal_result aus.",
+      "fields": {
+        "device_id": {
+          "name": "Router",
+          "description": "Der zu steuernde Router."
+        },
+        "minutes": {
+          "name": "Wartezeit",
+          "description": "Wie lange auf die Anmeldung gewartet wird."
+        }
+      }
+    },
+    "set_priority": {
+      "name": "Uplink-Priorität setzen",
+      "description": "Bevorzugt WLAN oder Mobilfunk. Mit Prüfung wird WLAN zurückgestellt, wenn es nach 25 Sekunden kein Internet hat.",
+      "fields": {
+        "device_id": {
+          "name": "Router",
+          "description": "Der zu steuernde Router."
+        },
+        "wifi_first": {
+          "name": "WLAN zuerst",
+          "description": "An bevorzugt WLAN, aus bevorzugt Mobilfunk."
+        },
+        "verify": {
+          "name": "Internet prüfen",
+          "description": "Auf Mobilfunk zurückstellen, wenn das WLAN kein Internet hat."
+        }
+      }
+    },
+    "scan_wifi": {
+      "name": "Nach WLAN-Netzen suchen",
+      "description": "Sucht Netze und gibt sie zurück. Ohne Radio werden alle Radios abgefragt.",
+      "fields": {
+        "device_id": {
+          "name": "Router",
+          "description": "Der zu steuernde Router."
+        },
+        "radio": {
+          "name": "Radio",
+          "description": "Radio für die Suche, z. B. radio0."
+        }
+      }
+    },
+    "join_wifi": {
+      "name": "WLAN-Netz speichern",
+      "description": "Speichert ein Netz als WLAN-Client. Läuft das Radio als Multi AP (beim RUTC50 das 5-GHz-Radio), kommt das Netz stattdessen in die Multi-AP-Liste. Mobilfunk bleibt bevorzugt, bis du die Priorität änderst.",
+      "fields": {
+        "device_id": {
+          "name": "Router",
+          "description": "Der zu steuernde Router."
+        },
+        "radio": {
+          "name": "Radio",
+          "description": "Radio, das das Netz gefunden hat."
+        },
+        "ssid": {
+          "name": "Netzwerkname",
+          "description": "SSID des Netzes."
+        },
+        "bssid": {
+          "name": "BSSID",
+          "description": "Adresse des Access Points aus der Suche."
+        },
+        "password": {
+          "name": "Passwort",
+          "description": "Bei offenen Netzen leer lassen."
+        }
+      }
+    },
+    "forget_wifi": {
+      "name": "WLAN-Netz entfernen",
+      "description": "Entfernt ein gespeichertes WLAN-Client-Netz über die Netz-ID oder einen Eintrag der Multi-AP-Liste über die SSID. Gib eines von beiden an. Der letzte Multi-AP-Eintrag kann nicht entfernt werden.",
+      "fields": {
+        "device_id": {
+          "name": "Router",
+          "description": "Der zu steuernde Router."
+        },
+        "station_id": {
+          "name": "Netz-ID",
+          "description": "Konfigurations-ID des gespeicherten WLAN-Client-Netzes."
+        },
+        "ssid": {
+          "name": "Netzwerkname",
+          "description": "SSID eines Eintrags der Multi-AP-Liste."
+        }
+      }
+    }
+  }
+}

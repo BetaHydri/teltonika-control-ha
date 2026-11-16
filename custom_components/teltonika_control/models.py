@@ -1,0 +1,526 @@
+"""Derive state from raw RutOS API payloads (pure functions, no I/O)."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from typing import Any
+
+from .const import (
+    BAND_5,
+    BAND_6,
+    BAND_24,
+    PORTAL_IDLE,
+    PORTAL_LOGIN_REQUIRED,
+    PORTAL_NO_WIFI,
+    PORTAL_ONLINE,
+    PORTAL_WAITING,
+    UPLINK_ETHERNET,
+    UPLINK_MOBILE,
+    UPLINK_OTHER,
+    UPLINK_WIFI,
+)
+
+WIFI_CLIENT_MODES = ("sta", "multi_ap")
+DEFAULT_MOBILE_METRIC = 4
+WPA_CONNECTED = "COMPLETED"
+# Modem temperatures above this are reported in tenths of a degree.
+MAX_PLAUSIBLE_CELSIUS = 150
+
+
+def to_float(value: Any) -> float | None:
+    """Convert numbers and numeric strings, return None for anything else."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def to_int(value: Any, default: int | None = None) -> int | None:
+    """Convert to int like :func:`to_float`."""
+    number = to_float(value)
+    return int(number) if number is not None else default
+
+
+def _flag(value: Any, default: bool) -> bool:
+    if value is None:
+        return default
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _first_text(value: Any) -> str | None:
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else None
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def normalize_band(
+    *, frequency: Any = None, channel: Any = None, band: Any = None
+) -> str | None:
+    """Return "2.4 GHz", "5 GHz" or "6 GHz" from whatever the router reports."""
+    freq = to_float(frequency)
+    if freq:
+        if freq < 100:
+            freq *= 1000
+        if freq < 2600:
+            return BAND_24
+        if freq < 5900:
+            return BAND_5
+        return BAND_6
+
+    text = str(band).strip().lower() if band is not None else ""
+    if text:
+        if text in ("g", "ng", "b", "bg", "11g", "11b", "11ng") or text.startswith("2"):
+            return BAND_24
+        if text in ("a", "ac", "na", "11a", "11ac") or text.startswith("5"):
+            return BAND_5
+        if text.startswith("6"):
+            return BAND_6
+
+    number = to_int(channel)
+    if number:
+        return BAND_24 if number <= 14 else BAND_5
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class RouterInfo:
+    """Static facts about the router."""
+
+    unique_id: str
+    host: str
+    name: str
+    model: str | None = None
+    serial: str | None = None
+    mac: str | None = None
+    firmware: str | None = None
+    hostname: str | None = None
+
+    @classmethod
+    def from_device_status(cls, host: str, data: dict[str, Any]) -> RouterInfo:
+        """Build from ``GET /system/device/status``."""
+        mnf = data.get("mnfinfo") or {}
+        static = data.get("static") or {}
+        serial = _first_text(mnf.get("serial"))
+        mac = _first_text(mnf.get("mac"))
+        model = _first_text(static.get("device_name")) or _first_text(mnf.get("name"))
+        hostname = _first_text(static.get("hostname"))
+        return cls(
+            unique_id=serial or mac or host,
+            host=host,
+            name=hostname or model or host,
+            model=model,
+            serial=serial,
+            mac=mac,
+            firmware=_first_text(static.get("fw_version")),
+            hostname=hostname,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Uplink:
+    """The interface that carries the default route."""
+
+    interface_id: str
+    name: str
+    kind: str
+    ip: str | None
+    metric: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class WifiClient:
+    """A connected Wi-Fi client (the router acts as station)."""
+
+    config_id: str
+    ssid: str | None
+    network: str | None
+    signal: float | None
+    bitrate: float | None
+    band: str | None
+    channel: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class WifiStation:
+    """A saved Wi-Fi client network with its network interface."""
+
+    config_id: str
+    ssid: str | None
+    network: str | None
+    interface_id: str | None
+    mode: str
+
+
+@dataclass(frozen=True, slots=True)
+class AccessPoint:
+    """An access point of the router itself."""
+
+    config_id: str
+    ssid: str | None
+    enabled: bool
+    radio: str | None
+    band: str | None
+
+    @property
+    def label(self) -> str:
+        """Return a short name such as "WIFI_HYMI 5 GHz"."""
+        parts = [self.ssid or self.config_id]
+        if self.band:
+            parts.append(self.band)
+        elif self.radio:
+            parts.append(self.radio)
+        return " ".join(parts)
+
+
+def interface_name(interface: dict[str, Any]) -> str:
+    """Return the logical name of an interface from ``interfaces/status``."""
+    return str(
+        interface.get("name") or interface.get("interface") or interface.get("id") or ""
+    )
+
+
+def has_default_route(interface: dict[str, Any]) -> bool:
+    """Return whether the interface carries the IPv4 default route."""
+    routes = interface.get("route") or []
+    return any(
+        isinstance(route, dict)
+        and route.get("target") == "0.0.0.0"
+        and to_int(route.get("mask")) == 0
+        for route in routes
+    )
+
+
+def wifi_network_names(wireless_config: Iterable[dict[str, Any]]) -> set[str]:
+    """Return the interface names used by saved Wi-Fi client networks."""
+    return {
+        str(item["network"])
+        for item in wireless_config
+        if item.get("mode") in WIFI_CLIENT_MODES and item.get("network")
+    }
+
+
+def derive_uplink(
+    interfaces: Iterable[dict[str, Any]], wifi_networks: set[str]
+) -> Uplink | None:
+    """Pick the default-route interface with the lowest metric."""
+    best: dict[str, Any] | None = None
+    for interface in interfaces:
+        if not has_default_route(interface):
+            continue
+        metric = to_int(interface.get("metric"), 99)
+        if best is None or metric < to_int(best.get("metric"), 99):
+            best = interface
+    if best is None:
+        return None
+
+    name = interface_name(best)
+    if name in wifi_networks:
+        kind = UPLINK_WIFI
+    elif name.startswith("mob") or str(best.get("id", "")).startswith("mob"):
+        kind = UPLINK_MOBILE
+    elif str(best.get("type") or best.get("typename") or "").lower() == "ethernet" or (
+        name.lower().startswith(("wan", "eth", "lan"))
+    ):
+        kind = UPLINK_ETHERNET
+    else:
+        kind = UPLINK_OTHER
+
+    ips = best.get("ipaddrs") or []
+    ip = str(ips[0]).split("/")[0] if ips else None
+    return Uplink(
+        interface_id=str(best.get("id") or name),
+        name=name,
+        kind=kind,
+        ip=ip,
+        metric=to_int(best.get("metric")),
+    )
+
+
+def radio_band(radio: str | None, wireless_devices: Iterable[dict[str, Any]]) -> str | None:
+    if not radio:
+        return None
+    for device in wireless_devices:
+        if device.get("id") == radio or device.get("name") == radio:
+            return normalize_band(
+                frequency=device.get("frequency"),
+                channel=device.get("channel"),
+                band=device.get("band"),
+            )
+    return None
+
+
+def derive_wifi_client(
+    wireless_status: Iterable[dict[str, Any]],
+    wireless_config: Iterable[dict[str, Any]],
+    wireless_devices: Iterable[dict[str, Any]],
+) -> WifiClient | None:
+    """Return the connected Wi-Fi client, if the router is one."""
+    configs = {str(item.get("id")): item for item in wireless_config}
+    devices = list(wireless_devices)
+    for row in wireless_status:
+        if (
+            row.get("mode") not in WIFI_CLIENT_MODES
+            or row.get("wpa_state") != WPA_CONNECTED
+        ):
+            continue
+        config_id = str(row.get("id"))
+        config = configs.get(config_id, {})
+        radio = _first_text(config.get("device"))
+        band = normalize_band(
+            frequency=row.get("freq") or row.get("frequency"),
+            channel=row.get("channel"),
+            band=row.get("band"),
+        ) or radio_band(radio, devices)
+
+        bitrate = to_float(row.get("bitrate"))
+        if bitrate is not None:
+            if bitrate >= 1_000_000:
+                bitrate /= 1_000_000
+            elif bitrate >= 1_000:
+                bitrate /= 1_000
+            bitrate = round(bitrate)
+
+        return WifiClient(
+            config_id=config_id,
+            ssid=config.get("ssid") or row.get("ssid"),
+            network=config.get("network") or row.get("network"),
+            signal=to_float(row.get("signal")),
+            bitrate=bitrate,
+            band=band,
+            channel=to_int(row.get("channel")),
+        )
+    return None
+
+
+def derive_stations(
+    wireless_config: Iterable[dict[str, Any]], interfaces: Iterable[dict[str, Any]]
+) -> list[WifiStation]:
+    """Return saved Wi-Fi client networks and the interface behind each."""
+    interface_ids = {interface_name(i): str(i.get("id")) for i in interfaces}
+    stations: list[WifiStation] = []
+    for item in wireless_config:
+        if item.get("mode") not in WIFI_CLIENT_MODES:
+            continue
+        network = item.get("network")
+        stations.append(
+            WifiStation(
+                config_id=str(item.get("id")),
+                ssid=item.get("ssid"),
+                network=network,
+                interface_id=interface_ids.get(str(network)) if network else None,
+                mode=str(item.get("mode")),
+            )
+        )
+    return stations
+
+
+def radio_occupant(
+    wireless_config: Iterable[dict[str, Any]], radio: str
+) -> dict[str, Any] | None:
+    """Return the Wi-Fi client or Multi AP entry that already uses a radio.
+
+    The router allows only one client or one Multi AP per radio.
+    """
+    for item in wireless_config:
+        if item.get("mode") not in WIFI_CLIENT_MODES:
+            continue
+        devices = item.get("device")
+        if isinstance(devices, str):
+            devices = [devices]
+        if radio in (devices or []):
+            return item
+    return None
+
+
+def next_multi_ap_priority(entries: Iterable[dict[str, Any]]) -> int:
+    """Return a priority that puts a new Multi AP entry last."""
+    return max([0, *(to_int(e.get("priority"), 0) or 0 for e in entries)]) + 1
+
+
+# Default interfaces of the router; only interfaces created for a Wi-Fi client
+# may be removed together with the saved network.
+PROTECTED_INTERFACE_IDS = frozenset(
+    {"lan", "lan1", "lan2", "wan", "wan1", "wan2", "wan6", "loopback"}
+)
+PROTECTED_INTERFACE_PREFIXES = ("mob", "vpn")
+
+
+def is_protected_interface(interface_id: str) -> bool:
+    """Return whether an interface belongs to the router's default setup."""
+    lowered = interface_id.lower()
+    return lowered in PROTECTED_INTERFACE_IDS or lowered.startswith(
+        PROTECTED_INTERFACE_PREFIXES
+    )
+
+
+def derive_wifi_first(
+    interfaces: Iterable[dict[str, Any]],
+    interface_config: Iterable[dict[str, Any]],
+    wifi_networks: set[str],
+) -> bool | None:
+    """Return whether a Wi-Fi interface has a better metric than mobile data."""
+    config = list(interface_config)
+    wifi_ids = [
+        str(i.get("id"))
+        for i in interfaces
+        if interface_name(i) in wifi_networks and i.get("id")
+    ]
+    if not wifi_ids:
+        return None
+
+    mobile_metrics = [
+        to_int(c.get("metric"), DEFAULT_MOBILE_METRIC)
+        for c in config
+        if str(c.get("id", "")).startswith("mob")
+    ]
+    mobile = min(mobile_metrics) if mobile_metrics else DEFAULT_MOBILE_METRIC
+    wifi_metrics = [
+        to_int(c.get("metric"), 99) for c in config if str(c.get("id")) in wifi_ids
+    ]
+    return any(metric < mobile for metric in wifi_metrics)
+
+
+def derive_access_points(
+    wireless_config: Iterable[dict[str, Any]],
+    wireless_status: Iterable[dict[str, Any]],
+    wireless_devices: Iterable[dict[str, Any]],
+) -> list[AccessPoint]:
+    """Return the router's own access points with their real on/off state."""
+    status_rows = {str(row.get("id")): row for row in wireless_status}
+    devices = list(wireless_devices)
+    points: list[AccessPoint] = []
+    for item in wireless_config:
+        if item.get("mode") != "ap":
+            continue
+        config_id = str(item.get("id"))
+        radio = _first_text(item.get("device"))
+        row = status_rows.get(config_id, {})
+        band = (
+            normalize_band(
+                frequency=row.get("freq") or row.get("frequency"),
+                channel=row.get("channel"),
+                band=row.get("band"),
+            )
+            or radio_band(radio, devices)
+        )
+        enabled = _flag(item.get("enabled"), not _flag(item.get("disabled"), False))
+        points.append(
+            AccessPoint(
+                config_id=config_id,
+                ssid=item.get("ssid"),
+                enabled=enabled,
+                radio=radio,
+                band=band,
+            )
+        )
+    return points
+
+
+def is_modem_online(modem: dict[str, Any]) -> bool:
+    """Return whether ``modems/status`` returned the full status."""
+    return modem.get("simstate") is not None or modem.get("conntype") is not None
+
+
+def modem_temperature(modem: dict[str, Any]) -> float | None:
+    """Return the modem temperature in °C."""
+    value = to_float(modem.get("temperature"))
+    if value is None:
+        return None
+    return value / 10 if abs(value) > MAX_PLAUSIBLE_CELSIUS else value
+
+
+def derive_portal_state(
+    *,
+    waiting: bool,
+    wifi_client: WifiClient | None,
+    uplink: Uplink | None,
+    internet: bool | None,
+) -> str:
+    """Return the captive portal state shown on the dashboard."""
+    if waiting:
+        return PORTAL_WAITING
+    if wifi_client is None:
+        return PORTAL_NO_WIFI
+    if uplink is not None and uplink.kind == UPLINK_WIFI:
+        if internet is False:
+            return PORTAL_LOGIN_REQUIRED
+        if internet:
+            return PORTAL_ONLINE
+    return PORTAL_IDLE
+
+
+@dataclass(slots=True)
+class TeltonikaData:
+    """One snapshot of the router state."""
+
+    interfaces: list[dict[str, Any]] = field(default_factory=list)
+    interface_config: list[dict[str, Any]] = field(default_factory=list)
+    wireless_config: list[dict[str, Any]] = field(default_factory=list)
+    wireless_status: list[dict[str, Any]] = field(default_factory=list)
+    wireless_devices: list[dict[str, Any]] = field(default_factory=list)
+    modems: list[dict[str, Any]] = field(default_factory=list)
+    uplink: Uplink | None = None
+    wifi_client: WifiClient | None = None
+    wifi_first: bool | None = None
+    stations: list[WifiStation] = field(default_factory=list)
+    access_points: list[AccessPoint] = field(default_factory=list)
+    internet: bool | None = None
+    portal_waiting: bool = False
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        interfaces: list[dict[str, Any]],
+        interface_config: list[dict[str, Any]],
+        wireless_config: list[dict[str, Any]],
+        wireless_status: list[dict[str, Any]],
+        wireless_devices: list[dict[str, Any]],
+        modems: list[dict[str, Any]],
+    ) -> TeltonikaData:
+        """Derive uplink, Wi-Fi client, priority and access points."""
+        networks = wifi_network_names(wireless_config)
+        return cls(
+            interfaces=interfaces,
+            interface_config=interface_config,
+            wireless_config=wireless_config,
+            wireless_status=wireless_status,
+            wireless_devices=wireless_devices,
+            modems=modems,
+            uplink=derive_uplink(interfaces, networks),
+            wifi_client=derive_wifi_client(
+                wireless_status, wireless_config, wireless_devices
+            ),
+            wifi_first=derive_wifi_first(interfaces, interface_config, networks),
+            stations=derive_stations(wireless_config, interfaces),
+            access_points=derive_access_points(
+                wireless_config, wireless_status, wireless_devices
+            ),
+        )
+
+    @property
+    def portal_state(self) -> str:
+        """Return the captive portal state."""
+        return derive_portal_state(
+            waiting=self.portal_waiting,
+            wifi_client=self.wifi_client,
+            uplink=self.uplink,
+            internet=self.internet,
+        )
+
+    def modem(self, modem_id: str) -> dict[str, Any] | None:
+        """Return one modem by id."""
+        for modem in self.modems:
+            if str(modem.get("id")) == modem_id:
+                return modem
+        return None

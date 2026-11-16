@@ -1,0 +1,84 @@
+portal_mode:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: teltonika_control
+    minutes:
+      required: false
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 30
+          unit_of_measurement: min
+set_priority:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: teltonika_control
+    wifi_first:
+      required: true
+      selector:
+        boolean:
+    verify:
+      required: false
+      default: true
+      selector:
+        boolean:
+scan_wifi:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: teltonika_control
+    radio:
+      required: false
+      example: radio0
+      selector:
+        text:
+join_wifi:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: teltonika_control
+    radio:
+      required: true
+      example: radio0
+      selector:
+        text:
+    ssid:
+      required: true
+      selector:
+        text:
+    bssid:
+      required: false
+      selector:
+        text:
+    password:
+      required: false
+      selector:
+        text:
+          type: password
+forget_wifi:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: teltonika_control
+    station_id:
+      required: false
+      example: "6"
+      selector:
+        text:
+    ssid:
+      required: false
+      selector:
+        text:
