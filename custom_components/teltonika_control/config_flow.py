@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -31,9 +32,12 @@ from .api import (
 from .const import (
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
+    CONF_VPN_HOST,
+    CONF_VPN_PORT,
     DEFAULT_PROBE_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_USERNAME,
+    DEFAULT_VPN_PORT,
     DOMAIN,
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
@@ -41,6 +45,35 @@ from .const import (
 from .models import RouterInfo
 
 _LOGGER = logging.getLogger(__name__)
+
+_BRACKETED = re.compile(r"^\[(?P<host>[^\]]+)\](?::(?P<port>\d+))?$")
+_HOSTNAME = re.compile(r"^[A-Za-z0-9._:-]+$")
+
+
+def parse_vpn_target(value: str) -> tuple[str, int | None] | None:
+    """Split a DNS name, IPv4 or IPv6 address with an optional port.
+
+    Accepts ``name``, ``name:443``, ``fd00::1``, ``[fd00::1]`` and
+    ``[fd00::1]:443``. Returns None for anything that is not a plain host.
+    """
+    text = value.strip()
+    if not text:
+        return None
+    port: int | None = None
+    bracketed = _BRACKETED.match(text)
+    if bracketed:
+        text = bracketed.group("host")
+        port = int(bracketed.group("port")) if bracketed.group("port") else None
+    elif text.count(":") == 1:
+        text, _, port_text = text.partition(":")
+        if not port_text.isdigit():
+            return None
+        port = int(port_text)
+    if not text or not _HOSTNAME.match(text):
+        return None
+    if port is not None and not 1 <= port <= 65535:
+        return None
+    return text, port
 
 
 def build_client(hass: HomeAssistant, data: Mapping[str, Any]) -> TeltonikaClient:
@@ -180,24 +213,41 @@ class TeltonikaConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class TeltonikaOptionsFlow(OptionsFlow):
-    """Polling interval and internet probe."""
+    """Polling interval, internet probe and VPN check."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            # An emptied field is missing from user_input: store "" to disable the probe.
-            return self.async_create_entry(
-                data={
-                    CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
-                    CONF_PROBE_URL: user_input.get(CONF_PROBE_URL, "").strip(),
-                }
-            )
+            # An emptied field is missing from user_input: store "" to disable it.
+            vpn_host = ""
+            vpn_port = user_input.get(CONF_VPN_PORT, DEFAULT_VPN_PORT)
+            raw_vpn = user_input.get(CONF_VPN_HOST, "").strip()
+            if raw_vpn:
+                target = parse_vpn_target(raw_vpn)
+                if target is None:
+                    errors[CONF_VPN_HOST] = "invalid_vpn_host"
+                else:
+                    vpn_host = target[0]
+                    # A port typed behind the host wins over the port field.
+                    vpn_port = target[1] or vpn_port
+            if not errors:
+                return self.async_create_entry(
+                    data={
+                        CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
+                        CONF_PROBE_URL: user_input.get(CONF_PROBE_URL, "").strip(),
+                        CONF_VPN_HOST: vpn_host,
+                        CONF_VPN_PORT: vpn_port,
+                    }
+                )
 
         options = self.config_entry.options
+        suggested = user_input or options
         return self.async_show_form(
             step_id="init",
+            errors=errors,
             data_schema=vol.Schema(
                 {
                     vol.Required(
@@ -210,11 +260,22 @@ class TeltonikaOptionsFlow(OptionsFlow):
                     vol.Optional(
                         CONF_PROBE_URL,
                         description={
-                            "suggested_value": options.get(
-                                CONF_PROBE_URL, DEFAULT_PROBE_URL
+                            "suggested_value": suggested.get(
+                                CONF_PROBE_URL,
+                                "" if user_input is not None else DEFAULT_PROBE_URL,
                             )
                         },
                     ): str,
+                    vol.Optional(
+                        CONF_VPN_HOST,
+                        description={
+                            "suggested_value": suggested.get(CONF_VPN_HOST, "")
+                        },
+                    ): str,
+                    vol.Optional(
+                        CONF_VPN_PORT,
+                        default=options.get(CONF_VPN_PORT, DEFAULT_VPN_PORT),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
                 }
             ),
         )

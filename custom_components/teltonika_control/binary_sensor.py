@@ -50,6 +50,13 @@ ROUTER_BINARY_SENSORS: tuple[RouterBinarySensorDescription, ...] = (
     ),
 )
 
+VPN_BINARY_SENSOR = RouterBinarySensorDescription(
+    key="vpn_reachable",
+    translation_key="vpn_reachable",
+    device_class=BinarySensorDeviceClass.CONNECTIVITY,
+    value_fn=lambda d: d.vpn_reachable,
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -58,9 +65,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up the binary sensors."""
     coordinator = entry.runtime_data
+    descriptions = list(ROUTER_BINARY_SENSORS)
+    if coordinator.vpn_host:
+        descriptions.append(VPN_BINARY_SENSOR)
     async_add_entities(
         TeltonikaRouterBinarySensor(coordinator, description)
-        for description in ROUTER_BINARY_SENSORS
+        for description in descriptions
     )
     async_add_discovered(
         entry,

@@ -320,6 +320,13 @@ select **Configure**.
 - **Internet check URL**: a web address that answers with HTTP 204 when the
   internet works. It is used to detect a hotspot login page. Leave it empty
   to turn the check off.
+- **VPN check host**: optional. A DNS name, IPv4 or IPv6 address of a device
+  behind your VPN tunnel, for example the router at your home base
+  (`192.168.178.1`). With it, the sensors **VPN reachable** and **VPN
+  latency** appear. Leave it empty to turn the check off. Details and
+  limits are in the [README](../README.md#vpn-check).
+- **VPN check port**: the TCP port for that check, default 443. A refused
+  connection also counts as reachable.
 
 The internet check runs on the Home Assistant host, so it only says
 something about the router if Home Assistant reaches the internet through

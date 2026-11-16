@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -29,8 +30,11 @@ from .const import (
     AP_REFRESH_DELAY,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
+    CONF_VPN_HOST,
+    CONF_VPN_PORT,
     DEFAULT_PROBE_URL,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_VPN_PORT,
     DOMAIN,
     EVENT_PORTAL_RESULT,
     METRIC_MOBILE_FIRST,
@@ -40,6 +44,7 @@ from .const import (
     PRIORITY_VERIFY_DELAY,
     PROBE_TIMEOUT,
     UPLINK_WIFI,
+    VPN_TIMEOUT,
 )
 from .models import (
     SAVED_MULTI_AP,
@@ -64,6 +69,11 @@ type TeltonikaConfigEntry = ConfigEntry[TeltonikaCoordinator]
 def _monotonic() -> float:
     """Return the clock used for portal mode deadlines (patched in tests)."""
     return time.monotonic()
+
+
+async def _nothing() -> None:
+    """Placeholder for a check that is switched off."""
+    return None
 
 
 @asynccontextmanager
@@ -102,6 +112,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self.router = router
         self.portal_waiting = False
         self._probe_url: str = entry.options.get(CONF_PROBE_URL, DEFAULT_PROBE_URL)
+        self.vpn_host: str = entry.options.get(CONF_VPN_HOST, "")
+        self._vpn_port: int = entry.options.get(CONF_VPN_PORT, DEFAULT_VPN_PORT)
         # State of the Wi-Fi management entities; the password is never stored.
         self.scan_results: list[ScanNetwork] = []
         self.selected_scan: str | None = None
@@ -179,9 +191,35 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             router_time=client.server_time,
         )
         data.portal_waiting = self.portal_waiting
-        if self._probe_url and data.uplink is not None:
-            data.internet = await self._async_probe_internet()
+        probe_internet = bool(self._probe_url) and data.uplink is not None
+        internet, vpn = await asyncio.gather(
+            self._async_probe_internet() if probe_internet else _nothing(),
+            self._async_check_vpn() if self.vpn_host else _nothing(),
+        )
+        if probe_internet:
+            data.internet = internet
+        if self.vpn_host and vpn is not None:
+            data.vpn_reachable, data.vpn_latency = vpn
         return data
+
+    async def _async_check_vpn(self) -> tuple[bool, float | None]:
+        """Connect to the host behind the tunnel; return (reachable, ms)."""
+        started = time.perf_counter()
+        try:
+            async with asyncio.timeout(VPN_TIMEOUT):
+                _, writer = await asyncio.open_connection(
+                    self.vpn_host, self._vpn_port
+                )
+        except ConnectionRefusedError:
+            # The host answered with a reset, so the tunnel carries traffic.
+            return True, round((time.perf_counter() - started) * 1000, 1)
+        except (OSError, TimeoutError):
+            return False, None
+        latency = round((time.perf_counter() - started) * 1000, 1)
+        writer.close()
+        with contextlib.suppress(OSError):
+            await writer.wait_closed()
+        return True, latency
 
     async def _async_probe_internet(self) -> bool:
         session = async_get_clientsession(self.hass)

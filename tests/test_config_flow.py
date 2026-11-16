@@ -14,6 +14,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.teltonika_control.const import (
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
+    CONF_VPN_HOST,
+    CONF_VPN_PORT,
+    DEFAULT_VPN_PORT,
     DOMAIN,
 )
 
@@ -116,4 +119,9 @@ async def test_options_flow_disables_probe(
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONF_SCAN_INTERVAL: 60, CONF_PROBE_URL: ""}
+    assert entry.options == {
+        CONF_SCAN_INTERVAL: 60,
+        CONF_PROBE_URL: "",
+        CONF_VPN_HOST: "",
+        CONF_VPN_PORT: DEFAULT_VPN_PORT,
+    }

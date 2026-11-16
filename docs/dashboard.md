@@ -91,6 +91,8 @@ differ. These are the entities the dashboard uses:
 | Wi-Fi link speed | `sensor.my_router_wi_fi_link_speed` |
 | Hotspot login | `sensor.my_router_hotspot_login` |
 | Internet | `binary_sensor.my_router_internet` |
+| VPN reachable (optional) | `binary_sensor.my_router_vpn_reachable` |
+| VPN latency (optional) | `sensor.my_router_vpn_latency` |
 | Uplink priority | `select.my_router_uplink_priority` |
 | Reconnect Wi-Fi | `button.my_router_reconnect_wi_fi` |
 | Reboot router | `button.my_router_reboot_router` |
@@ -137,7 +139,10 @@ list. Fix that entity and save again.
 - **Connection**: the active uplink pill is green for Wi-Fi, orange for mobile
   data and red for anything else, with the uplink IP as small pill. The Wi-Fi
   pill shows band, signal and speed, turns orange when the Wi-Fi has no
-  internet (a hotspot login page) and red when the Wi-Fi is gone.
+  internet (a hotspot login page) and red when the Wi-Fi is gone. The **VPN**
+  pill is green with the latency or red when the host behind the tunnel does
+  not answer. It only appears when you set a VPN check host in the options,
+  see the [VPN check](../README.md#vpn-check).
 - **Wi-Fi first and Mobile first** are two buttons without a drop-down. The
   active priority is coloured, the other one is grey, so they also show the
   current state. They call `teltonika_control.set_priority`. With Wi-Fi

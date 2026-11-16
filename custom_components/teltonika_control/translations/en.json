@@ -49,13 +49,20 @@
       "init": {
         "data": {
           "scan_interval": "Update interval (seconds)",
-          "probe_url": "Internet check URL"
+          "probe_url": "Internet check URL",
+          "vpn_host": "VPN check host",
+          "vpn_port": "VPN check port"
         },
         "data_description": {
           "scan_interval": "How often the router is polled.",
-          "probe_url": "Must answer HTTP 204 when the internet works. Used to detect a hotspot login page. Leave empty to turn the check off."
+          "probe_url": "Must answer HTTP 204 when the internet works. Used to detect a hotspot login page. Leave empty to turn the check off.",
+          "vpn_host": "A DNS name, IPv4 or IPv6 address of a device behind your VPN tunnel, for example the router at your home base. Checked from the Home Assistant host. Leave empty to turn the check off.",
+          "vpn_port": "A TCP port to connect to. A refused connection also counts as reachable, because the device answered through the tunnel."
         }
       }
+    },
+    "error": {
+      "invalid_vpn_host": "Enter a plain DNS name or IP address, optionally with a port, without http:// or a path."
     }
   },
   "entity": {
@@ -105,7 +112,8 @@
       "gps_heading": { "name": "GPS heading" },
       "gps_fix": { "name": "GPS fix status" },
       "last_action": { "name": "Last Wi-Fi action" },
-      "router_time": { "name": "Router time" }
+      "router_time": { "name": "Router time" },
+      "vpn_latency": { "name": "VPN latency" }
     },
     "device_tracker": {
       "gps": { "name": "Position" }
@@ -114,7 +122,8 @@
       "wifi_connected": { "name": "Wi-Fi connected" },
       "internet": { "name": "Internet" },
       "login_required": { "name": "Hotspot login required" },
-      "mobile_connected": { "name": "Mobile data connected" }
+      "mobile_connected": { "name": "Mobile data connected" },
+      "vpn_reachable": { "name": "VPN reachable" }
     },
     "button": {
       "reboot": { "name": "Reboot router" },

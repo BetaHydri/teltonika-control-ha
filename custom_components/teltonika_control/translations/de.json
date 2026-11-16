@@ -49,13 +49,20 @@
       "init": {
         "data": {
           "scan_interval": "Aktualisierungsintervall (Sekunden)",
-          "probe_url": "URL für den Internettest"
+          "probe_url": "URL für den Internettest",
+          "vpn_host": "Host für den VPN-Test",
+          "vpn_port": "Port für den VPN-Test"
         },
         "data_description": {
           "scan_interval": "Wie oft der Router abgefragt wird.",
-          "probe_url": "Muss bei funktionierendem Internet HTTP 204 liefern. Erkennt die Anmeldeseite eines Hotspots. Leer lassen, um den Test auszuschalten."
+          "probe_url": "Muss bei funktionierendem Internet HTTP 204 liefern. Erkennt die Anmeldeseite eines Hotspots. Leer lassen, um den Test auszuschalten.",
+          "vpn_host": "DNS-Name, IPv4- oder IPv6-Adresse eines Geräts hinter dem VPN-Tunnel, zum Beispiel der Router der Heimatbasis. Wird vom Home-Assistant-Host aus geprüft. Leer lassen, um den Test auszuschalten.",
+          "vpn_port": "TCP-Port, zu dem verbunden wird. Auch eine abgelehnte Verbindung zählt als erreichbar, weil das Gerät durch den Tunnel geantwortet hat."
         }
       }
+    },
+    "error": {
+      "invalid_vpn_host": "Gib einen einfachen DNS-Namen oder eine IP-Adresse an, optional mit Port, ohne http:// und ohne Pfad."
     }
   },
   "entity": {
@@ -105,7 +112,8 @@
       "gps_heading": { "name": "GPS-Kurs" },
       "gps_fix": { "name": "GPS-Fix-Status" },
       "last_action": { "name": "Letzte WLAN-Aktion" },
-      "router_time": { "name": "Routerzeit" }
+      "router_time": { "name": "Routerzeit" },
+      "vpn_latency": { "name": "VPN-Latenz" }
     },
     "device_tracker": {
       "gps": { "name": "Position" }
@@ -114,7 +122,8 @@
       "wifi_connected": { "name": "WLAN verbunden" },
       "internet": { "name": "Internet" },
       "login_required": { "name": "Hotspot-Anmeldung nötig" },
-      "mobile_connected": { "name": "Mobile Daten verbunden" }
+      "mobile_connected": { "name": "Mobile Daten verbunden" },
+      "vpn_reachable": { "name": "VPN erreichbar" }
     },
     "button": {
       "reboot": { "name": "Router neu starten" },

@@ -45,6 +45,10 @@ respective owners and are used here only to say which routers are supported.
   speed, altitude, satellites and accuracy.
 - **The router's own Wi-Fi**: a switch for each access point that shows the
   real state, also when you change it in the router web interface.
+- **VPN check**: enter a host behind your site-to-site tunnel (a DNS name or an
+  IPv4 or IPv6 address, for example the router at home) and get a
+  **VPN reachable** sensor with the latency. It works with any VPN type,
+  such as WireGuard, OpenVPN or IPsec. See [VPN check](#vpn-check).
 - **Ready-made dashboard**: a complete dashboard with coloured pills, two
   columns and badges. It needs the Bubble Card and Mushroom frontend cards,
   for this dashboard only. See
@@ -220,6 +224,8 @@ automatically.
 | Wi-Fi connected | binary sensor | Router is a Wi-Fi client |
 | Internet | binary sensor | Result of the internet check |
 | Hotspot login required | binary sensor | Wi-Fi is up but has no internet |
+| VPN reachable | binary sensor | Only with a VPN check host, see [VPN check](#vpn-check) |
+| VPN latency | sensor | Connect time to the VPN check host in ms. Diagnostic, only with a VPN check host |
 | Access point *name* | switch | The router's own Wi-Fi, real state |
 | Uplink priority | select | Wi-Fi first or mobile first |
 | Reconnect Wi-Fi | button | Reconnects all saved networks |
@@ -325,6 +331,64 @@ router sets.
 The entities appear on routers with Wi-Fi radios. The services below do the
 same for automations and scripts.
 
+## VPN check
+
+Routers often carry a site-to-site tunnel, for example WireGuard from a camper
+to the router at home. The RutOS web interface shows no live tunnel status, so
+the integration checks the tunnel from the outside: it connects to a device
+behind the tunnel.
+
+1. Go to **Settings**, **Devices & services**, **Teltonika Control**,
+   **Configure**.
+2. Enter the **VPN check host**: a DNS name, an IPv4 address or an IPv6
+   address of a device at the other end, for example the home router
+   `192.168.178.1`. A port can follow, for example `192.168.178.1:443` or
+   `[fd00::1]:443`.
+3. Set the **VPN check port** (default 443) and save.
+
+You get the binary sensor **VPN reachable** and the sensor **VPN latency**.
+Every update interval, Home Assistant opens a TCP connection to host and port.
+The tunnel counts as up when the connection works **or is refused**, because a
+refusal means the device answered through the tunnel. A timeout, an
+unresolvable name or "no route" count as down. Leave the host empty to turn the
+check off.
+
+Good targets are a device that is always on at the other end, ideally one with
+an open web port. Use an address inside the tunnel's subnet, not the public
+address of the remote router.
+
+Notes:
+
+- The check runs on the Home Assistant host, like the internet check. It is
+  only meaningful if Home Assistant reaches the remote network through this
+  router.
+- It tests the whole path, not only the WireGuard handshake: the tunnel, the
+  routes and the remote firewall. A route that is too wide or missing shows up
+  as "unreachable".
+- A firewall that silently drops the port looks the same as a dead tunnel. Pick
+  a port that the device answers or rejects.
+
+Example: warn when the tunnel is down for five minutes while the router is
+online.
+
+```yaml
+automation:
+  - alias: "Router: VPN to home is down"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.my_router_vpn_reachable
+        to: "off"
+        for: "00:05:00"
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.my_router_internet
+        state: "on"
+    actions:
+      - action: notify.notify
+        data:
+          message: "The VPN tunnel to home is down although the router is online."
+```
+
 ## Services
 
 | Service | Purpose |
@@ -418,6 +482,8 @@ automation:
 The internet check runs on the Home Assistant host. It is only meaningful if
 Home Assistant reaches the internet through this router.
 
+- **VPN check host** and **VPN check port**: optional, see [VPN check](#vpn-check).
+
 ## Known Limitations
 
 - The Wi-Fi sensors describe the connection that carries the uplink. If the
@@ -453,6 +519,9 @@ An optional read-only check against a real router lives in
 `tools/live_smoke_test.py`. It reads the address and login from the
 environment variables `TELTONIKA_HOST`, `TELTONIKA_USER` and
 `TELTONIKA_PASSWORD`, and prints the field names the router returns.
+`tools/probe_endpoints.py` uses the same variables and checks which further
+REST endpoints your router offers. It shows only key names and types, no
+secrets.
 
 The icon and logo in `custom_components/teltonika_control/brand` are drawn by
 `tools/make_brand_images.py` (needs Pillow). Home Assistant 2026.3 and newer

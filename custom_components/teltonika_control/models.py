@@ -655,6 +655,8 @@ class TeltonikaData:
     router_time: datetime | None = None
     internet: bool | None = None
     portal_waiting: bool = False
+    vpn_reachable: bool | None = None
+    vpn_latency: float | None = None
 
     @classmethod
     def build(

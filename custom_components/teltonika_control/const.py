@@ -6,6 +6,8 @@ DOMAIN = "teltonika_control"
 
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_PROBE_URL = "probe_url"
+CONF_VPN_HOST = "vpn_host"
+CONF_VPN_PORT = "vpn_port"
 
 DEFAULT_USERNAME = "admin"
 DEFAULT_SCAN_INTERVAL = 30
@@ -16,6 +18,11 @@ MAX_SCAN_INTERVAL = 600
 # a redirect or a login page instead.
 DEFAULT_PROBE_URL = "http://connectivitycheck.gstatic.com/generate_204"
 PROBE_TIMEOUT = 6
+
+# Tunnel check: a TCP connect to a host behind the VPN. A refused connection
+# still proves that the host answered through the tunnel.
+DEFAULT_VPN_PORT = 443
+VPN_TIMEOUT = 4
 
 # RutOS wants metrics as strings. The mobile interface usually uses 4, so 0
 # makes Wi-Fi win and 10 keeps mobile data in front.

@@ -23,6 +23,7 @@ from homeassistant.const import (
     UnitOfLength,
     UnitOfSpeed,
     UnitOfTemperature,
+    UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -70,6 +71,17 @@ ROUTER_TIME_SENSOR = RouterSensorDescription(
     entity_category=EntityCategory.DIAGNOSTIC,
     entity_registry_enabled_default=False,
     value_fn=lambda d: d.router_time,
+)
+
+VPN_LATENCY_SENSOR = RouterSensorDescription(
+    key="vpn_latency",
+    translation_key="vpn_latency",
+    device_class=SensorDeviceClass.DURATION,
+    native_unit_of_measurement=UnitOfTime.MILLISECONDS,
+    state_class=SensorStateClass.MEASUREMENT,
+    suggested_display_precision=0,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    value_fn=lambda d: d.vpn_latency,
 )
 
 GPS_SENSORS: tuple[RouterSensorDescription, ...] = (
@@ -302,6 +314,8 @@ async def async_setup_entry(
         TeltonikaRouterSensor(coordinator, description)
         for description in ROUTER_SENSORS
     )
+    if coordinator.vpn_host:
+        async_add_entities([TeltonikaRouterSensor(coordinator, VPN_LATENCY_SENSOR)])
     async_add_discovered(
         entry,
         async_add_entities,

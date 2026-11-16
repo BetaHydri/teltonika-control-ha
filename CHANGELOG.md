@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
+### Added
+
+- VPN check: enter a DNS name, IPv4 or IPv6 address (and a TCP port) of a
+  device behind a site-to-site tunnel in the options. The new binary sensor
+  **VPN reachable** and the sensor **VPN latency** show whether the tunnel
+  carries traffic. It works with every VPN type. A refused connection counts
+  as reachable. The sample dashboard has a VPN pill that appears only when the
+  check is set up.
+- `tools/probe_endpoints.py`: a read-only probe that lists which further REST
+  endpoints (VPN, firmware, DHCP, failover and others) a router offers. It
+  prints names and types, never keys, addresses or other text values.
+
 ### Changed
 
 - The sample dashboard `dashboards/teltonika-control.yaml` has a new look:
