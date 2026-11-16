@@ -226,6 +226,11 @@ class TeltonikaClient:
         """Return the live state of all modems."""
         return await self._async_list("/modems/status")
 
+    async def async_gps_status(self) -> dict[str, Any]:
+        """Return the GPS position; routers without GPS answer with an error."""
+        data = await self.async_request("GET", "/gps/position/status")
+        return data if isinstance(data, dict) else {}
+
     async def async_restart_modem_connection(self, modem_id: str) -> None:
         """Re-establish the mobile data connection."""
         await self.async_request(

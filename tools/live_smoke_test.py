@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from custom_components.teltonika_control.api import (  # noqa: E402
     TeltonikaClient,
+    TeltonikaError,
     parse_host,
 )
 from custom_components.teltonika_control.models import (  # noqa: E402
@@ -70,6 +71,11 @@ async def main() -> int:
         await client.async_login()
         info = RouterInfo.from_device_status(host, await client.async_device_status())
         interfaces = await client.async_interfaces_status()
+        try:
+            gps_raw = await client.async_gps_status()
+        except TeltonikaError as err:
+            gps_raw = {}
+            print(f"GPS        : not available ({err})")
         data = TeltonikaData.build(
             interfaces=interfaces,
             interface_config=await client.async_interfaces_config(),
@@ -77,6 +83,7 @@ async def main() -> int:
             wireless_status=await client.async_wireless_status(),
             wireless_devices=await client.async_wireless_devices_status(),
             modems=await client.async_modems_status(),
+            gps=gps_raw,
         )
 
     print(f"Router     : {info.model} fw {info.firmware} serial {mask(info.serial)}")
@@ -101,6 +108,9 @@ async def main() -> int:
         print(f"Access pt  : {point.config_id} band={point.band} enabled={point.enabled}")
     if data.wireless_status:
         print("Wireless status keys:", sorted(data.wireless_status[0]))
+    if gps_raw:
+        print("GPS keys   :", sorted(gps_raw))
+        print("GPS parsed :", data.gps or "no fix")
 
     for modem in data.modems:
         missing = [key for key in EXPECTED_MODEM_KEYS if key not in modem]

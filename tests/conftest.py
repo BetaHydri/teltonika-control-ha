@@ -56,14 +56,33 @@ def no_delays(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def mock_router(
-    aioclient_mock: Any, *, wifi_metric: int | None = None, internet: bool = True
+    aioclient_mock: Any,
+    *,
+    wifi_metric: int | None = None,
+    internet: bool = True,
+    gps: dict[str, Any] | bool = True,
 ) -> None:
-    """Register answers for every endpoint the integration polls."""
+    """Register answers for every endpoint the integration polls.
+
+    ``gps`` is True for the default position, a dict for a custom answer and
+    False for a router without GPS (the endpoint is missing).
+    """
     data = payloads(wifi_metric=wifi_metric)
     aioclient_mock.post(
         f"{BASE}/login",
         json={"success": True, "data": {"token": "tok", "expires": 299}},
     )
+    if gps is False:
+        aioclient_mock.get(
+            f"{BASE}/gps/position/status",
+            status=404,
+            json={"success": False, "errors": [{"code": 404, "error": "Not found"}]},
+        )
+    else:
+        aioclient_mock.get(
+            f"{BASE}/gps/position/status",
+            json={"success": True, "data": data["gps"] if gps is True else gps},
+        )
     for path, body in (
         ("/system/device/status", DEVICE_STATUS),
         ("/interfaces/status", data["interfaces"]),

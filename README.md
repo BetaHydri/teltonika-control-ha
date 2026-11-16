@@ -1,14 +1,59 @@
 # Teltonika Control
 
+[![Validate](https://github.com/BetaHydri/teltonika-control-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/BetaHydri/teltonika-control-ha/actions/workflows/validate.yml)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/docs/faq/custom_repositories)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Native Home Assistant integration for Teltonika RUTC and RUTX routers.
-It talks to the RutOS REST API, so no Modbus, MQTT or router scripts are
-needed.
+It talks to the local RutOS REST API, so no Modbus, MQTT, router scripts or
+helper entities are needed, and no cloud account.
 
 It grew out of a camper setup: switch between Wi-Fi and mobile data, get told
 when a hotspot needs a login, and restart things without opening the router
 web page.
 
-## Supported Routers
+## Features
+
+### Major features
+
+- **Uplink control**: see which uplink carries your traffic (Wi-Fi, mobile
+  data or Ethernet) and switch between **Wi-Fi first** and **Mobile first**
+  with one tap. Optionally the router goes back to mobile data on its own
+  when the Wi-Fi has no internet.
+- **Hotspot login handling**: a sensor tells you when a campsite or hotel
+  Wi-Fi shows a login page. One service prefers the Wi-Fi, waits until you
+  confirmed the page, and falls back to mobile data if nothing happens.
+  A result event drives your notifications.
+- **Wi-Fi network management**: scan for networks, save and remove them from
+  Home Assistant. Routers whose 5 GHz radio runs as Multi AP, such as the
+  RUTC50, are handled correctly.
+- **Mobile data monitoring**: operator, network type, band, RSRP, RSRQ, SINR,
+  modem temperature, SIM state and the data counters for each modem.
+- **SIM and modem control**: switch the SIM slot of dual SIM modems and
+  re-establish the mobile connection.
+- **GPS tracking**: for routers with GPS, a device tracker for the map plus
+  speed, altitude, satellites and accuracy.
+- **The router's own Wi-Fi**: a switch for each access point that shows the
+  real state, also when you change it in the router web interface.
+- **Ready-made dashboard**: a complete dashboard built from core cards. See
+  [docs/dashboard.md](docs/dashboard.md).
+
+### Other features
+
+- Buttons to reconnect the Wi-Fi client and to reboot the router.
+- An internet check that tells a working Wi-Fi from one behind a login page.
+- Re-authentication, reconfiguration and options in the user interface.
+- Diagnostics download with passwords and personal data removed.
+- English and German translations.
+
+### Planned
+
+Ideas that are not implemented yet: scanning, adding and removing Wi-Fi
+networks as entities (today they are services), data usage limits and monthly
+counters, per-interface WAN failover control, SMS notifications and setting
+the Home Assistant home zone from the router's GPS.
+
+## Supported routers
 
 | Family | Examples | Status |
 |---|---|---|
@@ -84,6 +129,7 @@ to:
 | Wi-Fi client and access point state | Network, Wireless, SSIDs | Read |
 | Access point switches, reconnect Wi-Fi, scan, save and remove networks | Network, Wireless, SSIDs | Write |
 | Modem sensors | Network, Mobile | Read |
+| GPS position | Services, GPS | Read |
 | Restart mobile connection, SIM slot | Network, Mobile, Modems | Write |
 | Reboot router | System, Administration, General | Write |
 
@@ -163,6 +209,8 @@ automatically.
 | Uplink priority | select | Wi-Fi first or mobile first |
 | Reconnect Wi-Fi | button | Reconnects all saved networks |
 | Reboot router | button | Add a confirmation in your dashboard |
+| Position | device tracker | Only on routers with GPS, see [GPS](#gps) |
+| GPS speed, altitude, satellites, accuracy | sensors | Only on routers with GPS. Heading and fix status are disabled by default |
 
 ### Modem (one device per modem)
 
@@ -170,6 +218,28 @@ Operator, network type, band, RSRP, RSRQ, SINR, temperature, data connection,
 SIM state, active SIM, data received and sent, a connected sensor, a
 **Restart mobile connection** button and, on dual SIM modems, a **SIM slot**
 select. RSSI and signal quality are disabled by default.
+
+## GPS
+
+Routers with a GPS receiver report their position through the REST API. The
+integration reads it with every update and creates, only on routers that
+answer the GPS request:
+
+- **Position**, a device tracker that shows the router on the Home Assistant
+  map, with the accuracy in meters.
+- **GPS speed** (km/h), **GPS altitude** (m), **GPS satellites** and
+  **GPS accuracy**.
+- **GPS heading** and **GPS fix status**, disabled by default.
+
+Speed, altitude and accuracy are rounded, so a parked camper or boat does not
+write GPS noise into the history on every update. While the router has no fix
+(it reports zeros), the entities are `unknown` and the position is not
+trusted. The router needs a clear view of the sky and a connected GPS
+antenna, and GPS must be switched on in the router.
+
+If the user of the integration may not read the GPS data, the GPS entities do
+not appear. Give it read access to the GPS page, see the
+[permissions](#router-user-and-permissions).
 
 ## Hotspots With a Login Page
 
@@ -237,6 +307,58 @@ web interface if you really want an empty list.
 When a client network is removed, its network interface is removed too, unless
 it is one of the router's default interfaces (`lan`, `wan*`, `mob*`, `vpn*`).
 
+## Automation examples
+
+Adjust the entity IDs to your router. Services take any entity of the router
+as target.
+
+### Back to mobile data when the Wi-Fi has no internet
+
+```yaml
+automation:
+  - alias: "Router: mobile first when the Wi-Fi is dead"
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.my_router_internet
+        to: "off"
+        for: "00:02:00"
+    conditions:
+      - condition: state
+        entity_id: sensor.my_router_uplink
+        state: wifi
+    actions:
+      - action: teltonika_control.set_priority
+        target:
+          entity_id: sensor.my_router_uplink
+        data:
+          wifi_first: false
+          verify: false
+```
+
+### Move the home zone with the camper
+
+When the router has been standing still for ten minutes, the Home Assistant
+home location follows its GPS position.
+
+```yaml
+automation:
+  - alias: "Camper: home zone follows the router when parked"
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.my_router_gps_speed
+        below: 1
+        for: "00:10:00"
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ state_attr('device_tracker.my_router_position', 'latitude') is number }}
+    actions:
+      - action: homeassistant.set_location
+        data:
+          latitude: "{{ state_attr('device_tracker.my_router_position', 'latitude') }}"
+          longitude: "{{ state_attr('device_tracker.my_router_position', 'longitude') }}"
+```
+
 ## Options
 
 - **Update interval**: 10 to 600 seconds, default 30.
@@ -251,6 +373,9 @@ Home Assistant reaches the internet through this router.
 - Saved Multi AP list entries are not shown as entities yet, and a Multi AP
   radio is not asked what it is currently connected to beyond the Wi-Fi
   client sensors.
+- The GPS field names are taken from the router API as used by other
+  projects and are not yet confirmed on every router. If the GPS entities stay
+  empty although the router has a fix, open an issue with the diagnostics.
 - Changing the SIM drops mobile data for about a minute and is not rolled
   back automatically.
 - Switching off the access point you are connected through disconnects you.

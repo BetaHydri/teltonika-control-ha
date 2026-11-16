@@ -6,8 +6,10 @@ import pytest
 
 from custom_components.teltonika_control.models import (
     AccessPoint,
+    GpsPosition,
     RouterInfo,
     TeltonikaData,
+    derive_gps,
     derive_portal_state,
     derive_uplink,
     derive_wifi_first,
@@ -21,6 +23,7 @@ from custom_components.teltonika_control.models import (
 
 from .payloads import (
     DEVICE_STATUS,
+    GPS_STATUS,
     INTERFACES_CONFIG,
     INTERFACES_STATUS,
     WIRELESS_CONFIG,
@@ -37,6 +40,7 @@ def build(**kwargs) -> TeltonikaData:
         wireless_status=data["wireless_status"],
         wireless_devices=data["wireless_devices"],
         modems=data["modems"],
+        gps=data["gps"],
     )
 
 
@@ -216,3 +220,70 @@ def test_next_multi_ap_priority(entries, expected) -> None:
 )
 def test_is_protected_interface(interface_id, protected) -> None:
     assert is_protected_interface(interface_id) is protected
+
+
+def test_derive_gps_converts_the_string_values_of_the_router() -> None:
+    position = derive_gps(GPS_STATUS)
+
+    assert position == GpsPosition(
+        latitude=48.436849,
+        longitude=13.110672,
+        altitude=350.4,
+        speed=3.6,
+        accuracy=0.6,
+        satellites=7,
+        heading=92.0,
+        fix_status="3",
+    )
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        None,
+        [],
+        {},
+        {"latitude": "0", "longitude": "0", "satellites": "0"},
+        {"latitude": "", "longitude": "13.1"},
+        {"latitude": "91.0", "longitude": "13.1"},
+        {"latitude": "48.4", "longitude": "181"},
+        {"latitude": "north", "longitude": "east"},
+    ],
+)
+def test_derive_gps_without_a_usable_fix(raw) -> None:
+    assert derive_gps(raw) is None
+
+
+def test_derive_gps_accepts_other_heading_names_and_missing_values() -> None:
+    position = derive_gps({"latitude": 48.4, "longitude": 13.1, "course": "10"})
+
+    assert position is not None
+    assert position.heading == 10.0
+    assert position.speed is None
+    assert position.satellites is None
+
+
+def test_gps_available_even_without_a_fix() -> None:
+    data = build()
+    assert data.gps is not None and data.gps_available
+
+    no_fix = TeltonikaData.build(
+        interfaces=[],
+        interface_config=[],
+        wireless_config=[],
+        wireless_status=[],
+        wireless_devices=[],
+        modems=[],
+        gps={"latitude": "0", "longitude": "0"},
+    )
+    assert no_fix.gps is None
+    assert no_fix.gps_available
+
+    assert not TeltonikaData.build(
+        interfaces=[],
+        interface_config=[],
+        wireless_config=[],
+        wireless_status=[],
+        wireless_devices=[],
+        modems=[],
+    ).gps_available

@@ -112,6 +112,17 @@ MODEMS = [
     }
 ]
 
+GPS_STATUS = {
+    "latitude": "48.436849",
+    "longitude": "13.110672",
+    "altitude": "350.4",
+    "speed": "3.6",
+    "accuracy": "0.6",
+    "satellites": "7",
+    "angle": "92",
+    "fix_status": "3",
+}
+
 SCAN_RESULT = [
     {
         "ssid": "CafeFreeWifi",
@@ -134,6 +145,7 @@ def payloads(*, wifi_metric: int | None = None) -> dict[str, Any]:
         "wireless_status": deepcopy(WIRELESS_STATUS),
         "wireless_devices": deepcopy(WIRELESS_DEVICES),
         "modems": deepcopy(MODEMS),
+        "gps": deepcopy(GPS_STATUS),
     }
     if wifi_metric is not None:
         data["interfaces"][2]["metric"] = wifi_metric

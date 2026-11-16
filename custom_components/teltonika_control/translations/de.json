@@ -97,7 +97,16 @@
       "sim_state": { "name": "SIM-Status" },
       "active_sim": { "name": "Aktive SIM" },
       "received": { "name": "Empfangene Daten" },
-      "sent": { "name": "Gesendete Daten" }
+      "sent": { "name": "Gesendete Daten" },
+      "gps_speed": { "name": "GPS-Geschwindigkeit" },
+      "gps_altitude": { "name": "GPS-Höhe" },
+      "gps_satellites": { "name": "GPS-Satelliten" },
+      "gps_accuracy": { "name": "GPS-Genauigkeit" },
+      "gps_heading": { "name": "GPS-Kurs" },
+      "gps_fix": { "name": "GPS-Fix-Status" }
+    },
+    "device_tracker": {
+      "gps": { "name": "Position" }
     },
     "binary_sensor": {
       "wifi_connected": { "name": "WLAN verbunden" },

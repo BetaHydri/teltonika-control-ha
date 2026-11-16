@@ -459,6 +459,53 @@ def derive_portal_state(
     return PORTAL_IDLE
 
 
+@dataclass(frozen=True, slots=True)
+class GpsPosition:
+    """A GPS fix of the router."""
+
+    latitude: float
+    longitude: float
+    altitude: float | None
+    speed: float | None
+    accuracy: float | None
+    satellites: int | None
+    heading: float | None
+    fix_status: str | None
+
+
+def _first_present(raw: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if raw.get(key) is not None:
+            return raw[key]
+    return None
+
+
+def derive_gps(raw: dict[str, Any] | None) -> GpsPosition | None:
+    """Return the position from ``gps/position/status``, None without a fix.
+
+    The router sends every value as a string and reports zeros while it has
+    no fix, so such a position is not trusted.
+    """
+    if not isinstance(raw, dict):
+        return None
+    latitude = to_float(raw.get("latitude"))
+    longitude = to_float(raw.get("longitude"))
+    if latitude is None or longitude is None:
+        return None
+    if (latitude == 0 and longitude == 0) or abs(latitude) > 90 or abs(longitude) > 180:
+        return None
+    return GpsPosition(
+        latitude=latitude,
+        longitude=longitude,
+        altitude=to_float(raw.get("altitude")),
+        speed=to_float(raw.get("speed")),
+        accuracy=to_float(raw.get("accuracy")),
+        satellites=to_int(raw.get("satellites")),
+        heading=to_float(_first_present(raw, "angle", "heading", "course")),
+        fix_status=_first_text(raw.get("fix_status")),
+    )
+
+
 @dataclass(slots=True)
 class TeltonikaData:
     """One snapshot of the router state."""
@@ -474,6 +521,8 @@ class TeltonikaData:
     wifi_first: bool | None = None
     stations: list[WifiStation] = field(default_factory=list)
     access_points: list[AccessPoint] = field(default_factory=list)
+    gps: GpsPosition | None = None
+    gps_available: bool = False
     internet: bool | None = None
     portal_waiting: bool = False
 
@@ -487,8 +536,9 @@ class TeltonikaData:
         wireless_status: list[dict[str, Any]],
         wireless_devices: list[dict[str, Any]],
         modems: list[dict[str, Any]],
+        gps: dict[str, Any] | None = None,
     ) -> TeltonikaData:
-        """Derive uplink, Wi-Fi client, priority and access points."""
+        """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
         return cls(
             interfaces=interfaces,
@@ -506,6 +556,8 @@ class TeltonikaData:
             access_points=derive_access_points(
                 wireless_config, wireless_status, wireless_devices
             ),
+            gps=derive_gps(gps),
+            gps_available=bool(gps),
         )
 
     @property

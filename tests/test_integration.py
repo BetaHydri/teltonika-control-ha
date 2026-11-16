@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.teltonika_control.const import DOMAIN, EVENT_PORTAL_RESULT
@@ -503,6 +504,58 @@ async def test_forget_removes_a_self_created_interface(
 
     assert len(requests(aioclient_mock, "DELETE", "/wireless/interfaces/config/6")) == 1
     assert len(requests(aioclient_mock, "DELETE", "/interfaces/config/wifi4")) == 1
+
+
+async def test_gps_entities_show_the_position(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    tracker = hass.states.get(entity_id(hass, "device_tracker", "gps"))
+    assert tracker.attributes["latitude"] == 48.436849
+    assert tracker.attributes["longitude"] == 13.110672
+    assert tracker.attributes["gps_accuracy"] == 0.6
+    assert tracker.attributes["source_type"] == "gps"
+
+    def state(key: str) -> str:
+        return hass.states.get(entity_id(hass, "sensor", key)).state
+
+    assert float(state("gps_speed")) == 4
+    assert float(state("gps_altitude")) == 350
+    assert float(state("gps_satellites")) == 7
+    assert float(state("gps_accuracy")) == 0.6
+    # Heading and fix status are disabled by default.
+    registry = er.async_get(hass)
+    for key in ("gps_heading", "gps_fix"):
+        entity = registry.async_get(entity_id(hass, "sensor", key))
+        assert entity.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+
+
+async def test_router_without_gps_has_no_gps_entities(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock, gps=False)
+    await setup_entry(hass, entry)
+
+    registry = er.async_get(hass)
+    assert registry.async_get_entity_id("device_tracker", DOMAIN, f"{SERIAL}_gps") is None
+    assert registry.async_get_entity_id("sensor", DOMAIN, f"{SERIAL}_gps_speed") is None
+    # Everything else works as before.
+    assert hass.states.get(entity_id(hass, "sensor", "uplink")).state == "mobile"
+
+
+async def test_gps_without_a_fix_is_unknown(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(
+        aioclient_mock,
+        gps={"latitude": "0", "longitude": "0", "satellites": "0", "speed": "0"},
+    )
+    await setup_entry(hass, entry)
+
+    assert hass.states.get(entity_id(hass, "device_tracker", "gps")).state == "unknown"
+    assert hass.states.get(entity_id(hass, "sensor", "gps_speed")).state == "unknown"
 
 
 async def test_forget_keeps_a_default_interface(

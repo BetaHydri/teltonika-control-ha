@@ -1,0 +1,59 @@
+"""GPS position of the router as a device tracker."""
+
+from __future__ import annotations
+
+from homeassistant.components.device_tracker import SourceType, TrackerEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
+from .entity import TeltonikaEntity, async_add_discovered
+
+PARALLEL_UPDATES = 0
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: TeltonikaConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Add the tracker once the router reports that it has GPS."""
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (("gps", lambda: TeltonikaGpsTracker(c)),) if c.data.gps_available else ()
+        ),
+    )
+
+
+class TeltonikaGpsTracker(TeltonikaEntity, TrackerEntity):
+    """The position of the router, for example the camper or boat it sits in."""
+
+    _attr_translation_key = "gps"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "gps")
+
+    @property
+    def source_type(self) -> SourceType:
+        """Return GPS as the source of the position."""
+        return SourceType.GPS
+
+    @property
+    def latitude(self) -> float | None:
+        """Return the latitude, None without a fix."""
+        gps = self.coordinator.data.gps
+        return gps.latitude if gps else None
+
+    @property
+    def longitude(self) -> float | None:
+        """Return the longitude, None without a fix."""
+        gps = self.coordinator.data.gps
+        return gps.longitude if gps else None
+
+    @property
+    def location_accuracy(self) -> float:
+        """Return the accuracy in meters."""
+        gps = self.coordinator.data.gps
+        return gps.accuracy if gps and gps.accuracy is not None else 0

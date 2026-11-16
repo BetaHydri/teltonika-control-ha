@@ -124,6 +124,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 client.async_wireless_status(),
                 client.async_wireless_devices_status(),
                 client.async_modems_status(),
+                client.async_gps_status(),
                 return_exceptions=True,
             )
         except TeltonikaAuthError as err:
@@ -131,10 +132,10 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         except TeltonikaError as err:
             raise UpdateFailed(str(err)) from err
 
-        parts: list[list[dict[str, Any]]] = []
+        parts: list[Any] = []
         for result in optional:
             if isinstance(result, TeltonikaApiError):
-                # Router without Wi-Fi or modem: the endpoint is simply missing.
+                # Router without Wi-Fi, modem or GPS: the endpoint is missing.
                 parts.append([])
             elif isinstance(result, TeltonikaAuthError):
                 raise ConfigEntryAuthFailed(str(result)) from result
@@ -144,7 +145,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 raise UpdateFailed(f"Unexpected error: {result}") from result
             else:
                 parts.append(result)
-        wireless_config, wireless_status, wireless_devices, modems = parts
+        wireless_config, wireless_status, wireless_devices, modems, gps = parts
 
         data = TeltonikaData.build(
             interfaces=interfaces,
@@ -153,6 +154,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             wireless_status=wireless_status,
             wireless_devices=wireless_devices,
             modems=modems,
+            gps=gps if isinstance(gps, dict) else None,
         )
         data.portal_waiting = self.portal_waiting
         if self._probe_url and data.uplink is not None:

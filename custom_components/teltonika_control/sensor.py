@@ -13,12 +13,15 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
+    DEGREE,
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
     UnitOfDataRate,
     UnitOfInformation,
+    UnitOfLength,
+    UnitOfSpeed,
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
@@ -53,6 +56,61 @@ def _text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _rounded(value: float | None, digits: int = 0) -> float | None:
+    """Round so that GPS noise does not create a new state on every poll."""
+    return None if value is None else round(value, digits)
+
+
+GPS_SENSORS: tuple[RouterSensorDescription, ...] = (
+    RouterSensorDescription(
+        key="gps_speed",
+        translation_key="gps_speed",
+        device_class=SensorDeviceClass.SPEED,
+        native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: _rounded(d.gps.speed) if d.gps else None,
+    ),
+    RouterSensorDescription(
+        key="gps_altitude",
+        translation_key="gps_altitude",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.METERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: _rounded(d.gps.altitude) if d.gps else None,
+    ),
+    RouterSensorDescription(
+        key="gps_satellites",
+        translation_key="gps_satellites",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: d.gps.satellites if d.gps else None,
+    ),
+    RouterSensorDescription(
+        key="gps_accuracy",
+        translation_key="gps_accuracy",
+        device_class=SensorDeviceClass.DISTANCE,
+        native_unit_of_measurement=UnitOfLength.METERS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: _rounded(d.gps.accuracy, 1) if d.gps else None,
+    ),
+    RouterSensorDescription(
+        key="gps_heading",
+        translation_key="gps_heading",
+        native_unit_of_measurement=DEGREE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda d: _rounded(d.gps.heading) if d.gps else None,
+    ),
+    RouterSensorDescription(
+        key="gps_fix",
+        translation_key="gps_fix",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda d: d.gps.fix_status if d.gps else None,
+    ),
+)
 
 
 ROUTER_SENSORS: tuple[RouterSensorDescription, ...] = (
@@ -234,6 +292,18 @@ async def async_setup_entry(
     async_add_entities(
         TeltonikaRouterSensor(coordinator, description)
         for description in ROUTER_SENSORS
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                description.key,
+                lambda desc=description: TeltonikaRouterSensor(c, desc),
+            )
+            for description in GPS_SENSORS
+            if c.data.gps_available
+        ),
     )
     async_add_discovered(
         entry,

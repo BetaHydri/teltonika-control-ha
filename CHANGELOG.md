@@ -23,6 +23,8 @@ and this project adheres to
 - Step-by-step guide in `docs/getting-started.md`.
 - Ready-made dashboard in `dashboards/teltonika-control.yaml` with a guide in
   `docs/dashboard.md`.
+- GPS: a position device tracker and sensors for speed, altitude, satellites,
+  accuracy, heading and fix status, only on routers that provide GPS.
 - Services accept a service target: the router device or any entity of the
   router (also a modem entity). `device_id` in the data keeps working.
 - `join_wifi` saves networks of a Multi AP radio (5 GHz on the RUTC50) in the
