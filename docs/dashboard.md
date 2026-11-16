@@ -5,20 +5,32 @@ Wi-Fi and mobile data state, and gives you buttons for the actions you need
 on the road: Wi-Fi first or mobile first, hotspot login, restarting the
 mobile connection, switching the SIM and switching the router's own Wi-Fi.
 
-The dashboard uses only Home Assistant core cards. You do not need HACS
-frontend cards.
-
-The file is [dashboards/teltonika-control.yaml](../dashboards/teltonika-control.yaml).
+The design uses coloured pills in two columns, with colour-coded badges at
+the top, in the style of the Bubble Card and Mushroom frontend cards. The
+file is [dashboards/teltonika-control.yaml](../dashboards/teltonika-control.yaml).
 
 ## What you need
 
+Prerequisites for the integration:
+
 - Teltonika Control installed and set up, see the
   [getting started guide](getting-started.md).
-- A version of the integration that accepts a service target and has the
-  Wi-Fi management entities (release 0.3.0 or newer). The buttons call
-  services with
-  an entity of your router as target, so no device ID is needed.
+- Version 0.3.0 or newer of the integration. It accepts a service target
+  (an entity of your router, so no device ID is needed) and has the Wi-Fi
+  management entities.
 - Home Assistant 2024.8 or newer for the `perform-action` button setting.
+
+Prerequisites for this dashboard only. They are not needed for the
+integration and not for any other dashboard of yours:
+
+- **Bubble Card** (Frontend, HACS) draws the pills and the buttons. The
+  dashboard does not work without it.
+- **Mushroom** (Frontend, HACS) draws the coloured badges at the top. It is
+  optional: delete the `badges:` block from the file if you do not want to
+  install it.
+
+Install them in HACS under **Frontend**, restart or reload the browser page
+afterwards, and then continue with step 1.
 
 ## Step 1: List your entity IDs
 
@@ -115,12 +127,17 @@ list. Fix that entity and save again.
 
 ## What the cards do
 
-- **Connection**: the active uplink is green for Wi-Fi, orange for mobile
-  data and red for anything else. The Wi-Fi card turns orange when the Wi-Fi
-  has no internet (a hotspot login page) and red when the Wi-Fi is gone.
-  **Wi-Fi first** and **Mobile first** call `teltonika_control.set_priority`.
-  With Wi-Fi first, the integration goes back to mobile data when the Wi-Fi
-  has no internet after 25 seconds.
+- **Badges** at the top: uplink, RSRP, SINR, network type and speed, coloured
+  green, orange or red by value. They need Mushroom.
+- **Connection**: the active uplink pill is green for Wi-Fi, orange for mobile
+  data and red for anything else, with the uplink IP as small pill. The Wi-Fi
+  pill shows band, signal and speed, turns orange when the Wi-Fi has no
+  internet (a hotspot login page) and red when the Wi-Fi is gone.
+- **Wi-Fi first and Mobile first** are two buttons without a drop-down. The
+  active priority is coloured, the other one is grey, so they also show the
+  current state. They call `teltonika_control.set_priority`. With Wi-Fi
+  first, the integration goes back to mobile data when the Wi-Fi has no
+  internet after 25 seconds.
 - **Router control**: restart the mobile connection, reconnect the Wi-Fi and
   reboot the router. The hotspot button changes with the state: it starts
   `teltonika_control.portal_mode`, shows that it waits, and reports when
@@ -128,19 +145,22 @@ list. Fix that entity and save again.
   [hotspots with a login page](../README.md#hotspots-with-a-login-page).
 - **Mobile data**: operator, network type, signal values, the active SIM with
   SIM 1 and SIM 2 buttons, modem temperature and the data counters.
-- **Router's own Wi-Fi**: switches for the access points of the router.
-- **Add a Wi-Fi network**: press **Scan**, pick a network from the list,
-  type the password and press **Add**. The list hides networks that are
-  already saved in the same band and shows each network once per band with its
-  best signal. The result line tells you what happened. Mobile data stays
-  preferred, so a new network never breaks your connection by itself.
+- **Add a Wi-Fi network**: press **Scan** (the pill), choose a network with
+  **Choose**, type the password with the key button and press **Add**. The
+  list hides networks that are already saved in the same band and shows each
+  network once per band with its best signal. The result pill tells you what
+  happened. Mobile data stays preferred, so a new network never breaks your
+  connection by itself.
 - **Saved Wi-Fi networks**: choose a saved network (a Wi-Fi client or an entry
-  of the Multi AP list) and remove it. The last Multi AP entry cannot be
-  removed.
+  of the Multi AP list) and press **Remove**. The last Multi AP entry cannot
+  be removed. Below it, the router's own Wi-Fi has a switch per band.
 - **GPS**: a map with the router's position plus speed, altitude, satellites
   and accuracy, on routers with GPS.
 
 Every action that interrupts the connection asks for confirmation first.
+
+If a pill looks plain or shows an error, Bubble Card is not installed or not
+loaded yet. Reload the browser page (Ctrl+F5) after installing it.
 
 ## What is not included
 

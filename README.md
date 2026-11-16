@@ -40,7 +40,9 @@ respective owners and are used here only to say which routers are supported.
   speed, altitude, satellites and accuracy.
 - **The router's own Wi-Fi**: a switch for each access point that shows the
   real state, also when you change it in the router web interface.
-- **Ready-made dashboard**: a complete dashboard built from core cards. See
+- **Ready-made dashboard**: a complete dashboard with coloured pills, two
+  columns and badges. It needs the Bubble Card and Mushroom frontend cards,
+  for this dashboard only. See
   [docs/dashboard.md](docs/dashboard.md).
 
 ### Other features

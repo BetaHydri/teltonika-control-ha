@@ -1,12 +1,21 @@
-# Teltonika Control dashboard
+# Teltonika Control dashboard (pill design)
 #
-# Uses only Home Assistant core cards. Before you paste it, replace the two
-# placeholders with the beginning of your own entity IDs, see
-# docs/dashboard.md:
+# Prerequisites for THIS dashboard only, not for the integration. Install both
+# through HACS (Frontend): "Bubble Card" for the pills and "Mushroom" for the
+# coloured badges at the top. Without Mushroom, delete the "badges" block. See
+# docs/dashboard.md.
+#
+# Before you paste it, replace the placeholders with the beginning of your own
+# entity IDs, see docs/dashboard.md:
 #   my_router  ->  entity ID prefix of the router device
 #   my_modem   ->  entity ID prefix of the modem device
-# The access point switches contain the name of your own Wi-Fi, adjust those
-# two entity IDs as well.
+# The access point switches contain the name of your own Wi-Fi (my_wifi),
+# adjust those two entity IDs as well.
+#
+# Two columns like a phone or tablet layout; every action that interrupts a
+# connection asks for confirmation. The "tap_action" and "button_action" blocks
+# are identical on purpose, so the file works with old and new Bubble Card
+# versions.
 title: Teltonika Control
 views:
   - title: Router
@@ -15,6 +24,46 @@ views:
     type: sections
     max_columns: 2
     dense_section_placement: true
+    badges:
+      - type: custom:mushroom-template-badge
+        entity: sensor.my_router_uplink
+        icon: mdi:router-network
+        label: Uplink
+        color: >-
+          {% set u = states('sensor.my_router_uplink') %}{% if u == 'wifi' %}green{% elif u == 'mobile' %}orange{% else %}red{% endif %}
+        content: >-
+          {% if is_state('sensor.my_router_uplink', 'wifi') %}{{ states('sensor.my_router_wi_fi_network') }}{% else %}{{ state_translated('sensor.my_router_uplink') }}{% endif %}
+      - type: custom:mushroom-template-badge
+        entity: sensor.my_modem_rsrp
+        icon: mdi:signal-variant
+        label: RSRP
+        color: >-
+          {% set r = states('sensor.my_modem_rsrp') | float(-130) %}{% if r >= -80 %}green{% elif r >= -100 %}orange{% else %}red{% endif %}
+        content: "{{ states('sensor.my_modem_rsrp') }} dBm"
+      - type: custom:mushroom-template-badge
+        entity: sensor.my_modem_sinr
+        icon: mdi:signal
+        label: SINR
+        color: >-
+          {% set s = states('sensor.my_modem_sinr') | float(-30) %}{% if s >= 10 %}green{% elif s >= 0 %}orange{% else %}red{% endif %}
+        content: "{{ states('sensor.my_modem_sinr') }} dB"
+      - type: custom:mushroom-template-badge
+        entity: sensor.my_modem_network_type
+        icon: mdi:signal-5g
+        label: Network
+        color: >-
+          {% if is_state('binary_sensor.my_modem_mobile_data_connected', 'on') %}green{% else %}red{% endif %}
+        content: "{{ states('sensor.my_modem_network_type') }}"
+      - type: custom:mushroom-template-badge
+        entity: sensor.my_router_wi_fi_link_speed
+        icon: mdi:speedometer
+        label: Speed
+        color: >-
+          {% set v = states('sensor.my_router_wi_fi_link_speed') | float(0) %}{% if is_state('sensor.my_router_uplink', 'wifi') %}{{ 'green' if v >= 50 else ('orange' if v >= 20 else 'red') }}{% else %}grey{% endif %}
+        content: >-
+          {% if is_state('sensor.my_router_uplink', 'wifi') %}{{ states('sensor.my_router_wi_fi_link_speed') }} Mbit/s{% else %}mobile{% endif %}
+        tap_action:
+          action: none
     sections:
       - type: grid
         cards:
@@ -22,6 +71,7 @@ views:
             heading: Connection
             heading_style: title
             icon: mdi:router-network
+          # Active uplink: green for Wi-Fi, orange for mobile data, red otherwise.
           - type: vertical-stack
             cards:
               - type: conditional
@@ -30,22 +80,46 @@ views:
                     entity: sensor.my_router_uplink
                     state: wifi
                 card:
-                  type: tile
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
                   entity: sensor.my_router_uplink
                   name: Active uplink
                   icon: mdi:wifi
-                  color: green
+                  show_name: true
+                  show_state: true
+                  styles: &style_green |-
+                    .bubble-button-card-container { background-color: rgba(76,175,80,0.25) !important; }
+                    .bubble-icon-container { background-color: rgba(76,175,80,0.45) !important; }
+                    .bubble-icon { color: #81c784 !important; }
+                  sub_button: &uplink_ip
+                    bottom: []
+                    main:
+                      - entity: sensor.my_router_uplink_ip_address
+                        icon: mdi:ip-network
+                        show_icon: true
+                        show_name: false
+                        show_state: true
+                        state_background: false
               - type: conditional
                 conditions:
                   - condition: state
                     entity: sensor.my_router_uplink
                     state: mobile
                 card:
-                  type: tile
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
                   entity: sensor.my_router_uplink
                   name: Active uplink
                   icon: mdi:signal-5g
-                  color: orange
+                  show_name: true
+                  show_state: true
+                  styles: &style_orange |-
+                    .bubble-button-card-container { background-color: rgba(255,152,0,0.25) !important; }
+                    .bubble-icon-container { background-color: rgba(255,152,0,0.45) !important; }
+                    .bubble-icon { color: #ffb74d !important; }
+                  sub_button: *uplink_ip
               - type: conditional
                 conditions:
                   - condition: state_not
@@ -55,15 +129,20 @@ views:
                     entity: sensor.my_router_uplink
                     state_not: mobile
                 card:
-                  type: tile
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
                   entity: sensor.my_router_uplink
                   name: Active uplink
                   icon: mdi:router-network
-                  color: red
-          - type: tile
-            entity: sensor.my_router_uplink_ip_address
-            name: Uplink IP
-            icon: mdi:ip-network
+                  show_name: true
+                  show_state: true
+                  styles: &style_red |-
+                    .bubble-button-card-container { background-color: rgba(244,67,54,0.25) !important; }
+                    .bubble-icon-container { background-color: rgba(244,67,54,0.45) !important; }
+                    .bubble-icon { color: #e57373 !important; }
+                  sub_button: *uplink_ip
+          # Wi-Fi connection: red without Wi-Fi, orange behind a login page.
           - type: vertical-stack
             cards:
               - type: conditional
@@ -72,22 +151,48 @@ views:
                     entity: sensor.my_router_hotspot_login
                     state: no_wifi
                 card:
-                  type: tile
-                  entity: sensor.my_router_wi_fi_network
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: name
                   name: Wi-Fi disconnected
                   icon: mdi:wifi-off
-                  color: red
+                  styles: *style_red
               - type: conditional
                 conditions:
                   - condition: state
                     entity: sensor.my_router_hotspot_login
                     state: login_required
                 card:
-                  type: tile
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
                   entity: sensor.my_router_wi_fi_network
                   name: Wi-Fi without internet
                   icon: mdi:wifi-alert
-                  color: orange
+                  show_name: true
+                  show_state: true
+                  styles: *style_orange
+                  sub_button: &wifi_details
+                    bottom: []
+                    main:
+                      - entity: sensor.my_router_wi_fi_band
+                        icon: mdi:sine-wave
+                        show_icon: true
+                        show_name: false
+                        show_state: true
+                        state_background: false
+                      - entity: sensor.my_router_wi_fi_signal
+                        icon: mdi:wifi-strength-3
+                        show_icon: true
+                        show_name: false
+                        show_state: true
+                        state_background: false
+                      - entity: sensor.my_router_wi_fi_link_speed
+                        icon: mdi:speedometer
+                        show_icon: true
+                        show_name: false
+                        show_state: true
+                        state_background: false
               - type: conditional
                 conditions:
                   - condition: state_not
@@ -97,73 +202,142 @@ views:
                     entity: sensor.my_router_hotspot_login
                     state_not: login_required
                 card:
-                  type: tile
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
                   entity: sensor.my_router_wi_fi_network
                   name: Wi-Fi connection
                   icon: mdi:wifi
-                  color: green
+                  show_name: true
+                  show_state: true
+                  styles: *style_green
+                  sub_button: *wifi_details
           - type: horizontal-stack
             cards:
-              - type: tile
-                entity: sensor.my_router_wi_fi_signal
-                name: Signal
-              - type: tile
-                entity: sensor.my_router_wi_fi_band
-                name: Band
-              - type: tile
-                entity: sensor.my_router_wi_fi_link_speed
-                name: Speed
-          - type: horizontal-stack
-            cards:
-              - type: tile
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: binary_sensor.my_router_internet
                 name: Internet
-              - type: tile
+                icon: mdi:web
+                show_name: true
+                show_state: true
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_router_hotspot_login
                 name: Hotspot login
                 icon: mdi:form-select
-          - type: tile
-            entity: select.my_router_uplink_priority
-            name: Uplink priority
-            icon: mdi:swap-vertical
-            features:
-              - type: select-options
-            features_position: bottom
-          - type: horizontal-stack
+                show_name: true
+                show_state: true
+          # Two buttons that also show the current priority: the active one is
+          # coloured, the other one is grey. Replaces a drop-down.
+          - type: vertical-stack
             cards:
-              - type: tile
-                entity: select.my_router_uplink_priority
-                name: Wi-Fi first
-                icon: mdi:wifi
-                color: blue
-                hide_state: true
-                tap_action:
-                  action: perform-action
-                  perform_action: teltonika_control.set_priority
-                  target:
-                    entity_id: sensor.my_router_uplink
-                  data:
-                    wifi_first: true
-                    verify: true
-                  confirmation:
-                    text: >-
-                      Prefer Wi-Fi over mobile data? The connection can drop
-                      briefly. Without internet on the Wi-Fi the router goes
-                      back to mobile data automatically.
-              - type: tile
-                entity: select.my_router_uplink_priority
-                name: Mobile first
-                icon: mdi:signal-5g
-                color: orange
-                hide_state: true
-                tap_action:
-                  action: perform-action
-                  perform_action: teltonika_control.set_priority
-                  target:
-                    entity_id: sensor.my_router_uplink
-                  data:
-                    wifi_first: false
-                    verify: false
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: select.my_router_uplink_priority
+                    state: wifi_first
+                card:
+                  type: horizontal-stack
+                  cards:
+                    - type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: Wi-Fi first
+                      icon: mdi:wifi
+                      styles: &style_blue |-
+                        .bubble-button-card-container { background-color: rgba(33,150,243,0.25) !important; }
+                        .bubble-icon-container { background-color: rgba(33,150,243,0.45) !important; }
+                        .bubble-icon { color: #64b5f6 !important; }
+                      tap_action: &wifi_first
+                        action: perform-action
+                        perform_action: teltonika_control.set_priority
+                        target:
+                          entity_id: sensor.my_router_uplink
+                        data:
+                          wifi_first: true
+                          verify: true
+                        confirmation:
+                          text: >-
+                            Prefer Wi-Fi over mobile data? The connection can
+                            drop briefly. Without internet on the Wi-Fi the
+                            router goes back to mobile data automatically.
+                      button_action:
+                        tap_action: *wifi_first
+                    - type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: Mobile first
+                      icon: mdi:signal-5g
+                      styles: &style_grey |-
+                        .bubble-icon { color: #9e9e9e !important; }
+                      tap_action: &mobile_first
+                        action: perform-action
+                        perform_action: teltonika_control.set_priority
+                        target:
+                          entity_id: sensor.my_router_uplink
+                        data:
+                          wifi_first: false
+                          verify: false
+                      button_action:
+                        tap_action: *mobile_first
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: select.my_router_uplink_priority
+                    state: mobile_first
+                card:
+                  type: horizontal-stack
+                  cards:
+                    - type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: Wi-Fi first
+                      icon: mdi:wifi
+                      styles: *style_grey
+                      tap_action: *wifi_first
+                      button_action:
+                        tap_action: *wifi_first
+                    - type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: Mobile first
+                      icon: mdi:signal-5g
+                      styles: *style_orange
+                      tap_action: *mobile_first
+                      button_action:
+                        tap_action: *mobile_first
+              - type: conditional
+                conditions:
+                  - condition: state_not
+                    entity: select.my_router_uplink_priority
+                    state_not: wifi_first
+                  - condition: state_not
+                    entity: select.my_router_uplink_priority
+                    state_not: mobile_first
+                card:
+                  type: horizontal-stack
+                  cards:
+                    - type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: Wi-Fi first
+                      icon: mdi:wifi
+                      styles: *style_grey
+                      tap_action: *wifi_first
+                      button_action:
+                        tap_action: *wifi_first
+                    - type: custom:bubble-card
+                      card_type: button
+                      button_type: name
+                      name: Mobile first
+                      icon: mdi:signal-5g
+                      styles: *style_grey
+                      tap_action: *mobile_first
+                      button_action:
+                        tap_action: *mobile_first
       - type: grid
         cards:
           - type: heading
@@ -172,30 +346,37 @@ views:
             icon: mdi:restart
           - type: horizontal-stack
             cards:
-              - type: tile
-                entity: button.my_modem_restart_mobile_connection
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
                 name: Restart mobile
                 icon: mdi:signal-cellular-outline
-                color: orange
-                tap_action:
+                styles: *style_orange
+                tap_action: &restart_mobile
                   action: perform-action
                   perform_action: button.press
                   target:
                     entity_id: button.my_modem_restart_mobile_connection
                   confirmation:
                     text: Restart the mobile connection? Mobile data is briefly interrupted.
-              - type: tile
-                entity: button.my_router_reconnect_wi_fi
+                button_action:
+                  tap_action: *restart_mobile
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
                 name: Reconnect Wi-Fi
                 icon: mdi:wifi-sync
-                color: blue
-                tap_action:
+                styles: *style_blue
+                tap_action: &reconnect_wifi
                   action: perform-action
                   perform_action: button.press
                   target:
                     entity_id: button.my_router_reconnect_wi_fi
                   confirmation:
                     text: Reconnect the router's Wi-Fi client? Wi-Fi is briefly interrupted.
+                button_action:
+                  tap_action: *reconnect_wifi
+          # Hotspot with a login page: the button changes with the state.
           - type: vertical-stack
             cards:
               - type: conditional
@@ -204,13 +385,16 @@ views:
                     entity: sensor.my_router_hotspot_login
                     state: idle
                 card:
-                  type: tile
-                  entity: sensor.my_router_hotspot_login
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: name
                   name: Wi-Fi first (login page)
                   icon: mdi:form-select
-                  color: purple
-                  hide_state: true
-                  tap_action:
+                  styles: &style_purple |-
+                    .bubble-button-card-container { background-color: rgba(156,39,176,0.25) !important; }
+                    .bubble-icon-container { background-color: rgba(156,39,176,0.45) !important; }
+                    .bubble-icon { color: #ce93d8 !important; }
+                  tap_action: &portal_idle
                     action: perform-action
                     perform_action: teltonika_control.portal_mode
                     target:
@@ -223,31 +407,33 @@ views:
                         page to be confirmed? Then open http://neverssl.com in
                         a browser. Without internet the router goes back to
                         mobile data.
+                  button_action:
+                    tap_action: *portal_idle
               - type: conditional
                 conditions:
                   - condition: state
                     entity: sensor.my_router_hotspot_login
                     state: waiting
                 card:
-                  type: tile
-                  entity: sensor.my_router_hotspot_login
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: name
                   name: Waiting for login ...
                   icon: mdi:timer-sand
-                  color: blue
-                  hide_state: true
+                  styles: *style_blue
               - type: conditional
                 conditions:
                   - condition: state
                     entity: sensor.my_router_hotspot_login
                     state: login_required
                 card:
-                  type: tile
-                  entity: sensor.my_router_hotspot_login
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: name
                   name: Confirm login page
                   icon: mdi:alert-circle
-                  color: orange
-                  hide_state: true
-                  tap_action:
+                  styles: *style_orange
+                  tap_action: &portal_login
                     action: perform-action
                     perform_action: teltonika_control.portal_mode
                     target:
@@ -258,19 +444,21 @@ views:
                       text: >-
                         Wait 10 minutes for the hotspot login page to be
                         confirmed? Then open http://neverssl.com in a browser.
+                  button_action:
+                    tap_action: *portal_login
               - type: conditional
                 conditions:
                   - condition: state
                     entity: sensor.my_router_hotspot_login
                     state: online
                 card:
-                  type: tile
-                  entity: sensor.my_router_hotspot_login
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: name
                   name: Wi-Fi has internet
                   icon: mdi:check-network
-                  color: green
-                  hide_state: true
-                  tap_action:
+                  styles: *style_green
+                  tap_action: &portal_online
                     action: perform-action
                     perform_action: teltonika_control.portal_mode
                     target:
@@ -281,24 +469,27 @@ views:
                       text: >-
                         Wi-Fi already has internet. Wait for a login page for
                         10 minutes anyway?
+                  button_action:
+                    tap_action: *portal_online
               - type: conditional
                 conditions:
                   - condition: state
                     entity: sensor.my_router_hotspot_login
                     state: no_wifi
                 card:
-                  type: tile
-                  entity: sensor.my_router_hotspot_login
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: name
                   name: No Wi-Fi connected
                   icon: mdi:wifi-off
-                  color: grey
-                  hide_state: true
-          - type: tile
-            entity: button.my_router_reboot_router
+                  styles: *style_grey
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
             name: Reboot router
             icon: mdi:restart-alert
-            color: red
-            tap_action:
+            styles: *style_red
+            tap_action: &reboot
               action: perform-action
               perform_action: button.press
               target:
@@ -307,52 +498,73 @@ views:
                 text: >-
                   Really reboot the router? All connections (Wi-Fi, mobile
                   data, Home Assistant) are down for about 2 to 3 minutes.
+            button_action:
+              tap_action: *reboot
       - type: grid
         cards:
           - type: heading
             heading: Mobile data
             heading_style: title
             icon: mdi:signal-cellular-3
-          - type: tile
+          - type: custom:bubble-card
+            card_type: button
+            button_type: state
             entity: sensor.my_modem_operator
             name: Operator
             icon: mdi:antenna
+            show_name: true
+            show_state: true
+            sub_button:
+              bottom: []
+              main:
+                - entity: sensor.my_modem_network_type
+                  icon: mdi:signal-5g
+                  show_icon: true
+                  show_name: false
+                  show_state: true
+                  state_background: false
+                - entity: sensor.my_modem_rsrq
+                  icon: mdi:waveform
+                  show_icon: true
+                  show_name: false
+                  show_state: true
+                  state_background: false
           - type: horizontal-stack
             cards:
-              - type: tile
-                entity: sensor.my_modem_network_type
-                name: Network
-                icon: mdi:signal-5g
-              - type: tile
-                entity: sensor.my_modem_band
-                name: Band
-              - type: tile
-                entity: binary_sensor.my_modem_mobile_data_connected
-                name: Data
-          - type: horizontal-stack
-            cards:
-              - type: tile
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_modem_rsrp
                 name: RSRP
-              - type: tile
-                entity: sensor.my_modem_rsrq
-                name: RSRQ
-              - type: tile
+                icon: mdi:signal-variant
+                show_name: true
+                show_state: true
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_modem_sinr
                 name: SINR
-          - type: tile
+                icon: mdi:signal
+                show_name: true
+                show_state: true
+          - type: custom:bubble-card
+            card_type: button
+            button_type: state
             entity: select.my_modem_sim_slot
             name: Active SIM
             icon: mdi:sim
+            show_name: true
+            show_state: true
+            styles: *style_green
           - type: horizontal-stack
             cards:
-              - type: tile
-                entity: select.my_modem_sim_slot
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
                 name: SIM 1
                 icon: mdi:sim
-                color: green
-                hide_state: true
-                tap_action:
+                styles: *style_green
+                tap_action: &sim_1
                   action: perform-action
                   perform_action: select.select_option
                   target:
@@ -363,13 +575,15 @@ views:
                     text: >-
                       Switch to SIM 1? Mobile data is interrupted for about a
                       minute. Nothing happens if SIM 1 is already active.
-              - type: tile
-                entity: select.my_modem_sim_slot
+                button_action:
+                  tap_action: *sim_1
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
                 name: SIM 2
                 icon: mdi:sim-outline
-                color: orange
-                hide_state: true
-                tap_action:
+                styles: *style_orange
+                tap_action: &sim_2
                   action: perform-action
                   perform_action: select.select_option
                   target:
@@ -381,93 +595,188 @@ views:
                       Switch to SIM 2? Only do this if slot 2 holds a SIM,
                       otherwise the router loses mobile data. Nothing happens
                       if SIM 2 is already active.
+                button_action:
+                  tap_action: *sim_2
           - type: horizontal-stack
             cards:
-              - type: tile
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_modem_temperature
                 name: Modem
                 icon: mdi:thermometer
-              - type: tile
+                show_name: true
+                show_state: true
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
+                entity: binary_sensor.my_modem_mobile_data_connected
+                name: Data
+                icon: mdi:database-check
+                show_name: true
+                show_state: true
+          - type: horizontal-stack
+            cards:
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_modem_data_received
                 name: Received
                 icon: mdi:download-network
-              - type: tile
+                show_name: true
+                show_state: true
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_modem_data_sent
                 name: Sent
                 icon: mdi:upload-network
-      - type: grid
-        cards:
-          - type: heading
-            heading: Router's own Wi-Fi
-            heading_style: title
-            icon: mdi:access-point
-          - type: horizontal-stack
-            cards:
-              - type: tile
-                entity: switch.my_router_access_point_my_wifi_2_4_ghz
-                name: 2.4 GHz
-                icon: mdi:wifi
-                tap_action:
-                  action: toggle
-                  confirmation:
-                    text: >-
-                      Switch the router's own 2.4 GHz Wi-Fi? Devices connected
-                      through it are disconnected when it goes off.
-              - type: tile
-                entity: switch.my_router_access_point_my_wifi_5_ghz
-                name: 5 GHz
-                icon: mdi:wifi
-                tap_action:
-                  action: toggle
-                  confirmation:
-                    text: >-
-                      Switch the router's own 5 GHz Wi-Fi? Devices connected
-                      through it are disconnected when it goes off.
+                show_name: true
+                show_state: true
       - type: grid
         cards:
           - type: heading
             heading: Add a Wi-Fi network
             heading_style: title
             icon: mdi:wifi-plus
-          - type: entities
-            show_header_toggle: false
-            entities:
-              - entity: button.my_router_scan_for_wi_fi_networks
-                name: Scan for Wi-Fi networks
-              - entity: select.my_router_found_networks
-                name: Found networks
-              - entity: text.my_router_wi_fi_password
-                name: Password
-              - entity: button.my_router_add_selected_network
-                name: Add selected network
-              - entity: sensor.my_router_last_wi_fi_action
-                name: Result
-          - type: markdown
-            content: >-
-              1. Press **Scan**, 2. choose a network, 3. type the password
-              (empty for open networks), 4. press **Add**. Mobile data stays
-              preferred until you switch to Wi-Fi first.
+          # Scan, choose from the list, type the password, add.
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            name: Scan for Wi-Fi networks
+            icon: mdi:wifi-refresh
+            styles: *style_blue
+            tap_action: &scan
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.my_router_scan_for_wi_fi_networks
+            button_action:
+              tap_action: *scan
+            sub_button:
+              bottom: []
+              main:
+                - entity: select.my_router_found_networks
+                  icon: mdi:format-list-bulleted
+                  name: Choose
+                  show_icon: true
+                  show_name: true
+                  show_state: false
+                  state_background: false
+                - entity: text.my_router_wi_fi_password
+                  icon: mdi:key-variant
+                  show_icon: true
+                  show_name: false
+                  show_state: false
+                  state_background: false
+                  tap_action:
+                    action: more-info
+                - entity: button.my_router_add_selected_network
+                  icon: mdi:plus-circle
+                  name: Add
+                  show_icon: true
+                  show_name: true
+                  show_state: false
+                  state_background: false
+                  tap_action:
+                    action: perform-action
+                    perform_action: button.press
+                    target:
+                      entity_id: button.my_router_add_selected_network
+          - type: custom:bubble-card
+            card_type: button
+            button_type: state
+            entity: select.my_router_found_networks
+            name: Selected network
+            icon: mdi:wifi-check
+            show_name: true
+            show_state: true
+          - type: custom:bubble-card
+            card_type: button
+            button_type: state
+            entity: sensor.my_router_last_wi_fi_action
+            name: Result
+            icon: mdi:message-text-outline
+            show_name: true
+            show_state: true
+            styles: *style_grey
       - type: grid
         cards:
           - type: heading
             heading: Saved Wi-Fi networks
             heading_style: title
             icon: mdi:wifi-cog
-          - type: entities
-            show_header_toggle: false
-            entities:
-              - entity: select.my_router_saved_networks
-                name: Saved network
-              - entity: button.my_router_remove_selected_network
-                name: Remove selected network
-                tap_action:
-                  action: perform-action
-                  perform_action: button.press
-                  target:
-                    entity_id: button.my_router_remove_selected_network
-                  confirmation:
-                    text: >-
-                      Remove the selected network? The password is lost.
+          - type: custom:bubble-card
+            card_type: button
+            button_type: state
+            entity: select.my_router_saved_networks
+            name: Saved network
+            icon: mdi:wifi-cog
+            show_name: true
+            show_state: true
+            sub_button:
+              bottom: []
+              main:
+                - entity: select.my_router_saved_networks
+                  icon: mdi:format-list-bulleted
+                  name: Choose
+                  show_icon: true
+                  show_name: true
+                  show_state: false
+                  state_background: false
+                - entity: button.my_router_remove_selected_network
+                  icon: mdi:wifi-minus
+                  name: Remove
+                  show_icon: true
+                  show_name: true
+                  show_state: false
+                  state_background: false
+                  tap_action:
+                    action: perform-action
+                    perform_action: button.press
+                    target:
+                      entity_id: button.my_router_remove_selected_network
+                    confirmation:
+                      text: >-
+                        Remove the selected network? The password is lost.
+          - type: heading
+            heading: Router's own Wi-Fi
+            heading_style: subtitle
+            icon: mdi:access-point
+          - type: custom:bubble-card
+            card_type: button
+            button_type: name
+            name: Router's own Wi-Fi
+            icon: mdi:access-point
+            sub_button:
+              bottom: []
+              main:
+                - entity: switch.my_router_access_point_my_wifi_2_4_ghz
+                  icon: mdi:wifi
+                  name: 2.4 GHz
+                  show_icon: true
+                  show_name: true
+                  show_state: false
+                  state_background: true
+                  tap_action:
+                    action: toggle
+                    confirmation:
+                      text: >-
+                        Switch the router's own 2.4 GHz Wi-Fi? Devices
+                        connected through it are disconnected when it goes off.
+                - entity: switch.my_router_access_point_my_wifi_5_ghz
+                  icon: mdi:wifi
+                  name: 5 GHz
+                  show_icon: true
+                  show_name: true
+                  show_state: false
+                  state_background: true
+                  tap_action:
+                    action: toggle
+                    confirmation:
+                      text: >-
+                        Switch the router's own 5 GHz Wi-Fi? Devices connected
+                        through it are disconnected when it goes off.
       - type: grid
         cards:
           - type: heading
@@ -476,27 +785,51 @@ views:
             icon: mdi:crosshairs-gps
           - type: map
             default_zoom: 16
-            aspect_ratio: "16:9"
+            aspect_ratio: "2:1"
             entities:
               - entity: device_tracker.my_router_position
-          - type: tile
+          - type: custom:bubble-card
+            card_type: button
+            button_type: state
             entity: device_tracker.my_router_position
             name: Position
             icon: mdi:crosshairs-gps
+            show_name: true
+            show_state: true
+            styles: *style_green
           - type: horizontal-stack
             cards:
-              - type: tile
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_router_gps_speed
                 name: Speed
-              - type: tile
+                icon: mdi:speedometer
+                show_name: true
+                show_state: true
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_router_gps_altitude
                 name: Altitude
+                icon: mdi:image-filter-hdr
+                show_name: true
+                show_state: true
           - type: horizontal-stack
             cards:
-              - type: tile
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_router_gps_satellites
                 name: Satellites
                 icon: mdi:satellite-variant
-              - type: tile
+                show_name: true
+                show_state: true
+              - type: custom:bubble-card
+                card_type: button
+                button_type: state
                 entity: sensor.my_router_gps_accuracy
                 name: Accuracy
+                icon: mdi:target
+                show_name: true
+                show_state: true

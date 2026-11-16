@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- The sample dashboard `dashboards/teltonika-control.yaml` has a new look:
+  coloured Bubble Card pills in two columns and Mushroom badges at the top.
+  Wi-Fi first and Mobile first are two buttons that show the active priority,
+  the priority drop-down is gone. Bubble Card (and optionally Mushroom) is
+  needed for this dashboard only, not for the integration.
+
 ## [0.3.1] - 2026-11-16
 
 ### Changed
