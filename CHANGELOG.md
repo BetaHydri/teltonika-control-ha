@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-16
+
+### Changed
+
+- New brand images: a router with antennas, Wi-Fi arcs and the text RUTx as
+  icon, plus a logo with the name in a light and a dark variant. The artwork is
+  original and drawn by `tools/make_brand_images.py`.
+- The README states that the project is not affiliated with Teltonika Networks
+  and describes how to run the tests on Linux or WSL.
+
 ## [0.3.0] - 2026-11-16
 
 ### Added

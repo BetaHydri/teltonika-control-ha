@@ -12,6 +12,10 @@ It grew out of a camper setup: switch between Wi-Fi and mobile data, get told
 when a hotspot needs a login, and restart things without opening the router
 web page.
 
+This is an independent community project. It is not affiliated with or
+endorsed by Teltonika Networks. Teltonika, RUT and RutOS are names of their
+respective owners and are used here only to say which routers are supported.
+
 ## Features
 
 ### Major features
@@ -427,16 +431,25 @@ Home Assistant reaches the internet through this router.
 
 ## Development
 
-```powershell
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements_test.txt
-.venv\Scripts\python -m pytest
+The tests need Linux, macOS or WSL, because Home Assistant itself does not run
+on native Windows.
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements_test.txt
+.venv/bin/python -m pytest
+.venv/bin/ruff check .
 ```
 
 An optional read-only check against a real router lives in
 `tools/live_smoke_test.py`. It reads the address and login from the
 environment variables `TELTONIKA_HOST`, `TELTONIKA_USER` and
-`TELTONIKA_PASSWORD`.
+`TELTONIKA_PASSWORD`, and prints the field names the router returns.
+
+The icon and logo in `custom_components/teltonika_control/brand` are drawn by
+`tools/make_brand_images.py` (needs Pillow). Home Assistant 2026.3 and newer
+show them on the integration page; older versions fetch brand images from a
+central repository instead and show a placeholder.
 
 ## See Also
 
