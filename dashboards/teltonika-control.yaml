@@ -746,7 +746,7 @@ views:
             heading: Add a Wi-Fi network
             heading_style: title
             icon: mdi:wifi-plus
-          # Scan, choose from the list, type the password, add.
+          # Step 1: scan and choose from the list.
           - type: custom:bubble-card
             card_type: button
             button_type: name
@@ -770,34 +770,73 @@ views:
                   show_name: true
                   show_state: false
                   state_background: false
-                - entity: text.my_router_wi_fi_password
-                  icon: mdi:key-variant
-                  show_icon: true
-                  show_name: false
-                  show_state: false
-                  state_background: false
-                  tap_action:
-                    action: more-info
-                - entity: button.my_router_add_selected_network
-                  icon: mdi:plus-circle
-                  name: Add
-                  show_icon: true
+          # Step 2 and 3: once a network is chosen, its pill is highlighted with
+          # a green border and offers the optional password and Add. Before
+          # that, a grey hint tells what to do.
+          - type: vertical-stack
+            cards:
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: select.my_router_found_networks
+                    state_not: unknown
+                  - condition: state
+                    entity: select.my_router_found_networks
+                    state_not: unavailable
+                card:
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
+                  entity: select.my_router_found_networks
+                  name: Selected network
+                  icon: mdi:wifi-check
                   show_name: true
-                  show_state: false
-                  state_background: false
-                  tap_action:
-                    action: perform-action
-                    perform_action: button.press
-                    target:
-                      entity_id: button.my_router_add_selected_network
-          - type: custom:bubble-card
-            card_type: button
-            button_type: state
-            entity: select.my_router_found_networks
-            name: Selected network
-            icon: mdi:wifi-check
-            show_name: true
-            show_state: true
+                  show_state: true
+                  styles: |-
+                    .bubble-button-card-container { background-color: rgba(76,175,80,0.3) !important; border: 2px solid #81c784 !important; }
+                    .bubble-icon-container { background-color: rgba(76,175,80,0.5) !important; }
+                    .bubble-icon { color: #81c784 !important; }
+                  sub_button:
+                    bottom: []
+                    main:
+                      - entity: text.my_router_wi_fi_password
+                        icon: mdi:key-variant
+                        name: Password
+                        show_icon: true
+                        show_name: true
+                        show_state: false
+                        state_background: false
+                        tap_action:
+                          action: more-info
+                      - entity: button.my_router_add_selected_network
+                        icon: mdi:plus-circle
+                        name: Add
+                        show_icon: true
+                        show_name: true
+                        show_state: false
+                        state_background: false
+                        tap_action:
+                          action: perform-action
+                          perform_action: button.press
+                          target:
+                            entity_id: button.my_router_add_selected_network
+              - type: conditional
+                conditions:
+                  - condition: or
+                    conditions:
+                      - condition: state
+                        entity: select.my_router_found_networks
+                        state: unknown
+                      - condition: state
+                        entity: select.my_router_found_networks
+                        state: unavailable
+                card:
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: name
+                  name: Scan first, then choose a network
+                  icon: mdi:wifi-strength-outline
+                  styles: *style_grey
           - type: custom:bubble-card
             card_type: button
             button_type: state

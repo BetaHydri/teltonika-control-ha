@@ -8,6 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- Sample dashboard: adding a Wi-Fi network now follows three steps. After you
+  choose a network, its pill is highlighted with a green border and offers
+  the optional password and **Add**; before that a grey hint is shown.
+
 ## [0.5.0] - 2026-11-16
 
 ### Added

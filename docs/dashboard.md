@@ -170,12 +170,18 @@ list. Fix that entity and save again.
   [hotspots with a login page](../README.md#hotspots-with-a-login-page).
 - **Mobile data**: operator, network type, signal values, the active SIM with
   SIM 1 and SIM 2 buttons, modem temperature and the data counters.
-- **Add a Wi-Fi network**: press **Scan** (the pill), choose a network with
-  **Choose**, type the password with the key button and press **Add**. The
-  list hides networks that are already saved in the same band and shows each
-  network once per band with its best signal. The result pill tells you what
-  happened. Mobile data stays preferred, so a new network never breaks your
-  connection by itself.
+- **Add a Wi-Fi network**, in three steps:
+  1. Press **Scan** (the pill) and choose a network with **Choose**. The list
+     hides networks that are already saved in the same band and shows each
+     network once per band with its best signal.
+  2. The chosen network is highlighted: its pill gets a green border and
+     shows the name. Before you choose, a grey hint says "Scan first, then
+     choose a network".
+  3. On the highlighted pill, press the **Password** (key) button to enter the
+     password. Open networks need none, so it is optional. Then press **Add**.
+
+  The result pill tells you what happened. Mobile data stays preferred, so a
+  new network never breaks your connection by itself.
 - **Saved Wi-Fi networks**: choose a saved network (a Wi-Fi client or an entry
   of the Multi AP list) and press **Remove**. The last Multi AP entry cannot
   be removed. Below it, the router's own Wi-Fi has a switch per band.
