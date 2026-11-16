@@ -326,8 +326,14 @@ about a minute.
 Go to **Settings**, **Devices & services**, **Teltonika Control**, then
 select **Configure**.
 
-- **Update interval**: how often the router is polled, 10 to 600 seconds.
-  The default is 30 seconds.
+- **Update interval**: how often the status of the router is polled (uplink,
+  Wi-Fi signal, modem, GPS, load), 10 to 600 seconds. The default is 30
+  seconds.
+- **Configuration interval**: how often the pages that rarely change are read
+  again (Wi-Fi configuration, radios, WireGuard instances), 30 to 3600
+  seconds. The default is 300 seconds. Actions of the integration, such as
+  switching the priority or adding a network, read them again at once. A
+  RUTC50 has a weak CPU: if the router feels slow, raise both values.
 - **Internet check URL**: a web address that answers with HTTP 204 when the
   internet works. It is used to detect a hotspot login page. Leave it empty
   to turn the check off.

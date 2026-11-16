@@ -49,12 +49,14 @@
       "init": {
         "data": {
           "scan_interval": "Aktualisierungsintervall (Sekunden)",
+          "config_interval": "Konfigurationsintervall (Sekunden)",
           "probe_url": "URL für den Internettest",
           "vpn_host": "Host für den VPN-Test",
           "vpn_port": "Port für den VPN-Test"
         },
         "data_description": {
-          "scan_interval": "Wie oft der Router abgefragt wird.",
+          "scan_interval": "Wie oft der Status des Routers abgefragt wird (Signal, Uplink, Modem, GPS, Last).",
+          "config_interval": "Wie oft selten ändernde Seiten erneut gelesen werden (WLAN- und WireGuard-Konfiguration, 30 bis 3600 Sekunden, Standard 300). Aktionen dieser Integration lesen sie sofort neu. Ein höherer Wert hält die Last auf dem Router klein.",
           "probe_url": "Muss bei funktionierendem Internet HTTP 204 liefern. Erkennt die Anmeldeseite eines Hotspots. Leer lassen, um den Test auszuschalten.",
           "vpn_host": "DNS-Name, IPv4- oder IPv6-Adresse eines Geräts hinter dem VPN-Tunnel, zum Beispiel der Router der Heimatbasis. Wird vom Home-Assistant-Host aus geprüft. Leer lassen, um den Test auszuschalten.",
           "vpn_port": "TCP-Port, zu dem verbunden wird. Auch eine abgelehnte Verbindung zählt als erreichbar, weil das Gerät durch den Tunnel geantwortet hat."

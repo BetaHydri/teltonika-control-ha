@@ -30,16 +30,20 @@ from .api import (
     parse_host,
 )
 from .const import (
+    CONF_CONFIG_INTERVAL,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
     CONF_VPN_HOST,
     CONF_VPN_PORT,
+    DEFAULT_CONFIG_INTERVAL,
     DEFAULT_PROBE_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_USERNAME,
     DEFAULT_VPN_PORT,
     DOMAIN,
+    MAX_CONFIG_INTERVAL,
     MAX_SCAN_INTERVAL,
+    MIN_CONFIG_INTERVAL,
     MIN_SCAN_INTERVAL,
 )
 from .models import RouterInfo
@@ -237,6 +241,9 @@ class TeltonikaOptionsFlow(OptionsFlow):
                 return self.async_create_entry(
                     data={
                         CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
+                        CONF_CONFIG_INTERVAL: user_input.get(
+                            CONF_CONFIG_INTERVAL, DEFAULT_CONFIG_INTERVAL
+                        ),
                         CONF_PROBE_URL: user_input.get(CONF_PROBE_URL, "").strip(),
                         CONF_VPN_HOST: vpn_host,
                         CONF_VPN_PORT: vpn_port,
@@ -256,6 +263,15 @@ class TeltonikaOptionsFlow(OptionsFlow):
                     ): vol.All(
                         vol.Coerce(int),
                         vol.Range(min=MIN_SCAN_INTERVAL, max=MAX_SCAN_INTERVAL),
+                    ),
+                    vol.Optional(
+                        CONF_CONFIG_INTERVAL,
+                        default=options.get(
+                            CONF_CONFIG_INTERVAL, DEFAULT_CONFIG_INTERVAL
+                        ),
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(min=MIN_CONFIG_INTERVAL, max=MAX_CONFIG_INTERVAL),
                     ),
                     vol.Optional(
                         CONF_PROBE_URL,

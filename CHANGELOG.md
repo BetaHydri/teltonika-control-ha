@@ -8,6 +8,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-16
+
+### Changed
+
+- **Much gentler polling.** The integration used to ask the router for about
+  11 pages at once every 30 seconds, which pushed the CPU of a RUTC50 to
+  40 to 100 % while the router itself showed 3 % at rest. Now the pages are
+  read one after the other, the status pages (uplink, Wi-Fi status, modem, GPS,
+  load) on every update and the pages that rarely change (Wi-Fi configuration,
+  radios, WireGuard instances, Multi AP list) only every 5 minutes. The DHCP
+  clients are read at most every 2 minutes, a page that does not exist is
+  asked again only after 5 minutes. Actions of the integration read everything
+  again at once.
+
+### Added
+
+- New option **Configuration interval** (30 to 3600 seconds, default 300) next
+  to the existing **Update interval**.
+
 ## [0.5.2] - 2026-11-16
 
 ### Fixed

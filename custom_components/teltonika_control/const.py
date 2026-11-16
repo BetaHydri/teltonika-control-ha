@@ -5,6 +5,7 @@ from __future__ import annotations
 DOMAIN = "teltonika_control"
 
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_CONFIG_INTERVAL = "config_interval"
 CONF_PROBE_URL = "probe_url"
 CONF_VPN_HOST = "vpn_host"
 CONF_VPN_PORT = "vpn_port"
@@ -13,6 +14,18 @@ DEFAULT_USERNAME = "admin"
 DEFAULT_SCAN_INTERVAL = 30
 MIN_SCAN_INTERVAL = 10
 MAX_SCAN_INTERVAL = 600
+
+# How often the pages that rarely change (configuration, WireGuard instances)
+# are read. Actions of the integration read them again at once. A RUTC50 has a
+# weak CPU, so the less often the better.
+DEFAULT_CONFIG_INTERVAL = 300
+MIN_CONFIG_INTERVAL = 30
+MAX_CONFIG_INTERVAL = 3600
+# The DHCP client list changes more often, but never more rarely than the
+# configuration interval allows.
+DHCP_INTERVAL = 120
+# Seconds to leave a page alone that does not exist or may not be read.
+MISSING_PAGE_PAUSE = 300
 
 # Returns HTTP 204 with working internet; a captive portal answers with
 # a redirect or a login page instead.

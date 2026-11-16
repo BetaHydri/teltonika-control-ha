@@ -28,17 +28,21 @@ from .api import (
 )
 from .const import (
     AP_REFRESH_DELAY,
+    CONF_CONFIG_INTERVAL,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
     CONF_VPN_HOST,
     CONF_VPN_PORT,
+    DEFAULT_CONFIG_INTERVAL,
     DEFAULT_PROBE_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_VPN_PORT,
+    DHCP_INTERVAL,
     DOMAIN,
     EVENT_PORTAL_RESULT,
     METRIC_MOBILE_FIRST,
     METRIC_WIFI_FIRST,
+    MISSING_PAGE_PAUSE,
     PORTAL_FIRST_DELAY,
     PORTAL_POLL_INTERVAL,
     PRIORITY_VERIFY_DELAY,
@@ -68,6 +72,22 @@ from .models import (
 _LOGGER = logging.getLogger(__name__)
 
 type TeltonikaConfigEntry = ConfigEntry[TeltonikaCoordinator]
+
+# Router pages: client method and how often the page is read. "status" pages
+# change all the time and are read on every update, "config" pages only change
+# when someone edits the router and are read after the configuration interval.
+PAGES: dict[str, tuple[str, str]] = {
+    "interface_config": ("async_interfaces_config", "config"),
+    "wireless_config": ("async_wireless_config", "config"),
+    "wireless_devices": ("async_wireless_devices_status", "config"),
+    "wireguard": ("async_wireguard_config", "config"),
+    "multi_ap": ("async_multi_ap_config", "config"),
+    "wireless_status": ("async_wireless_status", "status"),
+    "modems": ("async_modems_status", "status"),
+    "gps": ("async_gps_status", "status"),
+    "usage": ("async_usage_status", "status"),
+    "dhcp": ("async_dhcp_leases", "dhcp"),
+}
 
 
 def _monotonic() -> float:
@@ -118,10 +138,15 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self._probe_url: str = entry.options.get(CONF_PROBE_URL, DEFAULT_PROBE_URL)
         self.vpn_host: str = entry.options.get(CONF_VPN_HOST, "")
         self._vpn_port: int = entry.options.get(CONF_VPN_PORT, DEFAULT_VPN_PORT)
-        # Last good answer of every optional page, and until when a page that
-        # did not answer in time is left alone.
+        # Last good answer of every page, when it was read, and until when a
+        # page that did not answer (or does not exist) is left alone.
         self._last_good: dict[str, Any] = {}
+        self._fetched_at: dict[str, float] = {}
         self._slow_until: dict[str, float] = {}
+        self._missing_until: dict[str, float] = {}
+        self._config_interval: float = entry.options.get(
+            CONF_CONFIG_INTERVAL, DEFAULT_CONFIG_INTERVAL
+        )
         # State of the Wi-Fi management entities; the password is never stored.
         self.scan_results: list[ScanNetwork] = []
         self.selected_scan: str | None = None
@@ -145,15 +170,26 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
     async def _async_update_data(self) -> TeltonikaData:
         client = self.client
         try:
-            interfaces, interface_config = await asyncio.gather(
-                client.async_interfaces_status(), client.async_interfaces_config()
-            )
+            interfaces = await client.async_interfaces_status()
         except TeltonikaAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except TeltonikaError as err:
             raise UpdateFailed(str(err)) from err
 
-        parts = await self._async_read_optional_parts()
+        parts = await self._async_read_pages(
+            [
+                "interface_config",
+                "wireless_config",
+                "wireless_status",
+                "wireless_devices",
+                "modems",
+                "gps",
+                "usage",
+                "dhcp",
+                "wireguard",
+            ]
+        )
+        interface_config = parts["interface_config"] or []
         wireless_config = parts["wireless_config"] or []
         wireless_status = parts["wireless_status"] or []
         wireless_devices = parts["wireless_devices"] or []
@@ -165,16 +201,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
         multi_ap: list[dict[str, Any]] = []
         if any(item.get("mode") == "multi_ap" for item in wireless_config):
-            try:
-                multi_ap = await client.async_multi_ap_config()
-            except TeltonikaAuthError as err:
-                raise ConfigEntryAuthFailed(str(err)) from err
-            except TeltonikaConnectionError:
-                multi_ap = self._last_good.get("multi_ap") or []
-            except TeltonikaApiError:
-                multi_ap = []
-            else:
-                self._last_good["multi_ap"] = multi_ap
+            multi_ap = (await self._async_read_pages(["multi_ap"]))["multi_ap"] or []
 
         data = TeltonikaData.build(
             interfaces=interfaces,
@@ -202,48 +229,43 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data.vpn_reachable, data.vpn_latency = vpn
         return data
 
-    async def _async_read_optional_parts(self) -> dict[str, Any]:
-        """Read the pages that are not essential for the router to be online.
+    async def _async_read_pages(self, names: list[str]) -> dict[str, Any]:
+        """Read router pages one after the other and return their answers.
 
-        A page that is missing (an error answer) gives None. A page that does
-        not answer in time keeps its last known values and is asked again only
-        after a pause, so one slow page neither takes all entities offline nor
-        keeps a struggling router busy.
+        Status pages are read on every update. Configuration pages are read
+        again only after the configuration interval or after an action of
+        ours, which keeps the load on the router small. A missing page (an
+        error answer) gives None and is asked again only after a long pause. A
+        page that does not answer in time keeps its last known values and is
+        asked again after a shorter pause, so one slow page neither takes all
+        entities offline nor keeps a struggling router busy.
         """
-        client = self.client
-        calls: dict[str, Any] = {
-            "wireless_config": client.async_wireless_config,
-            "wireless_status": client.async_wireless_status,
-            "wireless_devices": client.async_wireless_devices_status,
-            "modems": client.async_modems_status,
-            "gps": client.async_gps_status,
-            "usage": client.async_usage_status,
-            "dhcp": client.async_dhcp_leases,
-            "wireguard": client.async_wireguard_config,
-        }
-        now = time.monotonic()
-        asked = [
-            name
-            for name in calls
-            if now >= self._slow_until.get(name, 0.0) or name not in self._last_good
-        ]
-        results = await asyncio.gather(
-            *(calls[name]() for name in asked), return_exceptions=True
-        )
-
-        parts: dict[str, Any] = {
-            name: self._last_good.get(name) for name in calls if name not in asked
-        }
-        for name, result in zip(asked, results, strict=True):
-            if isinstance(result, TeltonikaApiError):
+        parts: dict[str, Any] = {}
+        for name in names:
+            method, kind = PAGES[name]
+            now = time.monotonic()
+            ttl = {"status": 0.0, "dhcp": min(DHCP_INTERVAL, self._config_interval)}.get(
+                kind, self._config_interval
+            )
+            fetched = self._fetched_at.get(name)
+            fresh = fetched is not None and now - fetched < ttl
+            paused = now < self._slow_until.get(name, 0.0) or now < self._missing_until.get(
+                name, 0.0
+            )
+            if (fresh or paused) and name in self._last_good:
+                parts[name] = self._last_good[name]
+                continue
+            try:
+                result = await getattr(self.client, method)()
+            except TeltonikaApiError:
                 # Router without Wi-Fi, modem or GPS, or a user without the
                 # right to read the page: the endpoint is missing.
-                parts[name] = None
-                self._last_good.pop(name, None)
+                parts[name] = self._last_good[name] = None
+                self._missing_until[name] = now + MISSING_PAGE_PAUSE
                 self._slow_until.pop(name, None)
-            elif isinstance(result, TeltonikaAuthError):
-                raise ConfigEntryAuthFailed(str(result)) from result
-            elif isinstance(result, TeltonikaConnectionError):
+            except TeltonikaAuthError as err:
+                raise ConfigEntryAuthFailed(str(err)) from err
+            except TeltonikaConnectionError:
                 parts[name] = self._last_good.get(name)
                 if name not in self._slow_until:
                     _LOGGER.warning(
@@ -254,15 +276,31 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 self._slow_until[name] = now + SLOW_PAGE_PAUSE
                 # Remember that a value exists so the pause is honoured.
                 self._last_good.setdefault(name, None)
-            elif isinstance(result, BaseException):
-                raise UpdateFailed(f"Unexpected error: {result}") from result
+            except Exception as err:  # noqa: BLE001
+                raise UpdateFailed(f"Unexpected error: {err}") from err
             else:
                 if name in self._slow_until:
                     _LOGGER.info("The router answers for %s again", name)
                     del self._slow_until[name]
-                parts[name] = result
-                self._last_good[name] = result
+                self._missing_until.pop(name, None)
+                parts[name] = self._last_good[name] = result
+                self._fetched_at[name] = now
         return parts
+
+    def _invalidate_config_pages(self) -> None:
+        """Read the configuration pages again on the next update."""
+        self._fetched_at.clear()
+        self._missing_until.clear()
+
+    async def async_request_refresh(self) -> None:
+        """Refresh soon, after an action: configuration is read again too."""
+        self._invalidate_config_pages()
+        await super().async_request_refresh()
+
+    async def async_refresh(self) -> None:
+        """Refresh now: configuration is read again too."""
+        self._invalidate_config_pages()
+        await super().async_refresh()
 
     async def _async_check_vpn(self) -> tuple[bool, float | None]:
         """Connect to the host behind the tunnel; return (reachable, ms)."""

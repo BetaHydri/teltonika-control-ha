@@ -49,12 +49,14 @@
       "init": {
         "data": {
           "scan_interval": "Update interval (seconds)",
+          "config_interval": "Configuration interval (seconds)",
           "probe_url": "Internet check URL",
           "vpn_host": "VPN check host",
           "vpn_port": "VPN check port"
         },
         "data_description": {
-          "scan_interval": "How often the router is polled.",
+          "scan_interval": "How often the status of the router is polled (signal, uplink, modem, GPS, load).",
+          "config_interval": "How often pages that rarely change are read again (Wi-Fi and WireGuard configuration, 30 to 3600 seconds, default 300). Actions of this integration read them again at once. A higher value keeps the load on the router low.",
           "probe_url": "Must answer HTTP 204 when the internet works. Used to detect a hotspot login page. Leave empty to turn the check off.",
           "vpn_host": "A DNS name, IPv4 or IPv6 address of a device behind your VPN tunnel, for example the router at your home base. Checked from the Home Assistant host. Leave empty to turn the check off.",
           "vpn_port": "A TCP port to connect to. A refused connection also counts as reachable, because the device answered through the tunnel."

@@ -558,7 +558,18 @@ automation:
 
 ## Options
 
-- **Update interval**: 10 to 600 seconds, default 30.
+- **Update interval**: how often the status of the router is polled (uplink,
+  Wi-Fi signal, modem, GPS, load): 10 to 600 seconds, default 30.
+- **Configuration interval**: how often pages that rarely change (Wi-Fi
+  configuration, radios, WireGuard instances) are read again: 30 to 3600
+  seconds, default 300. Actions of the integration read them again at once.
+  The DHCP client list is read at most every two minutes.
+
+The integration reads the pages one after the other and keeps the load on the
+router low, because a RUTC50 has a weak CPU. If the router still feels slow,
+raise both intervals; the **CPU load** sensor of the router device shows the
+effect. A value measured while the integration polls is higher than the
+router's own display at rest.
 - **Internet check URL**: must answer HTTP 204 when the internet works.
   Leave empty to turn the check off.
 
