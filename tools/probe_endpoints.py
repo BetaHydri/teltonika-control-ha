@@ -69,7 +69,9 @@ CANDIDATES = (
     "/firewall/port_forwards/config",
     "/firewall/rules/config",
     # Others
+    "/modems/status",
     "/modems/config",
+    "/modems/sims/config",
     "/logs/system",
     "/logs/kernel",
     "/logs",
@@ -211,10 +213,19 @@ async def main() -> int:
                 if not modem_id:
                     continue
                 safe_id = quote(str(modem_id), safe="")
-                await probe.get(f"/modems/config/{safe_id}")
-                await probe.get(f"/modems/{safe_id}/config")
-                await probe.get(f"/modems/config/{safe_id}/sim")
-                await probe.get(f"/modems/{safe_id}/sims/config")
+                for path in (
+                    f"/modems/{safe_id}",
+                    f"/modems/config/{safe_id}",
+                    f"/modems/{safe_id}/config",
+                    f"/modems/{safe_id}/sims",
+                    f"/modems/{safe_id}/sims/config",
+                    f"/modems/{safe_id}/sims/1",
+                    f"/modems/{safe_id}/sim_config",
+                    f"/modems/{safe_id}/sim_cards",
+                    f"/modems/config/{safe_id}/sim",
+                    f"/modems/config/{safe_id}/sims",
+                ):
+                    await probe.get(path)
 
         interfaces = results.get("/interfaces/status")
         if isinstance(interfaces, list):
