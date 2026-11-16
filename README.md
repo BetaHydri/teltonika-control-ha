@@ -360,6 +360,13 @@ Good targets are a device that is always on at the other end, ideally one with
 an open web port. Use an address inside the tunnel's subnet, not the public
 address of the remote router.
 
+Do **not** use the WireGuard endpoint of the peer (the public name or address
+and the UDP port from the peer settings, for example a MyFRITZ name with port
+`52377`). WireGuard speaks UDP only and never answers a TCP connection, so
+the check would always say "down", and it would not go through the tunnel
+anyway. Use the LAN address of the remote router instead, for example
+`192.168.178.1` with port `80` for a FRITZ!Box.
+
 Notes:
 
 - The check runs on the Home Assistant host, like the internet check. It is
@@ -526,8 +533,9 @@ An optional read-only check against a real router lives in
 `tools/live_smoke_test.py`. It reads the address and login from the
 environment variables `TELTONIKA_HOST`, `TELTONIKA_USER` and
 `TELTONIKA_PASSWORD`, and prints the field names the router returns.
-`tools/probe_endpoints.py` uses the same variables and checks which further
-REST endpoints your router offers. It shows only key names and types, no
+`tools/probe_endpoints.py` checks which further REST endpoints your router
+offers. It is standalone (only `pip install aiohttp`, no Home Assistant), uses
+the same environment variables and shows only key names and types, no
 secrets.
 
 The icon and logo in `custom_components/teltonika_control/brand` are drawn by

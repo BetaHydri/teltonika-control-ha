@@ -368,7 +368,9 @@ already does.
 
 1. Choose a device at the other end of the tunnel that is always on, for
    example the home router (`192.168.178.1`). Use an address inside the
-   tunnel's network, or a DNS name that resolves to it.
+   tunnel's network, or a DNS name that resolves to it. Do not use the
+   WireGuard endpoint from the peer settings (public name and UDP port): it
+   never answers TCP and is not reached through the tunnel.
 2. Check from a device on the router's LAN that you can reach it, for example
    by opening its web page or by running `ping` in a terminal.
 3. Go to **Settings**, **Devices & services**, **Teltonika Control**, select
@@ -404,7 +406,7 @@ handshake and it cannot restart the tunnel.
 | A button or action fails with a message from the router | The user lacks a right. Give the group write access to the matching page (step 2). |
 | `join_wifi` says a radio already has a client | The router allows one client or one Multi AP list per radio. Remove the existing one first, or use the other radio. |
 | The Internet sensor is off although the router has internet | Home Assistant may not reach the internet through this router, or your network blocks the check URL. Change the URL in the options or empty it. |
-| VPN reachable is off although the tunnel works | The device or port you chose does not answer. Pick an always-on device inside the tunnel's network and a port it answers or rejects (a firewall that silently drops the port looks like a dead tunnel). Check that Home Assistant itself reaches the remote network through this router. |
+| VPN reachable is off although the tunnel works | The device or port you chose does not answer. Pick an always-on device inside the tunnel's network and a port it answers or rejects (a firewall that silently drops the port looks like a dead tunnel). Do not use the WireGuard endpoint and its UDP port, TCP never reaches it. Check that Home Assistant itself reaches the remote network through this router. |
 | VPN reachable is on although the tunnel looks dead | The name or address resolves to a device on the local network, or Home Assistant reaches the remote network by another route. Use an address that only exists behind the tunnel. |
 | Values look wrong or an entity stays empty | Field names differ slightly between RutOS releases. Download the diagnostics and open an issue. |
 

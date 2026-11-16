@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -18,6 +19,9 @@ from custom_components.teltonika_control.const import (
     CONF_VPN_HOST,
     CONF_VPN_PORT,
     DOMAIN,
+)
+from custom_components.teltonika_control.diagnostics import (
+    async_get_config_entry_diagnostics,
 )
 
 from .conftest import ENTRY_DATA, entity_id, mock_router
@@ -147,6 +151,22 @@ async def test_no_vpn_entities_without_a_host(
 )
 def test_parse_vpn_target(text: str, expected: tuple[str, int | None] | None) -> None:
     assert parse_vpn_target(text) == expected
+
+
+async def test_diagnostics_hide_the_vpn_host(
+    hass: HomeAssistant, aioclient_mock: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_router(aioclient_mock)
+    patch_connection(monkeypatch, None)
+    entry = vpn_entry(**{CONF_VPN_HOST: "w52.example.net", CONF_VPN_PORT: 80})
+    await setup(hass, entry)
+
+    result = await async_get_config_entry_diagnostics(hass, entry)
+
+    assert result["options"][CONF_VPN_HOST] == "**REDACTED**"
+    assert result["vpn_reachable"] is True
+    assert "w52.example.net" not in json.dumps(result)
+    assert "secret" not in json.dumps(result)
 
 
 async def test_options_flow_stores_the_vpn_target(

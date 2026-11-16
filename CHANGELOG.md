@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- The diagnostics download now hides the VPN check host and includes the VPN
+  state.
+
+### Changed
+
+- Docs: the VPN check warns against using the WireGuard endpoint and its UDP
+  port as target.
+- `tools/probe_endpoints.py` is standalone: it needs only `aiohttp`, not Home
+  Assistant.
+
 ### Changed
 
 - Docs: step-by-step guide for the optional VPN check (getting started step

@@ -1,14 +1,25 @@
 """Read-only probe of RutOS REST endpoints that the integration does not use yet.
 
+Standalone: needs only Python 3.10+ and ``pip install aiohttp``. It does not
+need Home Assistant or this repository's code.
+
 Sends only GET requests (plus the login). For every endpoint it prints whether
 it exists and the structure of the answer: key names and value types. Numbers
 and booleans are shown, text values only for a short list of harmless keys, so
 keys, addresses, names and serial numbers never appear in the output. You can
 paste the result into an issue or a chat.
 
-Reads address and login from TELTONIKA_HOST, TELTONIKA_USER and
-TELTONIKA_PASSWORD. Run from the repository root:
-    python tools/probe_endpoints.py
+Set the router address and login in environment variables, then run it:
+
+    PowerShell:
+        $env:TELTONIKA_HOST = "192.168.1.1"
+        $env:TELTONIKA_USER = "your-user"
+        $env:TELTONIKA_PASSWORD = "your-password"
+        python tools/probe_endpoints.py
+
+    Linux or WSL:
+        TELTONIKA_HOST=192.168.1.1 TELTONIKA_USER=your-user \\
+        TELTONIKA_PASSWORD=your-password python3 tools/probe_endpoints.py
 """
 
 from __future__ import annotations
@@ -17,21 +28,12 @@ import asyncio
 import json
 import os
 import re
-import sys
-from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
 import aiohttp
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from custom_components.teltonika_control.api import (  # noqa: E402
-    TeltonikaApiError,
-    TeltonikaClient,
-    TeltonikaError,
-    parse_host,
-)
+TIMEOUT = aiohttp.ClientTimeout(total=15)
 
 CANDIDATES = (
     # VPN
@@ -51,10 +53,8 @@ CANDIDATES = (
     "/system/status",
     "/system/info",
     "/system/uptime",
-    "/system/actions",
     "/firmware/device/status",
     "/firmware/status",
-    "/firmware/actions/fota_info",
     "/firmware/fota/status",
     # Network
     "/interfaces/status",
@@ -119,46 +119,70 @@ def describe(value: Any, key: str = "") -> Any:
     return type(value).__name__
 
 
-def show(path: str, picture: Any) -> None:
-    text = json.dumps(picture, ensure_ascii=False, separators=(",", ":"))
-    if len(text) > MAX_LINE:
-        text = text[:MAX_LINE] + " ...(cut)"
-    print(f"OK   GET {path}\n     {text}")
+class Probe:
+    def __init__(self, session: aiohttp.ClientSession, base: str) -> None:
+        self._session = session
+        self._base = base
+        self._token = ""
 
+    async def login(self, user: str, password: str) -> None:
+        async with self._session.post(
+            f"{self._base}/login",
+            json={"username": user, "password": password},
+            timeout=TIMEOUT,
+        ) as response:
+            body = await response.json(content_type=None)
+        token = (body or {}).get("data", {}).get("token")
+        if not token:
+            raise SystemExit("Login failed: check address, user and password.")
+        self._token = token
 
-async def probe(client: TeltonikaClient, path: str) -> Any | None:
-    try:
-        data = await client.async_request("GET", path)
-    except TeltonikaApiError as err:
-        print(f"--   GET {path}  HTTP {err.status or '?'}: {str(err)[:80]}")
-        return None
-    except TeltonikaError as err:
-        print(f"--   GET {path}  {str(err)[:80]}")
-        return None
-    show(path, describe(data))
-    return data
+    async def get(self, path: str) -> Any | None:
+        """GET a path, print what came back, return the data member."""
+        try:
+            async with self._session.get(
+                f"{self._base}{path}",
+                headers={"Authorization": f"Bearer {self._token}"},
+                timeout=TIMEOUT,
+            ) as response:
+                status = response.status
+                try:
+                    body = await response.json(content_type=None)
+                except (aiohttp.ContentTypeError, ValueError):
+                    body = None
+        except (aiohttp.ClientError, TimeoutError) as err:
+            print(f"--   GET {path}  {type(err).__name__}")
+            return None
+        if status >= 400 or not isinstance(body, dict) or body.get("success") is False:
+            print(f"--   GET {path}  HTTP {status}")
+            return None
+        data = body.get("data")
+        text = json.dumps(describe(data), ensure_ascii=False, separators=(",", ":"))
+        if len(text) > MAX_LINE:
+            text = text[:MAX_LINE] + " ...(cut)"
+        print(f"OK   GET {path}\n     {text}")
+        return data
 
 
 async def main() -> int:
     try:
-        host_input = os.environ["TELTONIKA_HOST"]
+        host = os.environ["TELTONIKA_HOST"].strip().rstrip("/")
         user = os.environ["TELTONIKA_USER"]
         password = os.environ["TELTONIKA_PASSWORD"]
     except KeyError as err:
         print(f"Set the environment variable {err.args[0]} first.")
         return 2
 
-    host, use_ssl = parse_host(host_input)
+    scheme = "http" if host.startswith("http://") else "https"
+    host = re.sub(r"^https?://", "", host)
     async with aiohttp.ClientSession(
         connector=aiohttp.TCPConnector(ssl=False)
     ) as session:
-        client = TeltonikaClient(session, host, user, password, use_ssl=use_ssl)
-        await client.async_login()
-        results: dict[str, Any] = {}
-        for path in CANDIDATES:
-            results[path] = await probe(client, path)
+        probe = Probe(session, f"{scheme}://{host}/api")
+        await probe.login(user, password)
+        results = {path: await probe.get(path) for path in CANDIDATES}
 
-        # Peers and per-instance details of every WireGuard instance.
+        # Peers and details of every WireGuard instance.
         instances = results.get("/wireguard/config")
         if isinstance(instances, list):
             for instance in instances:
@@ -166,10 +190,9 @@ async def main() -> int:
                 if not instance_id:
                     continue
                 safe_id = quote(str(instance_id), safe="")
-                await probe(client, f"/wireguard/config/{safe_id}")
-                await probe(client, f"/wireguard/config/{safe_id}/peers")
-                await probe(client, f"/wireguard/status/{safe_id}")
-                await probe(client, f"/wireguard/peers/config?instance={safe_id}")
+                await probe.get(f"/wireguard/config/{safe_id}")
+                await probe.get(f"/wireguard/config/{safe_id}/peers")
+                await probe.get(f"/wireguard/status/{safe_id}")
 
         interfaces = results.get("/interfaces/status")
         if isinstance(interfaces, list):
@@ -177,11 +200,18 @@ async def main() -> int:
                 describe(item)
                 for item in interfaces
                 if isinstance(item, dict)
-                and re.search(r"wg|vpn|tun|ipsec|zt|tailscale", str(item.get("id", "")), re.I)
+                and re.search(
+                    r"wg|vpn|tun|ipsec|zt|tailscale", str(item.get("id", "")), re.I
+                )
             ]
             print(f"\nVPN-like entries in /interfaces/status: {len(vpn)}")
             for item in vpn:
-                print("    ", json.dumps(item, ensure_ascii=False, separators=(",", ":"))[:MAX_LINE])
+                print(
+                    "    ",
+                    json.dumps(item, ensure_ascii=False, separators=(",", ":"))[
+                        :MAX_LINE
+                    ],
+                )
     return 0
 
 
