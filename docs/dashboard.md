@@ -114,6 +114,8 @@ differ. These are the entities the dashboard uses:
 | Access point (one per Wi-Fi band) | `switch.my_router_access_point_my_wifi_2_4_ghz` |
 | Operator | `sensor.my_modem_operator` |
 | Network type | `sensor.my_modem_network_type` |
+| Network registration | `sensor.my_modem_network_registration` |
+| Roaming | `binary_sensor.my_modem_roaming` |
 | Band | `sensor.my_modem_band` |
 | RSRP, RSRQ, SINR | `sensor.my_modem_rsrp`, `_rsrq`, `_sinr` |
 | Temperature | `sensor.my_modem_temperature` |
@@ -173,7 +175,8 @@ list. Fix that entity and save again.
   `teltonika_control.portal_mode`, shows that it waits, and reports when
   the Wi-Fi has internet. See
   [hotspots with a login page](../README.md#hotspots-with-a-login-page).
-- **Mobile data**: operator, network type, signal values, the active SIM with
+- **Mobile data**: operator, network type, a **Network registration** pill
+  (plain at home, orange while roaming), signal values, the active SIM with
   SIM 1 and SIM 2 buttons, modem temperature and the data counters.
 - **Add a Wi-Fi network**, in three steps:
   1. Press **Scan** (the pill) and choose a network with **Choose**. The list

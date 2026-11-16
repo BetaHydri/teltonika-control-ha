@@ -476,6 +476,22 @@ def modem_temperature(modem: dict[str, Any]) -> float | None:
     return value / 10 if abs(value) > MAX_PLAUSIBLE_CELSIUS else value
 
 
+def modem_registration(modem: dict[str, Any]) -> str | None:
+    """Return the network registration text, for example "Registered, home"."""
+    return _first_text(modem.get("operator_state") or modem.get("netstate"))
+
+
+def modem_is_roaming(modem: dict[str, Any]) -> bool | None:
+    """Return whether the modem is registered in a foreign network.
+
+    None while the router reports no registration text.
+    """
+    text = modem_registration(modem)
+    if text is None:
+        return None
+    return "roaming" in text.lower()
+
+
 def derive_portal_state(
     *,
     waiting: bool,

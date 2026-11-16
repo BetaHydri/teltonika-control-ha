@@ -638,6 +638,38 @@ views:
                   show_name: false
                   show_state: true
                   state_background: false
+          # Network registration: plain at home, orange while roaming.
+          - type: vertical-stack
+            cards:
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: binary_sensor.my_modem_roaming
+                    state_not: "on"
+                card:
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
+                  entity: sensor.my_modem_network_registration
+                  name: Network registration
+                  icon: mdi:home-city-outline
+                  show_name: true
+                  show_state: true
+              - type: conditional
+                conditions:
+                  - condition: state
+                    entity: binary_sensor.my_modem_roaming
+                    state: "on"
+                card:
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
+                  entity: sensor.my_modem_network_registration
+                  name: Network registration
+                  icon: mdi:earth
+                  show_name: true
+                  show_state: true
+                  styles: *style_orange
           - type: horizontal-stack
             cards:
               - type: custom:bubble-card

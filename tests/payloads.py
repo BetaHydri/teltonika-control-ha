@@ -101,6 +101,7 @@ MODEMS = [
         "data_conn_state": "Connected",
         "conntype": "5G (NSA)",
         "operator": "Testnet",
+        "operator_state": "Registered, home",
         "band": "LTE B3",
         "rssi": -67,
         "rsrp": -104,

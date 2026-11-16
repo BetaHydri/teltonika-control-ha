@@ -169,8 +169,9 @@ the router device. You should see:
   ([step 13](#step-13-optional-restart-a-wireguard-tunnel)): a binary sensor,
   a switch, a **Reconnect WireGuard** button and traffic counters.
 
-Select the modem device to see operator, network type, signal values
-(RSRP, RSRQ, SINR), temperature, SIM state and data counters, the
+Select the modem device to see operator, network type, network registration,
+signal values (RSRP, RSRQ, SINR), temperature, SIM state and data counters,
+the **Roaming** binary sensor, the
 **Restart mobile connection** button and, on dual SIM modems, the
 **SIM slot** select.
 

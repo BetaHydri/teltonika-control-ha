@@ -22,7 +22,7 @@ from .entity import (
     TeltonikaTunnelEntity,
     async_add_discovered,
 )
-from .models import TeltonikaData
+from .models import TeltonikaData, modem_is_roaming
 
 PARALLEL_UPDATES = 0
 
@@ -100,6 +100,32 @@ async def async_setup_entry(
             for modem_id in c.modem_ids()
         ),
     )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"{modem_id}_roaming",
+                lambda m=modem_id: TeltonikaModemRoaming(c, m),
+            )
+            for modem_id in c.modem_ids()
+        ),
+    )
+
+
+class TeltonikaModemRoaming(TeltonikaModemEntity, BinarySensorEntity):
+    """On while the modem is registered in a foreign network (roaming)."""
+
+    _attr_translation_key = "roaming"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, modem_id: str) -> None:
+        super().__init__(coordinator, modem_id, "roaming")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return the roaming state."""
+        modem: dict[str, Any] | None = self.modem
+        return modem_is_roaming(modem) if modem is not None else None
 
 
 class TeltonikaTunnelUp(TeltonikaTunnelEntity, BinarySensorEntity):

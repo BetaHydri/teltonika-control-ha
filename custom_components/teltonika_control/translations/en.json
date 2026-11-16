@@ -94,6 +94,7 @@
         }
       },
       "operator": { "name": "Operator" },
+      "registration": { "name": "Network registration" },
       "connection_type": { "name": "Network type" },
       "band": { "name": "Band" },
       "rssi": { "name": "RSSI" },
@@ -132,6 +133,7 @@
       "internet": { "name": "Internet" },
       "login_required": { "name": "Hotspot login required" },
       "mobile_connected": { "name": "Mobile data connected" },
+      "roaming": { "name": "Roaming" },
       "vpn_reachable": { "name": "VPN reachable" },
       "tunnel_up": { "name": "WireGuard {name}" }
     },

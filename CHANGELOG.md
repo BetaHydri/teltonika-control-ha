@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-16
+
+### Added
+
+- Modem sensor **Network registration** (for example "Registered, home") and
+  binary sensor **Roaming**, on while the registration says roaming. Both
+  come from the modem status that is already read, so there is no new request
+  to the router and no change on it.
+- The sample dashboard has a **Network registration** pill that turns orange
+  while roaming.
+- `tools/probe_endpoints.py` also reads the modem configuration pages (used
+  to look for the roaming setting).
+
 ### Changed
 
 - Docs checked against the code and corrected: options list, password rule

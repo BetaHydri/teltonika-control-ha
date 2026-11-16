@@ -37,7 +37,13 @@ from .entity import (
     TeltonikaTunnelEntity,
     async_add_discovered,
 )
-from .models import TeltonikaData, VpnTunnel, modem_temperature, to_float
+from .models import (
+    TeltonikaData,
+    VpnTunnel,
+    modem_registration,
+    modem_temperature,
+    to_float,
+)
 
 PARALLEL_UPDATES = 0
 
@@ -274,6 +280,11 @@ MODEM_SENSORS: tuple[ModemSensorDescription, ...] = (
         key="operator",
         translation_key="operator",
         value_fn=lambda m: _text(m.get("operator") or m.get("provider")),
+    ),
+    ModemSensorDescription(
+        key="registration",
+        translation_key="registration",
+        value_fn=modem_registration,
     ),
     ModemSensorDescription(
         key="connection_type",

@@ -38,7 +38,8 @@ respective owners and are used here only to say which routers are supported.
   a dashboard. Routers whose 5 GHz radio runs as Multi AP, such as the RUTC50,
   are handled correctly. The same is available as services for automations.
 - **Mobile data monitoring**: operator, network type, band, RSRP, RSRQ, SINR,
-  modem temperature, SIM state and the data counters for each modem.
+  modem temperature, SIM state, network registration ("Registered, home" or
+  roaming) and the data counters for each modem.
 - **SIM and modem control**: switch the SIM slot of dual SIM modems and
   re-establish the mobile connection.
 - **GPS tracking**: for routers with GPS, a device tracker for the map plus
@@ -277,6 +278,14 @@ Operator, network type, band, RSRP, RSRQ, SINR, temperature, data connection,
 SIM state, active SIM, data received and sent, a connected sensor, a
 **Restart mobile connection** button and, on dual SIM modems, a **SIM slot**
 select. RSSI and signal quality are disabled by default.
+
+**Network registration** shows the text of the router, for example
+`Registered, home`. The binary sensor **Roaming** is on while that text says
+roaming, so you can warn yourself when the modem leaves your home network.
+Both come from the modem status the integration already reads. Whether
+roaming is allowed is a setting of the SIM on the router (**Network, Mobile,
+General, SIM configuration, Deny data roaming**); the integration only shows
+the state, it does not change that setting yet.
 
 ## GPS
 
