@@ -69,6 +69,7 @@ CANDIDATES = (
     "/firewall/port_forwards/config",
     "/firewall/rules/config",
     # Others
+    "/modems/config",
     "/logs/system",
     "/logs/kernel",
     "/logs",
@@ -91,10 +92,18 @@ SAFE_STRING_KEYS = {
     "available",
     "role",
     "ifname",
+    "deny_roaming",
+    "roaming",
+    "data_roaming",
+    "allow_roaming",
+    "primary",
+    "sim",
+    "sim_id",
+    "default_sim",
 }
 SENSITIVE = re.compile(
     r"key|pass|secret|token|serial|imei|imsi|iccid|mac|addr|ip|host|endpoint|"
-    r"ssid|bssid|phone|number|user|name|psk|cert",
+    r"ssid|bssid|phone|number|user|name|psk|cert|pin|puk",
     re.IGNORECASE,
 )
 MAX_LINE = 1800
@@ -193,6 +202,19 @@ async def main() -> int:
                 await probe.get(f"/wireguard/config/{safe_id}")
                 await probe.get(f"/wireguard/config/{safe_id}/peers")
                 await probe.get(f"/wireguard/status/{safe_id}")
+
+        # Modem configuration (roaming, SIM settings) per modem.
+        modems = results.get("/modems/status")
+        if isinstance(modems, list):
+            for modem in modems:
+                modem_id = modem.get("id") if isinstance(modem, dict) else None
+                if not modem_id:
+                    continue
+                safe_id = quote(str(modem_id), safe="")
+                await probe.get(f"/modems/config/{safe_id}")
+                await probe.get(f"/modems/{safe_id}/config")
+                await probe.get(f"/modems/config/{safe_id}/sim")
+                await probe.get(f"/modems/{safe_id}/sims/config")
 
         interfaces = results.get("/interfaces/status")
         if isinstance(interfaces, list):
