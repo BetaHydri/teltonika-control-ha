@@ -34,6 +34,10 @@ integration and not for any other dashboard of yours:
   optional: delete the `badges:` block from the file if you do not want to
   install it.
 
+The **VPN** pill needs no extra card. It stays hidden until you set a VPN
+check host in the integration options, see
+[step 12 of the getting started guide](getting-started.md#step-12-optional-vpn-check).
+
 Install them in HACS under **Frontend**, restart or reload the browser page
 afterwards, and then continue with step 1.
 

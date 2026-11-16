@@ -16,6 +16,8 @@ get notified when a hotspot needs a login, all from Home Assistant.
 - The router address, for example `192.168.1.1`, and an administrator login
   for the one-time user setup.
 - Optional: [HACS](https://hacs.xyz/) for easy installation and updates.
+- Optional: a device behind your VPN tunnel to check, see
+  [step 12](#step-12-optional-vpn-check).
 
 The integration only polls the router. The router never connects to Home
 Assistant and no cloud account is needed.
@@ -157,6 +159,8 @@ the router device. You should see:
   the **Last Wi-Fi action** sensor.
 - On routers with GPS: the **Position** device tracker and sensors for speed,
   altitude, satellites and accuracy.
+- If you set a VPN check host ([step 12](#step-12-optional-vpn-check)): the
+  binary sensor **VPN reachable** and the sensor **VPN latency**.
 
 Select the modem device to see operator, network type, signal values
 (RSRP, RSRQ, SINR), temperature, SIM state and data counters, the
@@ -354,6 +358,40 @@ create an automation with a numeric state trigger on that sensor.
 These helpers belong to you, not to the integration. Removing the integration
 does not remove them.
 
+## Step 12: Optional VPN check
+
+This step is optional. Use it if the router carries a site-to-site VPN (for
+example WireGuard, OpenVPN or IPsec) and you want to know in Home Assistant
+whether the tunnel carries traffic. No helper and no extra router setting is
+needed. The router only has to route to the remote network, which the VPN
+already does.
+
+1. Choose a device at the other end of the tunnel that is always on, for
+   example the home router (`192.168.178.1`). Use an address inside the
+   tunnel's network, or a DNS name that resolves to it.
+2. Check from a device on the router's LAN that you can reach it, for example
+   by opening its web page or by running `ping` in a terminal.
+3. Go to **Settings**, **Devices & services**, **Teltonika Control**, select
+   **Configure**.
+4. Enter the address in **VPN check host**. IPv4, IPv6 and DNS names work. You
+   can add the port behind it, for example `192.168.178.1:443` or
+   `[fd00::1]:443`.
+5. Set **VPN check port** to a port the device answers or rejects. The default
+   is 443. A refused connection counts as reachable, a silent timeout counts as
+   down.
+6. Select **Submit**. The integration reloads.
+7. On the router device you now see **VPN reachable** (binary sensor) and
+   **VPN latency** (sensor, diagnostic). If you use the sample dashboard, the
+   VPN pill appears in the Connection section.
+
+To turn the check off, empty the **VPN check host** field again. The two
+entities then remain in the entity list as unavailable until you delete them.
+
+What the check does and does not tell you is described in the
+[README](../README.md#vpn-check). In short: it tests the whole path through
+the tunnel from the Home Assistant host, but it does not show the WireGuard
+handshake and it cannot restart the tunnel.
+
 ## Troubleshooting
 
 | Symptom | Likely cause and fix |
@@ -366,6 +404,8 @@ does not remove them.
 | A button or action fails with a message from the router | The user lacks a right. Give the group write access to the matching page (step 2). |
 | `join_wifi` says a radio already has a client | The router allows one client or one Multi AP list per radio. Remove the existing one first, or use the other radio. |
 | The Internet sensor is off although the router has internet | Home Assistant may not reach the internet through this router, or your network blocks the check URL. Change the URL in the options or empty it. |
+| VPN reachable is off although the tunnel works | The device or port you chose does not answer. Pick an always-on device inside the tunnel's network and a port it answers or rejects (a firewall that silently drops the port looks like a dead tunnel). Check that Home Assistant itself reaches the remote network through this router. |
+| VPN reachable is on although the tunnel looks dead | The name or address resolves to a device on the local network, or Home Assistant reaches the remote network by another route. Use an address that only exists behind the tunnel. |
 | Values look wrong or an entity stays empty | Field names differ slightly between RutOS releases. Download the diagnostics and open an issue. |
 
 ### Download diagnostics

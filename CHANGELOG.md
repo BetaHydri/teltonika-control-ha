@@ -8,6 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- Docs: step-by-step guide for the optional VPN check (getting started step
+  12), troubleshooting rows, known limitations and the WireGuard handshake
+  and reconnect ideas under planned.
+
 ## [0.4.0] - 2026-11-16
 
 ### Added

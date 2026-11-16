@@ -69,8 +69,11 @@ Ideas that are not implemented yet: data usage limits and monthly counters
 (until then, use a Utility Meter helper, see the
 [step-by-step guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter)), router
 uptime and system temperature, per-interface WAN failover control, SMS
-notifications and setting the Home Assistant home zone from the router's GPS
-(see the [automation example](#move-the-home-zone-with-the-camper)).
+notifications, the WireGuard handshake state and a **Reconnect VPN** button
+(both wait for a verified RutOS API or SSH approach, see
+[VPN check](#vpn-check)) and setting the Home Assistant home zone from the
+router's GPS (see the
+[automation example](#move-the-home-zone-with-the-camper)).
 
 ## Supported routers
 
@@ -499,6 +502,10 @@ Home Assistant reaches the internet through this router.
 - Changing the SIM drops mobile data for about a minute and is not rolled
   back automatically.
 - Switching off the access point you are connected through disconnects you.
+- The VPN check is a reachability test from the Home Assistant host, not a
+  read-out of the tunnel. It cannot show the WireGuard handshake or restart a
+  tunnel, and it says nothing when Home Assistant reaches the remote network
+  another way.
 - Field names in the modem, Wi-Fi and interface answers differ slightly
   between RutOS releases. Open an issue with the diagnostics download if an
   entity stays empty.
