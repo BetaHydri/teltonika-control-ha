@@ -10,6 +10,9 @@ and this project adheres to
 
 ### Changed
 
+- Docs: GPS heading and fix status checked on a RUTC50 (parked): both fields
+  exist, the fix status is `1` with a fix, the heading is 0 when parked.
+  Driving values are still to be confirmed.
 - Docs brought up to date: router clock source, required integration version
   for the sample dashboard, and the gentle polling and GPS filtering in the
   feature list.

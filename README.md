@@ -593,8 +593,11 @@ Home Assistant reaches the internet through this router.
   and as 5 GHz Multi AP entry), the one that is the active uplink is shown.
 - The GPS field names are taken from the router API as used by other
   projects. Position, speed, altitude, satellites and accuracy are confirmed
-  on a RUTC50; heading and fix status are not yet. If an entity stays empty
-  although the router has a fix, open an issue with the diagnostics.
+  on a RUTC50 while driving and parked. The heading field exists and reads 0
+  when parked; its values while driving are not confirmed yet. The fix status
+  shows the router's own code unchanged (`1` with 9 satellites on a RUTC50);
+  its other values are not mapped. If an entity stays empty although the
+  router has a fix, open an issue with the diagnostics.
 - The router clock comes from the system usage status of the router, with the
   `Date` header of its answers as fallback. Without either, the **Router
   time** sensor does not appear.
