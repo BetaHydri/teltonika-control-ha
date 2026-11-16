@@ -219,9 +219,9 @@ Adjust the entity IDs to your router. The same pattern works for
 | `join_wifi` | Save a network as Wi-Fi client, or into the Multi AP list on a Multi AP radio; mobile stays preferred |
 | `forget_wifi` | Remove a saved client network (`station_id`) or a Multi AP list entry (`ssid`) |
 
-Each service takes the router as a service target: choose the router device
-or any entity of the router, including a modem entity. `device_id` in the
-service data still works.
+Each service takes the router as a service target: choose any entity of the
+router, including a modem entity. A router device as target and `device_id`
+in the service data still work.
 
 ### Multi AP radios
 
