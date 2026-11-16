@@ -65,6 +65,10 @@ respective owners and are used here only to say which routers are supported.
 - Buttons to reconnect the Wi-Fi client and to reboot the router.
 - An internet check that tells a working Wi-Fi from one behind a login page.
 - The router's clock as a diagnostic sensor, when the router reports it.
+- Gentle polling for weak routers: status pages on every update, rarely
+  changing configuration pages only every few minutes, both intervals
+  adjustable in the options. One slow page never takes all entities offline.
+- Single empty GPS readings between normal ones are ignored.
 - Re-authentication, reconfiguration and options in the user interface.
 - Diagnostics download with passwords and personal data removed.
 - English and German translations.
@@ -591,9 +595,9 @@ Home Assistant reaches the internet through this router.
   projects. Position, speed, altitude, satellites and accuracy are confirmed
   on a RUTC50; heading and fix status are not yet. If an entity stays empty
   although the router has a fix, open an issue with the diagnostics.
-- The router clock comes from the `Date` header of the router's answers. If
-  your RutOS version does not send it, the **Router time** sensor does not
-  appear.
+- The router clock comes from the system usage status of the router, with the
+  `Date` header of its answers as fallback. Without either, the **Router
+  time** sensor does not appear.
 - Changing the SIM drops mobile data for about a minute and is not rolled
   back automatically.
 - Switching off the access point you are connected through disconnects you.

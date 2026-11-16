@@ -8,6 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- Docs brought up to date: router clock source, required integration version
+  for the sample dashboard, and the gentle polling and GPS filtering in the
+  feature list.
+
 ## [0.6.1] - 2026-11-16
 
 ### Fixed

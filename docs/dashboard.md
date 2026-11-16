@@ -20,9 +20,12 @@ Prerequisites for the integration:
 
 - Teltonika Control installed and set up, see the
   [getting started guide](getting-started.md).
-- Version 0.3.0 or newer of the integration. It accepts a service target
-  (an entity of your router, so no device ID is needed) and has the Wi-Fi
-  management entities.
+- Version 0.5.0 or newer of the integration. It accepts a service target
+  (an entity of your router, so no device ID is needed), has the Wi-Fi
+  management entities, the WireGuard entities and the router health sensors.
+  With an older version, delete the **Restart WireGuard tunnel** pill and the
+  **Router health** block from the file. Version 0.6.0 or newer is
+  recommended, because it polls the router much more gently.
 - Home Assistant 2024.8 or newer for the `perform-action` button setting.
 
 Prerequisites for this dashboard only. They are not needed for the
