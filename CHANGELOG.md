@@ -8,6 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- Docs: the data roaming switches are confirmed on a RUTC50 in both
+  directions (deny and allow); the router showed the new setting each time.
+
 ## [0.8.0] - 2026-11-16
 
 ### Added

@@ -628,11 +628,10 @@ Home Assistant reaches the internet through this router.
   time** sensor does not appear.
 - Changing the SIM drops mobile data for about a minute and is not rolled
   back automatically.
-- The roaming switches write one field of the SIM settings with the same
-  request pattern as the other settings, but this was only tested against the
-  router's read answers, not yet by writing on a real router. Try it first with
-  a harmless write: turn **Allow data roaming** on while it is already on, which
-  sends the value it already has.
+- The roaming switches write one field of the SIM settings. Denying and
+  allowing roaming were both checked on a RUTC50: the router showed the new
+  "Deny data roaming" value each time. The integration reads the setting back
+  and reports an error if the router did not apply it.
 - Switching off the access point you are connected through disconnects you.
 - If one page of the router (for example the Wi-Fi status) does not answer in
   time, its entities show the last known values and the page is asked again
