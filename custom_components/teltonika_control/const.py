@@ -26,6 +26,8 @@ MAX_CONFIG_INTERVAL = 3600
 DHCP_INTERVAL = 120
 # Seconds to leave a page alone that does not exist or may not be read.
 MISSING_PAGE_PAUSE = 300
+# GPS readings with 0 satellites in a row that are ignored as glitches.
+GPS_GLITCH_POLLS = 3
 
 # Returns HTTP 204 with working internet; a captive portal answers with
 # a redirect or a login page instead.

@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-16
+
+### Fixed
+
+- The GPS sensors no longer jump to 0 satellites and 500 m accuracy for a
+  single reading. The receiver of a RUTC50 now and then reports one empty
+  reading between normal ones; up to three empty readings in a row are
+  ignored and the last good values stay. A longer loss of the fix still shows
+  up. This avoids false zone changes in automations.
+
 ## [0.6.0] - 2026-11-16
 
 ### Changed

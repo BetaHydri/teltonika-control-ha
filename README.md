@@ -287,7 +287,11 @@ answer the GPS request:
 - **GPS heading** and **GPS fix status**, disabled by default.
 
 Speed, altitude and accuracy are rounded, so a parked camper or boat does not
-write GPS noise into the history on every update. While the router has no fix
+write GPS noise into the history on every update. The receiver of a RUTC50
+now and then reports a single empty reading (0 satellites, accuracy 500 m)
+between normal ones of 5 to 9 satellites. Up to three such readings in a row
+are ignored and the last good values stay, so sensors and zone automations do
+not jump; a longer loss of the fix shows up as 0 satellites. While the router has no fix
 (it reports zeros), the entities are `unknown` and the position is not
 trusted. The router needs a clear view of the sky and a connected GPS
 antenna, and GPS must be switched on in the router.

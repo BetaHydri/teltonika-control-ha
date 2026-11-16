@@ -40,6 +40,7 @@ from .const import (
     DHCP_INTERVAL,
     DOMAIN,
     EVENT_PORTAL_RESULT,
+    GPS_GLITCH_POLLS,
     METRIC_MOBILE_FIRST,
     METRIC_WIFI_FIRST,
     MISSING_PAGE_PAUSE,
@@ -67,6 +68,7 @@ from .models import (
     normalize_band,
     radio_band,
     radio_occupant,
+    to_int,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -144,6 +146,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self._fetched_at: dict[str, float] = {}
         self._slow_until: dict[str, float] = {}
         self._missing_until: dict[str, float] = {}
+        # Last GPS reading with satellites, and how many empty ones came since.
+        self._last_fix: dict[str, Any] | None = None
+        self._gps_misses = 0
         self._config_interval: float = entry.options.get(
             CONF_CONFIG_INTERVAL, DEFAULT_CONFIG_INTERVAL
         )
@@ -194,7 +199,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         wireless_status = parts["wireless_status"] or []
         wireless_devices = parts["wireless_devices"] or []
         modems = parts["modems"] or []
-        gps = parts["gps"]
+        gps = self._hold_gps_glitches(parts["gps"])
         usage = parts["usage"]
         dhcp_leases = parts["dhcp"]
         wireguard_config = parts["wireguard"] or []
@@ -286,6 +291,28 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 parts[name] = self._last_good[name] = result
                 self._fetched_at[name] = now
         return parts
+
+    def _hold_gps_glitches(self, raw: Any) -> Any:
+        """Keep the last reading while the receiver reports a few empty ones.
+
+        The router now and then reports a reading with 0 satellites and an
+        accuracy of 500 m between normal readings of 5 to 9 satellites. Such
+        a single reading would make the sensors jump and could trigger zone
+        automations. A few misses in a row are therefore ignored; if the
+        receiver really has no fix any more, the empty reading shows up.
+        """
+        if not isinstance(raw, dict):
+            return raw
+        satellites = to_int(raw.get("satellites"))
+        if satellites == 0:
+            self._gps_misses += 1
+            if self._last_fix is not None and self._gps_misses <= GPS_GLITCH_POLLS:
+                return self._last_fix
+            return raw
+        if satellites:
+            self._last_fix = raw
+        self._gps_misses = 0
+        return raw
 
     def _invalidate_config_pages(self) -> None:
         """Read the configuration pages again on the next update."""
