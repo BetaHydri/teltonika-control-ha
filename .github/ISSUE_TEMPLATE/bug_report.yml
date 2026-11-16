@@ -1,0 +1,51 @@
+name: Bug report or router model that does not work
+description: A feature does not work, an entity is missing or empty, or your Teltonika model behaves differently.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping. The **debug log** and the **diagnostics download** show which pages your router offers and how it names its fields. That is usually all that is needed to fix a problem or add support for another RUT or RUTX model.
+
+        How to get them: see [Debug logging](https://github.com/BetaHydri/teltonika-control-ha#debug-logging).
+  - type: input
+    id: router
+    attributes:
+      label: Router model and RutOS firmware
+      description: For example RUTX11, RUTC_R_00.07.24.8. The firmware is shown at the top of the router web interface.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Integration version and Home Assistant version
+      description: For example 0.8.0 and 2026.11.1.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happens and what did you expect
+      description: Name the entity or button, and what you pressed or did.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log
+      description: Turn on debug logging, reproduce the problem, turn it off and paste the downloaded file here. It contains no passwords, no addresses and no serial numbers, but please look through it first.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Attach the file from "Download diagnostics" (drag it into this field).
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before you send
+      options:
+        - label: I looked through the log and removed anything I do not want to share.
+          required: true

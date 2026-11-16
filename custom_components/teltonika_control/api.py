@@ -12,6 +12,8 @@ from urllib.parse import quote
 
 import aiohttp
 
+from .debug import shape_text
+
 _LOGGER = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=20)
@@ -87,6 +89,11 @@ def _http_date(value: str | None) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
+def _describe_error(err: BaseException) -> str:
+    """Return a readable text for a connection error (a timeout has no text)."""
+    return str(err) or type(err).__name__
+
+
 class TeltonikaClient:
     """Token based client for one router."""
 
@@ -109,6 +116,7 @@ class TeltonikaClient:
         self._token_expires_at = 0.0
         self._login_lock = asyncio.Lock()
         self._server_time: datetime | None = None
+        self._shapes_logged: set[str] = set()
 
     @property
     def host(self) -> str:
@@ -131,14 +139,17 @@ class TeltonikaClient:
                 status = response.status
                 body = await _read_body(response)
         except (aiohttp.ClientError, TimeoutError) as err:
+            _LOGGER.debug("Login failed: %s", _describe_error(err))
             raise TeltonikaConnectionError(
-                f"Cannot reach {self._host}: {err}"
+                f"Cannot reach {self._host}: {_describe_error(err)}"
             ) from err
 
         if status >= 500:
+            _LOGGER.debug("Login answered HTTP %s", status)
             raise TeltonikaApiError(f"Router error {status}", status=status)
         if status >= 400 or not body.get("success"):
             message, _ = _first_error(body)
+            _LOGGER.debug("Login rejected: HTTP %s, router says %r", status, message)
             raise TeltonikaAuthError(message or "Login failed")
 
         data = body.get("data") or {}
@@ -149,6 +160,7 @@ class TeltonikaClient:
             lifetime = float(data.get("expires", DEFAULT_TOKEN_LIFETIME))
         except (TypeError, ValueError):
             lifetime = DEFAULT_TOKEN_LIFETIME
+        _LOGGER.debug("Logged in, the session token lasts %.0f s", lifetime)
         self._token = token
         self._token_expires_at = time.monotonic() + lifetime - TOKEN_SAFETY_MARGIN
 
@@ -173,6 +185,7 @@ class TeltonikaClient:
     ) -> Any:
         """Call the API and return the ``data`` member of the answer."""
         token = await self._async_ensure_token()
+        started = time.monotonic()
         try:
             async with self._session.request(
                 method,
@@ -188,11 +201,19 @@ class TeltonikaClient:
                     self._server_time
                 )
         except (aiohttp.ClientError, TimeoutError) as err:
+            _LOGGER.debug(
+                "%s %s failed after %d ms: %s",
+                method,
+                path,
+                (time.monotonic() - started) * 1000,
+                _describe_error(err),
+            )
             raise TeltonikaConnectionError(
-                f"Cannot reach {self._host}: {err}"
+                f"Cannot reach {self._host}: {_describe_error(err)}"
             ) from err
 
         message, code = _first_error(body)
+        self._log_answer(method, path, json, status, started, body, message, code)
         if status == 401 or code == ERROR_CODE_UNAUTHORIZED:
             self._token = None
             if _retry:
@@ -212,6 +233,48 @@ class TeltonikaClient:
                 code=code,
             )
         return body.get("data")
+
+    def _log_answer(
+        self,
+        method: str,
+        path: str,
+        sent: dict[str, Any] | None,
+        status: int,
+        started: float,
+        body: dict[str, Any],
+        message: str | None,
+        code: int | None,
+    ) -> None:
+        """Write one debug line per request, without values and secrets.
+
+        The line has method, path, status and duration. The structure of an
+        answer (key names and types) is written once per path, so that a
+        router model that answers differently can be understood from a log.
+        """
+        if not _LOGGER.isEnabledFor(logging.DEBUG):
+            return
+        elapsed = (time.monotonic() - started) * 1000
+        fields = ""
+        if sent:
+            data = sent.get("data")
+            keys = sorted(data) if isinstance(data, dict) else sorted(sent)
+            fields = f" sending fields {keys}"
+        if status >= 400 or body.get("success") is False:
+            _LOGGER.debug(
+                "%s %s -> HTTP %s in %d ms%s, router error %s: %r",
+                method,
+                path,
+                status,
+                elapsed,
+                fields,
+                code,
+                message,
+            )
+            return
+        _LOGGER.debug("%s %s -> HTTP %s in %d ms%s", method, path, status, elapsed, fields)
+        if method == "GET" and path not in self._shapes_logged:
+            self._shapes_logged.add(path)
+            _LOGGER.debug("Answer structure of %s: %s", path, shape_text(body.get("data")))
 
     async def _async_list(self, path: str) -> list[dict[str, Any]]:
         data = await self.async_request("GET", path)

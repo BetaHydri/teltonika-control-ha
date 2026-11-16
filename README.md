@@ -71,7 +71,10 @@ respective owners and are used here only to say which routers are supported.
   adjustable in the options. One slow page never takes all entities offline.
 - Single empty GPS readings between normal ones are ignored.
 - Re-authentication, reconfiguration and options in the user interface.
-- Diagnostics download with passwords and personal data removed.
+- Diagnostics download with passwords and personal data removed, including
+  which router pages answered and how they are structured.
+- Detailed debug logging for support, without secrets, see
+  [Debug logging](#debug-logging).
 - English and German translations.
 
 ### Planned
@@ -91,6 +94,11 @@ Home Assistant home zone from the router's GPS (see the
 |---|---|---|
 | RUTC | RUTC50 | Developed against a RUTC50 (RutOS 7.24) |
 | RUTX | RUTX11, RUTX50, RUTX14 | Same API, not yet tested on hardware |
+
+If a feature does not work on your model, please open an issue with the
+[debug log](#debug-logging) and the diagnostics download. They show which
+pages your router offers and how it names its fields, which is what is needed
+to add support for it.
 
 RUTC and RUTX use the same RutOS API (the published API description for both
 families is identical). Modems, Wi-Fi radios and interfaces are read from the
@@ -610,6 +618,56 @@ router's own display at rest.
 
 The internet check runs on the Home Assistant host. It is only meaningful if
 Home Assistant reaches the internet through this router.
+
+## Debug logging
+
+If a feature does not work on your router model, the debug log shows why.
+Turn it on in Home Assistant under **Settings**, **Devices & services**,
+**Teltonika Control**, menu (three dots), **Enable debug logging**. Reproduce
+the problem, then choose **Disable debug logging** in the same menu to
+download the file. Step by step: [getting started guide](docs/getting-started.md#turn-on-debug-logging).
+
+What the log contains:
+
+- **A router report** on the first update: model, firmware and which pages of
+  the router answered, are missing or are slow, plus counts of what was
+  found (modems, radios, SIM settings, tunnels and so on).
+- **One line per request**: method, path, HTTP status and duration, and for
+  changes only the names of the fields that were sent. The structure of each
+  answer (key names and value types) is written once per page.
+- **One summary line per update**: uplink, priority, Wi-Fi, internet check and
+  modems.
+- **Actions**: what was switched or pressed, and the router's error message
+  if it refused.
+
+Example:
+
+```text
+Router report: model=RUTC50 firmware=RUTC_R_00.07.24.8. Pages: {'interface_config': 'ok', ..., 'gps': 'missing (HTTP 404: Not found)', ...}
+GET /sim_cards/config -> HTTP 200 in 187 ms
+Answer structure of /sim_cards/config: {"list":2,"first":{"deny_roaming":"0","id":"str(9)","modem":"str(5)", ...}}
+PUT /sim_cards/config/cfg_sim2 -> HTTP 200 in 311 ms sending fields ['deny_roaming']
+Update: uplink=wifi metric=0 wifi_first=True wifi=2.4 GHz -66.0 dBm internet=True portal=online modems_online=1 vpn_reachable=True
+```
+
+Useful hints when reading it:
+
+- `HTTP 404` or `501` for a page: this model or firmware does not have that
+  page, so the matching entities are not created.
+- `HTTP 403`: the router user may not read or change that page, see the
+  [permissions](#router-user-and-permissions).
+- `failed after ... ms: TimeoutError`: the router did not answer in time.
+- A field you expect is missing in an `Answer structure` line: the router
+  names it differently. Please include that line in your issue.
+
+What the log never contains: your password, session tokens, PIN, IMSI, IMEI,
+ICCID, serial numbers, Wi-Fi names and passwords, IP and MAC addresses, GPS
+coordinates and the router address. Values are shown only for numbers,
+booleans and a short list of harmless state texts. Error messages of Home
+Assistant itself (for example "Cannot reach ...") can contain the router
+address; look through the file before you post it. The
+[diagnostics download](docs/getting-started.md#download-diagnostics) has the
+same page status and answer structures.
 
 ## Known Limitations
 

@@ -8,6 +8,30 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-16
+
+### Added
+
+- **Debug logging for support.** With "Enable debug logging" on the
+  integration page, the log now shows a router report (model, firmware, which
+  pages answered, are missing or slow, counts of what was found), one line per
+  request (method, path, HTTP status, duration, and for changes the names of
+  the fields sent), the structure of each answer once per page (key names and
+  types), one summary line per update and the actions that were run. It
+  contains no passwords, tokens, PINs, IMSI/IMEI/ICCID, serial numbers, Wi-Fi
+  names, addresses or coordinates; a test checks this.
+- The diagnostics download lists which router pages work, are missing or are
+  slow, and the structure of each answer.
+- GitHub issue template that asks for the router model, firmware, debug log
+  and diagnostics.
+
+### Changed
+
+- Connection errors without a text (timeouts) now say what happened, for
+  example "Cannot reach 192.168.1.1: TimeoutError".
+- Home Assistant no longer writes the router address into its own log lines of
+  this integration (the update coordinator name used it).
+
 ### Changed
 
 - Docs: the data roaming switches are confirmed on a RUTC50 in both

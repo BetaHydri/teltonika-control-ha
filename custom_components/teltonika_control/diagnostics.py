@@ -54,6 +54,8 @@ async def async_get_config_entry_diagnostics(
             "internet": data.internet,
             "vpn_reachable": data.vpn_reachable,
             "vpn_latency": data.vpn_latency,
+            "router_pages": coordinator.page_status(),
+            "answer_structure": coordinator.page_shapes(),
             "portal_state": data.portal_state,
             "access_points": [asdict(point) for point in data.access_points],
             "stations": [asdict(station) for station in data.stations],

@@ -55,6 +55,7 @@ from .const import (
     VPN_REFRESH_DELAY,
     VPN_TIMEOUT,
 )
+from .debug import shape_text
 from .models import (
     SAVED_MULTI_AP,
     RouterInfo,
@@ -131,7 +132,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             hass,
             _LOGGER,
             config_entry=entry,
-            name=f"{DOMAIN} {router.host}",
+            # No host in the name: Home Assistant writes it into its own log lines.
+            name=f"{DOMAIN} {entry.entry_id[:8]}",
             update_interval=timedelta(
                 seconds=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
             ),
@@ -148,6 +150,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self._fetched_at: dict[str, float] = {}
         self._slow_until: dict[str, float] = {}
         self._missing_until: dict[str, float] = {}
+        # Short text per page for the debug log and the diagnostics download.
+        self._page_notes: dict[str, str] = {}
+        self._reported = False
         # Last GPS reading with satellites, and how many empty ones came since.
         self._last_fix: dict[str, Any] | None = None
         self._gps_misses = 0
@@ -237,7 +242,64 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data.internet = internet
         if self.vpn_host and vpn is not None:
             data.vpn_reachable, data.vpn_latency = vpn
+        self._log_state(data)
         return data
+
+    def _log_state(self, data: TeltonikaData) -> None:
+        """Write what was found and decided to the debug log.
+
+        The first update gets a report of what this router offers, which is the
+        first thing to read when a feature does not work on another model. Every
+        update gets one short summary line. No names, addresses or secrets.
+        """
+        if not _LOGGER.isEnabledFor(logging.DEBUG):
+            return
+        try:
+            self._write_state_log(data)
+        except Exception:  # noqa: BLE001
+            # Writing the log must never break an update.
+            _LOGGER.debug("Could not write the state summary", exc_info=True)
+
+    def _write_state_log(self, data: TeltonikaData) -> None:
+        uplink = data.uplink
+        wifi = data.wifi_client
+        online = [m for m in data.modems if m.get("id") and is_modem_online(m)]
+        _LOGGER.debug(
+            "Update: uplink=%s metric=%s wifi_first=%s wifi=%s internet=%s "
+            "portal=%s modems_online=%d vpn_reachable=%s",
+            uplink.kind if uplink else None,
+            uplink.metric if uplink else None,
+            data.wifi_first,
+            f"{wifi.band} {wifi.signal} dBm" if wifi else None,
+            data.internet,
+            data.portal_state,
+            len(online),
+            data.vpn_reachable,
+        )
+        if self._reported:
+            return
+        self._reported = True
+        _LOGGER.debug(
+            "Router report: model=%s firmware=%s. Pages: %s",
+            self.router.model,
+            self.router.firmware,
+            self.page_status(),
+        )
+        _LOGGER.debug(
+            "Router report: modems=%d (online %d), sim settings=%d, radios=%d, "
+            "wifi clients/multi AP=%d, access points=%d, gps=%s, "
+            "wireguard tunnels=%d, usage=%s, dhcp=%s",
+            len(data.modems),
+            len(online),
+            len(data.sim_cards),
+            len(data.wireless_devices),
+            len(data.stations),
+            len(data.access_points),
+            data.gps_available,
+            len(data.vpn_tunnels),
+            data.system_usage is not None,
+            data.dhcp_leases is not None,
+        )
 
     async def _async_read_pages(self, names: list[str]) -> dict[str, Any]:
         """Read router pages one after the other and return their answers.
@@ -267,15 +329,26 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 continue
             try:
                 result = await getattr(self.client, method)()
-            except TeltonikaApiError:
+            except TeltonikaApiError as err:
                 # Router without Wi-Fi, modem or GPS, or a user without the
                 # right to read the page: the endpoint is missing.
+                if name not in self._missing_until:
+                    _LOGGER.debug(
+                        "Page %s is not available on this router (HTTP %s: %s), "
+                        "its entities are not created. It is asked again in %d s",
+                        name,
+                        err.status,
+                        err,
+                        MISSING_PAGE_PAUSE,
+                    )
+                self._page_notes[name] = f"missing (HTTP {err.status}: {err})"
                 parts[name] = self._last_good[name] = None
                 self._missing_until[name] = now + MISSING_PAGE_PAUSE
                 self._slow_until.pop(name, None)
             except TeltonikaAuthError as err:
                 raise ConfigEntryAuthFailed(str(err)) from err
-            except TeltonikaConnectionError:
+            except TeltonikaConnectionError as err:
+                self._page_notes[name] = f"slow ({err})"
                 parts[name] = self._last_good.get(name)
                 if name not in self._slow_until:
                     _LOGGER.warning(
@@ -283,6 +356,12 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                         "last known values and asking again later",
                         name,
                     )
+                _LOGGER.debug(
+                    "Page %s: %s. Last known values are used for %d s",
+                    name,
+                    err,
+                    SLOW_PAGE_PAUSE,
+                )
                 self._slow_until[name] = now + SLOW_PAGE_PAUSE
                 # Remember that a value exists so the pause is honoured.
                 self._last_good.setdefault(name, None)
@@ -293,9 +372,24 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                     _LOGGER.info("The router answers for %s again", name)
                     del self._slow_until[name]
                 self._missing_until.pop(name, None)
+                self._page_notes[name] = "ok"
                 parts[name] = self._last_good[name] = result
                 self._fetched_at[name] = now
         return parts
+
+    def page_status(self) -> dict[str, str]:
+        """Return for each router page whether it works, is missing or is slow."""
+        return {name: self._page_notes.get(name, "not read yet") for name in PAGES}
+
+    def page_shapes(self) -> dict[str, str]:
+        """Return the structure (key names and types) of each page answer."""
+        shapes = {
+            name: shape_text(value)
+            for name, value in self._last_good.items()
+            if value is not None
+        }
+        shapes["interfaces"] = shape_text(self.data.interfaces)
+        return shapes
 
     def _hold_gps_glitches(self, raw: Any) -> Any:
         """Keep the last reading while the receiver reports a few empty ones.
@@ -375,6 +469,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     async def async_restart_mobile(self, modem_id: str) -> None:
         """Re-establish the mobile data connection."""
+        _LOGGER.debug("Action: restart the mobile connection of a modem")
         async with translate_errors():
             await self.client.async_restart_modem_connection(modem_id)
         await self.async_request_refresh()
@@ -391,11 +486,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     async def async_reboot(self) -> None:
         """Reboot the router."""
+        _LOGGER.debug("Action: reboot the router")
         async with translate_errors():
             await self.client.async_reboot()
 
     async def async_set_access_point(self, config_id: str, enabled: bool) -> None:
         """Switch one of the router's own access points on or off."""
+        _LOGGER.debug("Action: access point %s -> enabled=%s", config_id, enabled)
         async with translate_errors():
             await self.client.async_set_wireless_enabled(config_id, enabled)
         await asyncio.sleep(AP_REFRESH_DELAY)
@@ -403,6 +500,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     async def async_set_vpn_tunnel(self, tunnel_id: str, enabled: bool) -> None:
         """Enable or disable a WireGuard tunnel."""
+        _LOGGER.debug("Action: WireGuard %s -> enabled=%s", tunnel_id, enabled)
         self._require_switchable_tunnel(tunnel_id)
         async with translate_errors():
             await self.client.async_set_wireguard_enabled(tunnel_id, enabled)
@@ -411,6 +509,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     async def async_reconnect_vpn(self, tunnel_id: str) -> None:
         """Restart a WireGuard tunnel by switching its instance off and on."""
+        _LOGGER.debug("Action: restart WireGuard %s (off, wait, on)", tunnel_id)
         tunnel = self._require_switchable_tunnel(tunnel_id)
         if tunnel.enabled is False:
             raise HomeAssistantError(
@@ -443,6 +542,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     async def async_set_roaming(self, card_id: str, allowed: bool) -> None:
         """Allow or deny data roaming of one SIM and check that it took effect."""
+        _LOGGER.debug("Action: data roaming of SIM settings %s -> allowed=%s", card_id, allowed)
         card = next((c for c in self.data.sim_cards if c.card_id == card_id), None)
         if card is None:
             raise HomeAssistantError(f"SIM settings {card_id} not found")
@@ -459,6 +559,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     async def async_switch_sim(self, modem_id: str, target_sim: int) -> None:
         """Switch a dual SIM modem to the requested slot."""
+        _LOGGER.debug("Action: switch SIM to slot %s", target_sim)
         modem = self.data.modem(modem_id)
         if modem is None:
             raise HomeAssistantError("Modem not found")
@@ -484,6 +585,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self, wifi_first: bool, *, verify: bool = False
     ) -> bool:
         """Prefer Wi-Fi or mobile data; optionally roll back without internet."""
+        _LOGGER.debug("Action: priority wifi_first=%s verify=%s", wifi_first, verify)
         stations = [s for s in self.data.stations if s.interface_id]
         if not stations:
             raise HomeAssistantError("No saved Wi-Fi network with an interface")
@@ -506,6 +608,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     async def async_scan_wifi(self, radio: str | None = None) -> list[dict[str, Any]]:
         """Scan with one radio or with all radios and return trimmed results."""
+        _LOGGER.debug("Action: Wi-Fi scan, radio=%s", radio or "all")
         devices = self.data.wireless_devices
         radios = [radio] if radio else [str(d["id"]) for d in devices if d.get("id")]
         if not radios:

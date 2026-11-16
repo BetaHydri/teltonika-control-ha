@@ -466,18 +466,34 @@ answers.
 
 Go to **Settings**, **Devices & services**, **Teltonika Control**, open the
 menu (three dots) of the entry and choose **Download diagnostics**. The file
-has the password and other personal data removed. Attach it to an issue.
+has the password and other personal data removed. It also lists which pages
+of the router answered, which are missing, and the structure of each answer
+(key names and types, no values). Attach it to an issue.
 
 ### Turn on debug logging
 
-Add this to `configuration.yaml`, restart Home Assistant and reproduce the
-problem. Remove it again afterwards.
+The debug log explains what the integration asked the router, what came back
+and what it decided. It is the best help if a feature does not work on your
+router model.
+
+1. Go to **Settings**, **Devices & services**, **Teltonika Control**.
+2. Open the menu (three dots, top right) and choose **Enable debug logging**.
+3. Reproduce the problem, for example press the button that does not work.
+4. Open the same menu and choose **Disable debug logging**. Your browser
+   downloads the log file.
+5. Open the file, check it (see below) and attach it to an issue.
+
+The same can be set in `configuration.yaml`, followed by a restart of Home
+Assistant. Remove it again afterwards:
 
 ```yaml
 logger:
   logs:
     custom_components.teltonika_control: debug
 ```
+
+What to look for and what the log never contains is described in the
+[README](../README.md#debug-logging).
 
 ## Update and remove
 
