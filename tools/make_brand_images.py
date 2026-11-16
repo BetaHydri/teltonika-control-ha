@@ -50,7 +50,9 @@ def draw_icon() -> Image.Image:
     lines = ImageDraw.Draw(background)
     for y in range(SIZE):
         t = y / (SIZE - 1)
-        color = tuple(round(a + (b - a) * t) for a, b in zip(TOP, BOTTOM))
+        color = tuple(
+            round(a + (b - a) * t) for a, b in zip(TOP, BOTTOM, strict=True)
+        )
         lines.line([(0, y), (SIZE, y)], fill=(*color, 255))
     mask = Image.new("L", (SIZE, SIZE), 0)
     ImageDraw.Draw(mask).rounded_rectangle(
