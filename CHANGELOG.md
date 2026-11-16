@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-16
+
+### Fixed
+
+- One slow router page no longer takes every entity offline. Before, a
+  timeout on any page (seen with the Wi-Fi status of a RUTC50) made the whole
+  update fail and left all entities unavailable and the setup retrying. Now
+  only the interface list is essential; every other page keeps its last known
+  values when it does not answer, is asked again after two minutes (so a
+  struggling router is not kept busy) and logs one warning.
+
 ### Changed
 
 - Sample dashboard: adding a Wi-Fi network now follows three steps. After you

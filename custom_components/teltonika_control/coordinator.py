@@ -43,6 +43,7 @@ from .const import (
     PORTAL_POLL_INTERVAL,
     PRIORITY_VERIFY_DELAY,
     PROBE_TIMEOUT,
+    SLOW_PAGE_PAUSE,
     UPLINK_WIFI,
     VPN_RECONNECT_DELAY,
     VPN_REFRESH_DELAY,
@@ -117,6 +118,10 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self._probe_url: str = entry.options.get(CONF_PROBE_URL, DEFAULT_PROBE_URL)
         self.vpn_host: str = entry.options.get(CONF_VPN_HOST, "")
         self._vpn_port: int = entry.options.get(CONF_VPN_PORT, DEFAULT_VPN_PORT)
+        # Last good answer of every optional page, and until when a page that
+        # did not answer in time is left alone.
+        self._last_good: dict[str, Any] = {}
+        self._slow_until: dict[str, float] = {}
         # State of the Wi-Fi management entities; the password is never stored.
         self.scan_results: list[ScanNetwork] = []
         self.selected_scan: str | None = None
@@ -143,50 +148,20 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             interfaces, interface_config = await asyncio.gather(
                 client.async_interfaces_status(), client.async_interfaces_config()
             )
-            optional = await asyncio.gather(
-                client.async_wireless_config(),
-                client.async_wireless_status(),
-                client.async_wireless_devices_status(),
-                client.async_modems_status(),
-                client.async_gps_status(),
-                client.async_usage_status(),
-                client.async_dhcp_leases(),
-                client.async_wireguard_config(),
-                return_exceptions=True,
-            )
         except TeltonikaAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except TeltonikaError as err:
             raise UpdateFailed(str(err)) from err
 
-        parts: list[Any] = []
-        for result in optional:
-            if isinstance(result, TeltonikaApiError):
-                # Router without Wi-Fi, modem or GPS, or a user without the
-                # right to read the page: the endpoint is missing.
-                parts.append(None)
-            elif isinstance(result, TeltonikaAuthError):
-                raise ConfigEntryAuthFailed(str(result)) from result
-            elif isinstance(result, TeltonikaConnectionError):
-                raise UpdateFailed(str(result)) from result
-            elif isinstance(result, BaseException):
-                raise UpdateFailed(f"Unexpected error: {result}") from result
-            else:
-                parts.append(result)
-        (
-            wireless_config,
-            wireless_status,
-            wireless_devices,
-            modems,
-            gps,
-            usage,
-            dhcp_leases,
-            wireguard_config,
-        ) = parts
-        wireless_config = wireless_config or []
-        wireless_status = wireless_status or []
-        wireless_devices = wireless_devices or []
-        modems = modems or []
+        parts = await self._async_read_optional_parts()
+        wireless_config = parts["wireless_config"] or []
+        wireless_status = parts["wireless_status"] or []
+        wireless_devices = parts["wireless_devices"] or []
+        modems = parts["modems"] or []
+        gps = parts["gps"]
+        usage = parts["usage"]
+        dhcp_leases = parts["dhcp"]
+        wireguard_config = parts["wireguard"] or []
 
         multi_ap: list[dict[str, Any]] = []
         if any(item.get("mode") == "multi_ap" for item in wireless_config):
@@ -194,10 +169,12 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 multi_ap = await client.async_multi_ap_config()
             except TeltonikaAuthError as err:
                 raise ConfigEntryAuthFailed(str(err)) from err
-            except TeltonikaConnectionError as err:
-                raise UpdateFailed(str(err)) from err
+            except TeltonikaConnectionError:
+                multi_ap = self._last_good.get("multi_ap") or []
             except TeltonikaApiError:
                 multi_ap = []
+            else:
+                self._last_good["multi_ap"] = multi_ap
 
         data = TeltonikaData.build(
             interfaces=interfaces,
@@ -211,7 +188,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             router_time=client.server_time,
             usage=usage if isinstance(usage, dict) else None,
             dhcp_leases=dhcp_leases if isinstance(dhcp_leases, list) else None,
-            wireguard_config=wireguard_config or [],
+            wireguard_config=wireguard_config,
         )
         data.portal_waiting = self.portal_waiting
         probe_internet = bool(self._probe_url) and data.uplink is not None
@@ -224,6 +201,68 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         if self.vpn_host and vpn is not None:
             data.vpn_reachable, data.vpn_latency = vpn
         return data
+
+    async def _async_read_optional_parts(self) -> dict[str, Any]:
+        """Read the pages that are not essential for the router to be online.
+
+        A page that is missing (an error answer) gives None. A page that does
+        not answer in time keeps its last known values and is asked again only
+        after a pause, so one slow page neither takes all entities offline nor
+        keeps a struggling router busy.
+        """
+        client = self.client
+        calls: dict[str, Any] = {
+            "wireless_config": client.async_wireless_config,
+            "wireless_status": client.async_wireless_status,
+            "wireless_devices": client.async_wireless_devices_status,
+            "modems": client.async_modems_status,
+            "gps": client.async_gps_status,
+            "usage": client.async_usage_status,
+            "dhcp": client.async_dhcp_leases,
+            "wireguard": client.async_wireguard_config,
+        }
+        now = time.monotonic()
+        asked = [
+            name
+            for name in calls
+            if now >= self._slow_until.get(name, 0.0) or name not in self._last_good
+        ]
+        results = await asyncio.gather(
+            *(calls[name]() for name in asked), return_exceptions=True
+        )
+
+        parts: dict[str, Any] = {
+            name: self._last_good.get(name) for name in calls if name not in asked
+        }
+        for name, result in zip(asked, results, strict=True):
+            if isinstance(result, TeltonikaApiError):
+                # Router without Wi-Fi, modem or GPS, or a user without the
+                # right to read the page: the endpoint is missing.
+                parts[name] = None
+                self._last_good.pop(name, None)
+                self._slow_until.pop(name, None)
+            elif isinstance(result, TeltonikaAuthError):
+                raise ConfigEntryAuthFailed(str(result)) from result
+            elif isinstance(result, TeltonikaConnectionError):
+                parts[name] = self._last_good.get(name)
+                if name not in self._slow_until:
+                    _LOGGER.warning(
+                        "The router did not answer for %s in time, using the "
+                        "last known values and asking again later",
+                        name,
+                    )
+                self._slow_until[name] = now + SLOW_PAGE_PAUSE
+                # Remember that a value exists so the pause is honoured.
+                self._last_good.setdefault(name, None)
+            elif isinstance(result, BaseException):
+                raise UpdateFailed(f"Unexpected error: {result}") from result
+            else:
+                if name in self._slow_until:
+                    _LOGGER.info("The router answers for %s again", name)
+                    del self._slow_until[name]
+                parts[name] = result
+                self._last_good[name] = result
+        return parts
 
     async def _async_check_vpn(self) -> tuple[bool, float | None]:
         """Connect to the host behind the tunnel; return (reachable, ms)."""

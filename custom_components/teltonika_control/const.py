@@ -19,6 +19,10 @@ MAX_SCAN_INTERVAL = 600
 DEFAULT_PROBE_URL = "http://connectivitycheck.gstatic.com/generate_204"
 PROBE_TIMEOUT = 6
 
+# Seconds to leave an optional router page alone after it did not answer in
+# time, so a struggling router is not kept busy.
+SLOW_PAGE_PAUSE = 120
+
 # Tunnel check: a TCP connect to a host behind the VPN. A refused connection
 # still proves that the host answered through the tunnel.
 DEFAULT_VPN_PORT = 443
