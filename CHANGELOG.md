@@ -30,7 +30,7 @@ and this project adheres to
 - The three pages are optional: a router or user without them gets no
   entities for them and everything else keeps working. They show up in the
   debug report and the diagnostics.
-- The sample dashboard has failover pills for mobile data and Wi-Fi, a port
+- The sample dashboard has a failover pill for mobile data, a port
   forward pill and a data limit pill. They hide themselves while their
   entities do not exist.
 - The probe tool also reads `/data_limit/status` and the monthly data usage

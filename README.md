@@ -314,7 +314,7 @@ automatically.
 | WireGuard *name* received, sent | sensors | Traffic counters of the tunnel interface. Diagnostic |
 | Reboot router | button | Add a confirmation in your dashboard |
 | Failover *interface* | sensor | The router's failover state of an uplink: `online`, `offline`, `standby`, `starting` or `notracking`. Attributes: health `score`, `seconds_since_change`, `seconds_online`, `seconds_offline`, `tracking_lost`. One per interface in the failover configuration |
-| Failover *interface* online | binary sensor | On while the failover check says the uplink is online. Use it to be told when mobile data or the Wi-Fi drops |
+| Failover *interface* online | binary sensor | On while the failover check says the uplink is online. Use it to be told when mobile data drops |
 | Port forward *name* | switch | Turns a port forwarding rule on or off. Attributes: `protocol`, `external_port`, `internal_port`. See [Port forwards](#port-forwards) |
 | Position | device tracker | Only on routers with GPS, see [GPS](#gps) |
 | GPS speed, altitude, satellites, accuracy | sensors | Only on routers with GPS. Heading and fix status are disabled by default |
@@ -367,13 +367,22 @@ is enabled on the router or the user may not read the page.
 ### Failover
 
 The router checks its uplinks with its failover function (Network, Failover)
-and keeps a state for each one. The integration shows it for every interface
-in the failover configuration, for example the mobile interface and your Wi-Fi
-client: a sensor **Failover *interface*** with the router's own text and a
-binary sensor **Failover *interface* online**. The state can lag behind a
+and keeps a state for each one. The integration shows it for every enabled
+interface in the failover configuration: a sensor **Failover *interface*** with
+the router's own text and a binary sensor **Failover *interface* online**. An
+interface is named "Mobile (...)" or "Wi-Fi (...)" when the integration can
+tell what it is, otherwise by its router name. The state can lag behind a
 change by up to two minutes, because the page is read like the DHCP clients.
 A good trigger for a notification is the binary sensor of the mobile
 interface turning off for a few minutes.
+
+Only interfaces that are part of the failover configuration appear. A Wi-Fi
+client is often not one of them: on a RUTC50 with a Wi-Fi uplink, the Wi-Fi
+client interface was missing, while other listed interfaces that had no working
+connection stayed `offline`. These entities are
+correct, they just describe other interfaces. Disable the ones you do not
+need, and use **Wi-Fi connected**, the uplink sensors and **Internet** for the
+Wi-Fi state.
 
 ### Port forwards
 
