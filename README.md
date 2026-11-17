@@ -4,45 +4,58 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/docs/faq/custom_repositories)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Native Home Assistant integration for Teltonika routers with RutOS 7.
-It talks to the local RutOS REST API, so no Modbus, MQTT, router scripts or
-helper entities are needed, and no cloud account. It was developed on a
-RUTC50 and is meant for the RUTC and RUTX families; other RutOS 7 routers use
-the same API, see [Supported routers](#supported-routers).
+**Control your Teltonika router from Home Assistant.** Switch between Wi-Fi and
+mobile data with one tap, get told when a campsite Wi-Fi wants a login, add and
+remove Wi-Fi networks from a dashboard, restart a WireGuard tunnel, open a port
+only while you need it, and keep an eye on your mobile data volume. Everything
+runs through the router's local REST API: no cloud, no Modbus, no MQTT and no
+scripts on the router.
 
-It grew out of a camper setup: switch between Wi-Fi and mobile data, get told
-when a hotspot needs a login, and restart things without opening the router
-web page.
+It grew out of a camper and is useful wherever a Teltonika router runs
+RutOS 7. Developed on a RUTC50; other RutOS 7 routers use the same API, see
+[Supported routers](#supported-routers).
 
 [![The ready-made dashboard: uplink, router control, mobile data, Wi-Fi management and GPS](docs/images/dashboard-sample.png)](docs/dashboard.md)
 
-The ready-made [sample dashboard](docs/dashboard.md) (map blurred in this
-picture). It uses Bubble Card and Mushroom, for the dashboard only.
+The ready-made [dashboard](docs/dashboard.md) (map blurred in this picture). It
+uses Bubble Card and Mushroom, for the dashboard only.
+
+## Why try it
+
+- **One tap uplink**: *Wi-Fi first* or *Mobile first*, with an automatic way back
+  to mobile data when the Wi-Fi has no internet.
+- **Campsite Wi-Fi without the router web page**: the login page is detected,
+  new networks are scanned, added and removed from the dashboard.
+- **Know what is open**: every port forward and firewall rule is a switch, and
+  a [firewall dashboard](docs/firewall-dashboard.md) shows what is open to the
+  internet right now.
+- **Your data volume under control**: used data, your contract's limit in
+  percent, and a warning before the month is over.
+- **Mobile and VPN at a glance**: signal, network type, roaming, SIM switching,
+  and a WireGuard tunnel you can restart from an automation.
+- **Ready-made dashboards**: paste the YAML, replace one placeholder, done.
+- **Careful with your router**: it writes only the one field it needs, reads it
+  back, and asks for confirmation on every action that interrupts a connection.
+
+## Quick start
+
+1. In HACS, add `https://github.com/BetaHydri/teltonika-control-ha` as a
+   **custom repository** (type Integration), install **Teltonika Control** and
+   restart Home Assistant.
+2. Go to **Settings, Devices & services, Add integration**, choose
+   **Teltonika Control**, and enter the router address, user and password. A
+   dedicated router user is recommended, see
+   [Router User and Permissions](#router-user-and-permissions).
+3. Optional: paste the [sample dashboard](docs/dashboard.md) and, if your router
+   has port forwards or traffic rules, the
+   [firewall dashboard](docs/firewall-dashboard.md).
+
+New to this? The [step-by-step guide](docs/getting-started.md) takes you from
+the router user to your first dashboard card.
 
 This is an independent community project. It is not affiliated with or
 endorsed by Teltonika Networks. Teltonika, RUT and RutOS are names of their
 respective owners and are used here only to say which routers are supported.
-
-## Relationship to the Home Assistant Teltonika integration
-
-Home Assistant ships its own
-[Teltonika integration](https://www.home-assistant.io/integrations/teltonika/)
-(domain `teltonika`, library `teltasync`). It reads the cellular modem sensors
-(signal values, modem temperature, operator, connection type) and has no
-controls. Teltonika Control uses the same local RutOS REST API, but adds
-control and the camper features on top: uplink priority, hotspot login
-handling, Wi-Fi management, WireGuard, roaming and SIM control, GPS, router
-health, and a ready-made dashboard.
-
-- Both can be installed side by side. They use different domains, so entities
-  and devices do not collide. Each one polls the router on its own; on a weak
-  router, use only one of them or raise the intervals in the
-  [options](#options).
-- If you only need the modem signal sensors, the core integration is enough.
-- Teltonika Control is a custom repository and is not part of the HACS default
-  store, because the core integration covers the same devices through the
-  same API. Installation and updates work as described in
-  [Installation](#installation).
 
 ## Features
 
@@ -82,9 +95,10 @@ health, and a ready-made dashboard.
 - **Firewall control**: a switch for every port forward and traffic rule of
   the router, counters of what is open to the internet, and a separate
   [firewall dashboard](docs/firewall-dashboard.md). See [Firewall](#firewall).
-- **Failover state and data limit**: the router's failover state per uplink and
-  the usage of the router's mobile data limit with a "limit reached" sensor.
-  See [Mobile data limit](#mobile-data-limit) and [Failover](#failover).
+- **Failover state and data volume**: the router's failover state per uplink,
+  and the usage of your mobile data with the percentage of your contract and a
+  "limit reached" sensor. See [Mobile data limit](#mobile-data-limit) and
+  [Failover](#failover).
 - **Ready-made dashboard**: a complete dashboard with coloured pills, two
   columns and badges. It needs the Bubble Card and Mushroom frontend cards,
   for this dashboard only. See
@@ -107,18 +121,23 @@ health, and a ready-made dashboard.
   [Debug logging](#debug-logging).
 - English and German translations.
 
-### Planned
+### Core integration and Teltonika Control
 
-Ideas that are not implemented yet: own data usage limits and monthly counters
-for routers without a data limit (until then, set a data limit on the router,
-see [Mobile data limit](#mobile-data-limit), or use a Utility Meter helper, see
-the
-[step-by-step guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter)),
-system temperature of the router,
-SMS notifications, the WireGuard handshake time (the router offers no status
-endpoint for it, see [WireGuard tunnels](#wireguard-tunnels)) and setting the
-Home Assistant home zone from the router's GPS (see the
-[automation example](#move-the-home-zone-with-the-camper)).
+Home Assistant ships its own
+[Teltonika integration](https://www.home-assistant.io/integrations/teltonika/)
+(domain `teltonika`). It reads the modem sensors and has no controls. Teltonika
+Control uses the same local RutOS REST API and adds the controls and the
+camper features on top: uplink priority, hotspot login handling, Wi-Fi
+management, WireGuard, roaming and SIM control, GPS, firewall, data volume and
+the dashboards.
+
+- Both can be installed side by side. The domains differ, so entities do not
+  collide. Each polls the router on its own; on a weak router, use only one or
+  raise the intervals in the [options](#options).
+- If you only need the modem signal sensors, the core integration is enough.
+- Teltonika Control is a HACS custom repository, not part of the HACS default
+  store, because the core integration covers the same devices through the same
+  API.
 
 ## Supported routers
 
@@ -436,8 +455,7 @@ that is enabled in the failover configuration: a sensor **Failover
 What each interface is comes from the router: its failover configuration says
 `mobile`, `wireless` or `wired`, and gives the interface its name. So the
 entities are called "Mobile (mob1s1a1)" or "Wi-Fi (wifi4)" without any setting
-from you. A RUTC50 lists its Wi-Fi networks as `wan2` and `wan3` there; the
-integration reads the real names from the configuration.
+from you.
 
 For automations and dashboards that should work on any router, there is one
 binary sensor per kind that is present: **Failover mobile online**, **Failover
@@ -500,15 +518,6 @@ your router by themselves, separately from the main dashboard, which only has an
 
 The firewall dashboard (sensitive port numbers hidden in this picture). See
 [docs/firewall-dashboard.md](docs/firewall-dashboard.md).
-
-A rule from the `wan` zone applies to every interface in that zone: on a
-RUTC50 these are the mobile interfaces and the Wi-Fi client networks, but not
-the WireGuard tunnels, which have their own zone. Still, with a forward for
-port 80 on, one RUTC50 stopped answering its web interface (port 80 and 443)
-through a site-to-site WireGuard tunnel from another network, while the same
-web interface worked from the router's own Wi-Fi. The cause was not found. If
-you forward port 80 or 443, switch the rule on only while you need it and use
-the router locally in that time.
 
 ## GPS
 
@@ -880,22 +889,17 @@ same page status and answer structures.
 - The Wi-Fi sensors describe the connection that carries the uplink. If the
   router is connected to the same network twice (for example as 2.4 GHz client
   and as 5 GHz Multi AP entry), the one that is the active uplink is shown.
-- The GPS field names are taken from the router API as used by other
-  projects. Position, speed, altitude, satellites and accuracy are confirmed
-  on a RUTC50. The heading field exists and reads 0 when parked; its values
-  while driving are not confirmed yet. The fix status
-  shows the router's own code unchanged (`1` with 9 satellites on a RUTC50);
-  its other values are not mapped. If an entity stays empty although the
-  router has a fix, open an issue with the diagnostics.
+- The GPS heading reads 0 when parked and its values while driving are not
+  confirmed yet. The fix status shows the router's own code unchanged; its
+  other values are not mapped. If an entity stays empty although the router has
+  a fix, open an issue with the diagnostics.
 - The router clock comes from the system usage status of the router, with the
   `Date` header of its answers as fallback. Without either, the **Router
   time** sensor does not appear.
 - Changing the SIM drops mobile data for about a minute and is not rolled
   back automatically.
-- The roaming switches write one field of the SIM settings. Denying and
-  allowing roaming were both checked on a RUTC50: the router showed the new
-  "Deny data roaming" value each time. The integration reads the setting back
-  and reports an error if the router did not apply it.
+- The roaming and firewall switches write one field and read it back. If the
+  router did not apply the change, Home Assistant shows an error.
 - Switching off the access point you are connected through disconnects you.
 - If one page of the router (for example the Wi-Fi status) does not answer in
   time, its entities show the last known values and the page is asked again
