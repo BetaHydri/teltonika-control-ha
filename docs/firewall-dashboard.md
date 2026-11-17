@@ -6,6 +6,8 @@ when your router has such rules and you want to switch them from Home
 Assistant. The main dashboard shows a **Firewall** pill that opens it, but only
 while the router has port forwards or traffic rules.
 
+![The firewall dashboard with port forwards and traffic rules; sensitive port numbers are hidden](images/firewall-dashboard.png)
+
 ## What it shows
 
 - **Port forwards**: one card per rule. Orange while the rule is on, grey while

@@ -465,8 +465,12 @@ remote access is in the list too. Switching it off locks you out until you can
 reach the router another way.**
 
 A dedicated [firewall dashboard](docs/firewall-dashboard.md) shows the rules of
-your router by themselves, separately from the main dashboard, which only has a
-**Firewall** pill that links to it. See
+your router by themselves, separately from the main dashboard, which only has an
+**Open firewall** pill that links to it.
+
+[![The firewall dashboard: port forwards, access to the router from the internet, forwarding to the network and what is open right now](docs/images/firewall-dashboard.png)](docs/firewall-dashboard.md)
+
+The firewall dashboard (sensitive port numbers hidden in this picture). See
 [docs/firewall-dashboard.md](docs/firewall-dashboard.md).
 
 A rule from the `wan` zone applies to every interface in that zone: on a
