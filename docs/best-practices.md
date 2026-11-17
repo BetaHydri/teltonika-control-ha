@@ -34,7 +34,7 @@ Each rule links to the place in the documentation that explains it.
   the priority select is unavailable.
 - **Use *Wi-Fi first* only with a fallback**: an automation that returns to
   mobile data when the internet check fails, see
-  [Automation examples](../README.md#automation-examples).
+  [Automation examples](automation-examples.md#back-to-mobile-data-when-the-wi-fi-has-no-internet).
 - **Set the internet check URL** (default answers HTTP 204). The hotspot
   login detection and the fallback depend on it. The check is only meaningful
   when Home Assistant reaches the internet through this router.

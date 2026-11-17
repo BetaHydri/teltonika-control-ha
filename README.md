@@ -449,39 +449,9 @@ leave it empty.
 
 **Warnings from Home Assistant, independent of the router.** With the plan set,
 the percentage is the share of your contract, so you can warn yourself at any
-point you like without the router's SMS warning and without a helper. This
-notifies you at 80 and at 95 percent, and names the volume that is left:
-
-```yaml
-alias: Mobile data volume warning
-mode: queued
-triggers:
-  - trigger: numeric_state
-    entity_id: sensor.my_router_data_limit_used_sim_1
-    above: 80
-    id: "80"
-  - trigger: numeric_state
-    entity_id: sensor.my_router_data_limit_used_sim_1
-    above: 95
-    id: "95"
-actions:
-  - action: notify.notify
-    data:
-      title: "Mobile data: {{ trigger.id }} percent used"
-      message: >-
-        {{ states('sensor.my_router_data_used_sim_1') | float(0) | round(1) }} GB
-        of {{ states('sensor.my_router_data_limit_sim_1') | float(0) | round(1) }} GB
-        used. The counter resets on
-        {{ as_timestamp(states('sensor.my_router_data_limit_reset_sim_1'))
-           | timestamp_custom('%d.%m.', true) }}.
-```
-
-A numeric state trigger fires once when the value crosses the threshold, and
-fires again in the next month after the router has reset its counter. Use your
-own entity IDs (see **Settings, Devices & services, Teltonika Control,
-Entities**; in another language the endings differ). The router's data limit
-only has to be enabled so that it keeps the count; the warning does not depend
-on its SMS warning or on its cut-off.
+point you like, for example at 80 and 95 percent, without the router's SMS
+warning and without a helper. See the
+[ready automation](docs/automation-examples.md#mobile-data-volume-warning).
 
 ### Failover
 
@@ -603,25 +573,8 @@ the hotspot only sees the router.
 The **Hotspot login** sensor shows `login_required` while Wi-Fi is the uplink
 but has no internet.
 
-### Notification example
-
-```yaml
-automation:
-  - alias: "Router: hotspot needs login"
-    triggers:
-      - trigger: state
-        entity_id: binary_sensor.my_router_hotspot_login_required
-        to: "on"
-        for: "00:03:00"
-    actions:
-      - action: notify.mobile_app_my_phone
-        data:
-          title: Hotspot login needed
-          message: Open http://neverssl.com and accept the page.
-```
-
-Adjust the entity IDs to your router. The same pattern works for
-`binary_sensor.*_wifi_connected` going to `off` for "Wi-Fi lost".
+To get a notification when a login is needed, or when the Wi-Fi is lost, use
+the [ready automations](docs/automation-examples.md#hotspot-needs-a-login).
 
 ## Managing Wi-Fi networks
 
@@ -694,26 +647,8 @@ Notes:
 - A firewall that silently drops the port looks the same as a dead tunnel. Pick
   a port that the device answers or rejects.
 
-Example: warn when the tunnel is down for five minutes while the router is
-online.
-
-```yaml
-automation:
-  - alias: "Router: VPN to home is down"
-    triggers:
-      - trigger: state
-        entity_id: binary_sensor.my_router_vpn_reachable
-        to: "off"
-        for: "00:05:00"
-    conditions:
-      - condition: state
-        entity_id: binary_sensor.my_router_internet
-        state: "on"
-    actions:
-      - action: notify.notify
-        data:
-          message: "The VPN tunnel to home is down although the router is online."
-```
+To be warned when the tunnel is down for five minutes while the router is
+online, use the [ready automation](docs/automation-examples.md#vpn-to-home-is-down).
 
 ## WireGuard tunnels
 
@@ -737,33 +672,8 @@ The RutOS REST API offers no WireGuard peer status, so the integration cannot
 show the time of the last handshake. The probe tool answers `501` for the
 status endpoints. Combine the interface state with the VPN check instead.
 
-Example: restart the tunnel when the VPN check has been failing for five
-minutes while the router has internet.
-
-```yaml
-automation:
-  - alias: "Router: restart the WireGuard tunnel to home"
-    triggers:
-      - trigger: state
-        entity_id: binary_sensor.my_router_vpn_reachable
-        to: "off"
-        for: "00:05:00"
-    conditions:
-      - condition: state
-        entity_id: binary_sensor.my_router_internet
-        state: "on"
-      - condition: state
-        entity_id: switch.my_router_wireguard_homebase_enabled
-        state: "on"
-    actions:
-      - action: button.press
-        target:
-          entity_id: button.my_router_reconnect_wireguard_homebase
-      - delay: "00:02:00"
-```
-
-The delay keeps the automation from restarting the tunnel again right away,
-because the default mode `single` ignores new triggers while it runs.
+To restart the tunnel automatically when the VPN check keeps failing, use the
+[ready automation](docs/automation-examples.md#restart-the-wireguard-tunnel).
 
 ## Services
 
@@ -799,55 +709,11 @@ it is one of the router's default interfaces (`lan`, `wan*`, `mob*`, `vpn*`).
 
 ## Automation examples
 
-Adjust the entity IDs to your router. Services take any entity of the router
-as target.
-
-### Back to mobile data when the Wi-Fi has no internet
-
-```yaml
-automation:
-  - alias: "Router: mobile first when the Wi-Fi is dead"
-    triggers:
-      - trigger: state
-        entity_id: binary_sensor.my_router_internet
-        to: "off"
-        for: "00:02:00"
-    conditions:
-      - condition: state
-        entity_id: sensor.my_router_uplink
-        state: wifi
-    actions:
-      - action: teltonika_control.set_priority
-        target:
-          entity_id: sensor.my_router_uplink
-        data:
-          wifi_first: false
-          verify: false
-```
-
-### Move the home zone with the camper
-
-When the router has been standing still for ten minutes, the Home Assistant
-home location follows its GPS position.
-
-```yaml
-automation:
-  - alias: "Camper: home zone follows the router when parked"
-    triggers:
-      - trigger: numeric_state
-        entity_id: sensor.my_router_gps_speed
-        below: 1
-        for: "00:10:00"
-    conditions:
-      - condition: template
-        value_template: >-
-          {{ state_attr('device_tracker.my_router_position', 'latitude') is number }}
-    actions:
-      - action: homeassistant.set_location
-        data:
-          latitude: "{{ state_attr('device_tracker.my_router_position', 'latitude') }}"
-          longitude: "{{ state_attr('device_tracker.my_router_position', 'longitude') }}"
-```
+Ready-to-paste automations are collected on one page:
+[Automation examples](docs/automation-examples.md). It has the mobile data
+warning, hotspot login and Wi-Fi lost notices, uplink change, the way back to
+mobile data, VPN and WireGuard recovery, and the camper home zone. Services
+take any entity of the router as target.
 
 ## Options
 
@@ -986,6 +852,7 @@ central repository instead and show a placeholder.
 
 - [Step-by-step guide](docs/getting-started.md)
 - [Best practices](docs/best-practices.md)
+- [Automation examples](docs/automation-examples.md)
 - [Dashboard for Teltonika Control](docs/dashboard.md)
 - [Teltonika API documentation](https://developers.teltonika-networks.com/)
 - [Changelog](CHANGELOG.md)
