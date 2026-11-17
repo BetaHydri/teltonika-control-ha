@@ -411,7 +411,11 @@ interface belongs to the `wan` zone (Network, Firewall, General settings shows
 the zones). A rule for port 80 or 443 that points to another device or port can
 then make the router's own web interface unreachable through the VPN while the
 rule is on. Switch such a rule on only while you need it, and use the
-router's LAN address or another port for the web interface in that time.
+router's LAN address or another port for the web interface in that time. Seen
+on a RUTC50: with a port 80 forward on, the router's web interface still
+worked from the router's own Wi-Fi, but not through a site-to-site WireGuard
+tunnel from another network. Check which zone the tunnel interface belongs to
+(Network, Firewall, General settings, covered networks of each zone).
 
 ## GPS
 
