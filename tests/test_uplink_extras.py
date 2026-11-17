@@ -12,16 +12,24 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.teltonika_control.const import DOMAIN
+from custom_components.teltonika_control.const import (
+    DOMAIN,
+    UPLINK_ETHERNET,
+    UPLINK_MOBILE,
+    UPLINK_OTHER,
+    UPLINK_WIFI,
+)
 from custom_components.teltonika_control.models import (
     derive_data_limits,
     derive_failover,
     derive_port_forwards,
+    failover_kind,
 )
 
 from .conftest import entity_id, mock_router
 from .payloads import (
     DATA_LIMIT_STATUS,
+    FAILOVER_CONFIG,
     FAILOVER_STATUS,
     INTERFACES_CONFIG,
     PORT_FORWARDS,
@@ -31,14 +39,37 @@ from .test_integration import requests, setup_entry
 
 
 def test_failover_is_read_from_the_dictionary() -> None:
-    interfaces = derive_failover(FAILOVER_STATUS, {"wan2"})
-    assert [(i.interface_id, i.label, i.status, i.online) for i in interfaces] == [
-        ("mob1s1a1", "Mobile (mob1s1a1)", "online", True),
-        ("wan2", "Wi-Fi (wan2)", "offline", False),
+    interfaces = derive_failover(FAILOVER_STATUS, FAILOVER_CONFIG)
+    assert [
+        (i.interface_id, i.label, i.kind, i.status, i.online) for i in interfaces
+    ] == [
+        ("mob1s1a1", "Mobile (mob1s1a1)", UPLINK_MOBILE, "online", True),
+        ("wan2", "Wi-Fi (wifi4)", UPLINK_WIFI, "offline", False),
     ]
     assert (interfaces[0].score, interfaces[0].age) == (6.0, 2)
     assert (interfaces[0].seconds_online, interfaces[0].lost) == (3600, 0)
     assert interfaces[1].seconds_offline == 66649
+
+
+def test_failover_kind_comes_from_the_router_configuration() -> None:
+    # The RUTC50 calls its Wi-Fi interfaces wan2 and wan3 in the failover.
+    assert failover_kind("wan2", "MultiAP_5Ghz", "wireless", set()) == UPLINK_WIFI
+    assert failover_kind("wan", "wan", "wired", set()) == UPLINK_ETHERNET
+    assert failover_kind("m", "m", "mobile", set()) == UPLINK_MOBILE
+
+
+def test_failover_kind_without_configuration_uses_other_hints() -> None:
+    assert failover_kind("wan3", "wifi4", "-", {"wifi4"}) == UPLINK_WIFI
+    assert failover_kind("mob1s2a1", "mob1s2a1", None, set()) == UPLINK_MOBILE
+    assert failover_kind("wan1", "wan1", "-", set()) == UPLINK_OTHER
+
+
+def test_failover_without_configuration_row() -> None:
+    interfaces = derive_failover(FAILOVER_STATUS, None, {"wan2"})
+    assert [(i.label, i.kind) for i in interfaces] == [
+        ("Mobile (mob1s1a1)", UPLINK_MOBILE),
+        ("Wi-Fi (wan2)", UPLINK_WIFI),
+    ]
 
 
 @pytest.mark.parametrize("raw", [None, [], "x", {"wan": "x"}, {"wan": {"enabled": False}}])
@@ -138,6 +169,20 @@ async def test_failover_entities(
     registry = er.async_get(hass)
     # The LAN is not part of the failover configuration.
     assert registry.async_get_entity_id("sensor", DOMAIN, f"{SERIAL}_failover_lan") is None
+
+    # One entity per kind, named the same on every router.
+    mobile = hass.states.get(entity_id(hass, "binary_sensor", "failover_kind_mobile"))
+    assert mobile.state == STATE_ON
+    assert mobile.attributes["online_interfaces"] == ["Mobile (mob1s1a1)"]
+    wifi = hass.states.get(entity_id(hass, "binary_sensor", "failover_kind_wifi"))
+    assert wifi.state == STATE_OFF
+    assert wifi.attributes["interfaces"] == ["Wi-Fi (wifi4)"]
+    assert (
+        registry.async_get_entity_id(
+            "binary_sensor", DOMAIN, f"{SERIAL}_failover_kind_ethernet"
+        )
+        is None
+    )
 
 
 async def test_data_limit_entities(

@@ -234,7 +234,15 @@ PORT_FORWARDS = [
     },
 ]
 
-# The answer of /failover/status is a dictionary keyed by interface name.
+# The answer of /failover/status is a dictionary keyed by interface ID.
+# /failover/interfaces/config gives each ID its name and type (a RUTC50 names
+# its Wi-Fi interfaces wan2 and wan3 here, with the network names as "name").
+FAILOVER_CONFIG = [
+    {"id": "mob1s1a1", "name": "mob1s1a1", "enabled": "1", "network_type": "mobile"},
+    {"id": "wan2", "name": "wifi4", "enabled": "1", "network_type": "wireless"},
+    {"id": "lan", "name": "lan", "enabled": "0", "network_type": "wired"},
+]
+
 FAILOVER_STATUS = {
     "mob1s1a1": {
         "enabled": True,
@@ -299,6 +307,7 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
         "sim_cards": deepcopy(SIM_CARDS),
         "port_forwards": deepcopy(PORT_FORWARDS),
         "failover": deepcopy(FAILOVER_STATUS),
+        "failover_config": deepcopy(FAILOVER_CONFIG),
         "data_limit": deepcopy(DATA_LIMIT_STATUS),
     }
     if wireguard:

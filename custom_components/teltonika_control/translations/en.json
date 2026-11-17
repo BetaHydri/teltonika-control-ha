@@ -142,6 +142,9 @@
       "vpn_reachable": { "name": "VPN reachable" },
       "tunnel_up": { "name": "WireGuard {name}" },
       "failover_online": { "name": "Failover {name} online" },
+      "failover_mobile_online": { "name": "Failover mobile online" },
+      "failover_wifi_online": { "name": "Failover Wi-Fi online" },
+      "failover_ethernet_online": { "name": "Failover Ethernet online" },
       "data_limit_reached": { "name": "Data limit reached {name}" }
     },
     "button": {

@@ -26,7 +26,7 @@ Prerequisites for the integration:
   With an older version, delete the **Restart WireGuard tunnel** pill and the
   **Router health** block from the file. Version 0.6.0 or newer is
   recommended, because it polls the router much more gently. The failover,
-  data limit and port forward pills need version 0.10.0 or newer; without
+  data limit and port forward pills need version 0.10.1 or newer; without
   it, delete them.
 - Home Assistant 2024.8 or newer for the `perform-action` button setting.
 
@@ -86,12 +86,11 @@ Use find and replace in a text editor on a copy of the file:
    router's own Wi-Fi, as it appears in your list.
 4. Replace `homebase` in the two WireGuard entities with the name of your
    WireGuard instance, or delete that pill if you have none.
-5. Replace `mob1s1a1` in the failover entities with the interface name of
-   your mobile connection (Network, Failover; it is part of the entity IDs
-   in your list), `my_rule` in the port forward entity with the name of your
-   rule, and `sim_1` in the data limit entities with your SIM slot. Delete the
+5. Replace `my_rule` in the port forward entity with the name of your rule,
+   and `sim_1` in the data limit entities with your SIM slot. Delete the
    blocks you do not need. They hide themselves while their entities do not
-   exist.
+   exist. The failover pill needs no change, it uses the entity that exists
+   once per kind on every router.
 
 If Home Assistant runs in another language than English, the ending of each
 entity ID is in that language too (for example `uplink_ip_adresse` in
@@ -131,7 +130,7 @@ differ. These are the entities the dashboard uses:
 | Data received, Data sent | `sensor.my_modem_data_received`, `_data_sent` |
 | Mobile data connected | `binary_sensor.my_modem_mobile_data_connected` |
 | Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
-| Failover state (optional, mobile interface) | `binary_sensor.my_router_failover_mobile_mob1s1a1_online`, `sensor.my_router_failover_mobile_mob1s1a1` |
+| Failover mobile online (optional) | `binary_sensor.my_router_failover_mobile_online` |
 | Port forward (optional, one per rule) | `switch.my_router_port_forward_my_rule` |
 | Restart mobile connection | `button.my_modem_restart_mobile_connection` |
 | SIM slot | `select.my_modem_sim_slot` |
@@ -172,10 +171,10 @@ list. Fix that entity and save again.
   pill is green with the latency or red when the host behind the tunnel does
   not answer. It only appears when you set a VPN check host in the options,
   see the [VPN check](../README.md#vpn-check). A **failover** pill for mobile
-  data (version 0.10.0 or newer) is green while the router's own check says
-  the mobile uplink is online and red when it is offline. There is no
-  Wi-Fi pill, because the Wi-Fi client is usually not part of the router's
-  failover configuration, see [Failover](../README.md#failover).
+  data (version 0.10.1 or newer) is green while the router's own check says
+  a mobile interface is online and red when none is. There is no Wi-Fi pill,
+  because the router's check can say `offline` for a Wi-Fi that works, see
+  [Failover](../README.md#failover).
 - **Wi-Fi first and Mobile first** are two buttons without a drop-down. The
   active priority is coloured, the other one is grey, so they also show the
   current state. They call `teltonika_control.set_priority`. With Wi-Fi

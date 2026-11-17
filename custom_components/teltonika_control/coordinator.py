@@ -95,6 +95,7 @@ PAGES: dict[str, tuple[str, str]] = {
     "usage": ("async_usage_status", "status"),
     "dhcp": ("async_dhcp_leases", "medium"),
     "failover": ("async_failover_status", "medium"),
+    "failover_config": ("async_failover_config", "config"),
     "data_limit": ("async_data_limit_status", "medium"),
 }
 
@@ -206,6 +207,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 "sim_cards",
                 "port_forwards",
                 "failover",
+                "failover_config",
                 "data_limit",
             ]
         )
@@ -221,6 +223,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         sim_cards = parts["sim_cards"] or []
         port_forwards = parts["port_forwards"] or []
         failover = parts["failover"]
+        failover_config = parts["failover_config"] or []
         data_limits = parts["data_limit"] or []
         multi_ap: list[dict[str, Any]] = []
         if any(item.get("mode") == "multi_ap" for item in wireless_config):
@@ -241,6 +244,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             wireguard_config=wireguard_config,
             sim_cards=sim_cards,
             failover=failover if isinstance(failover, dict) else None,
+            failover_config=failover_config,
             data_limits=data_limits,
             port_forwards=port_forwards,
         )

@@ -789,6 +789,8 @@ class FailoverInterface:
 
     interface_id: str
     label: str
+    # One of the UPLINK_* kinds, taken from the failover configuration.
+    kind: str
     status: str | None
     online: bool | None
     score: float | None
@@ -799,34 +801,77 @@ class FailoverInterface:
     lost: int | None
 
 
-def failover_label(interface_id: str, wifi_networks: set[str]) -> str:
-    """Name an interface by its kind and keep the router's name in brackets."""
-    if interface_id in wifi_networks:
-        return f"Wi-Fi ({interface_id})"
-    if interface_id.startswith("mob"):
-        return f"Mobile ({interface_id})"
-    return interface_id
+# The router names the kind of each failover interface in its configuration.
+FAILOVER_NETWORK_TYPES = {
+    "mobile": UPLINK_MOBILE,
+    "wireless": UPLINK_WIFI,
+    "wired": UPLINK_ETHERNET,
+}
+FAILOVER_KIND_LABELS = {
+    UPLINK_MOBILE: "Mobile",
+    UPLINK_WIFI: "Wi-Fi",
+    UPLINK_ETHERNET: "Ethernet",
+}
+
+
+def failover_kind(
+    interface_id: str,
+    name: str,
+    network_type: str | None,
+    wifi_networks: set[str],
+) -> str:
+    """Tell what an interface is, from the router's own data.
+
+    The failover configuration says ``mobile``, ``wireless`` or ``wired``. If it
+    does not (an unknown value or no configuration row), the Wi-Fi networks of
+    the wireless configuration and the ``mob`` prefix of mobile interfaces
+    decide.
+    """
+    kind = FAILOVER_NETWORK_TYPES.get((network_type or "").strip().lower())
+    if kind:
+        return kind
+    if interface_id in wifi_networks or name in wifi_networks:
+        return UPLINK_WIFI
+    if interface_id.startswith("mob") or name.startswith("mob"):
+        return UPLINK_MOBILE
+    return UPLINK_OTHER
 
 
 def derive_failover(
-    raw: Any, wifi_networks: set[str] | None = None
+    raw: Any,
+    config: Iterable[dict[str, Any]] | None = None,
+    wifi_networks: set[str] | None = None,
 ) -> list[FailoverInterface]:
     """Read ``/failover/status``: a dictionary with one entry per interface.
 
-    Interfaces that are not part of the failover configuration are skipped.
+    The keys of the status are interface IDs (``wan2``). The failover
+    configuration gives each one a name (the interface name of the Wi-Fi
+    network, ``wifi4``) and a type. Interfaces that are not enabled for
+    failover are skipped.
     """
     if not isinstance(raw, dict):
         return []
     networks = wifi_networks or set()
+    rows = {str(row["id"]): row for row in config or [] if row.get("id")}
     interfaces: list[FailoverInterface] = []
-    for name, item in raw.items():
-        if not isinstance(item, dict) or not name or not _flag(item.get("enabled"), True):
+    for interface_id, item in raw.items():
+        if (
+            not isinstance(item, dict)
+            or not interface_id
+            or not _flag(item.get("enabled"), True)
+        ):
             continue
+        interface_id = str(interface_id)
+        row = rows.get(interface_id, {})
+        name = str(row.get("name") or interface_id)
+        kind = failover_kind(interface_id, name, row.get("network_type"), networks)
+        prefix = FAILOVER_KIND_LABELS.get(kind)
         status = str(item["status"]).strip() if item.get("status") is not None else ""
         interfaces.append(
             FailoverInterface(
-                interface_id=str(name),
-                label=failover_label(str(name), networks),
+                interface_id=interface_id,
+                label=f"{prefix} ({name})" if prefix else name,
+                kind=kind,
                 status=status or None,
                 online=status.lower() == "online" if status else None,
                 score=to_float(item.get("score")),
@@ -986,6 +1031,7 @@ class TeltonikaData:
         wireguard_config: list[dict[str, Any]] | None = None,
         sim_cards: list[dict[str, Any]] | None = None,
         failover: dict[str, Any] | None = None,
+        failover_config: list[dict[str, Any]] | None = None,
         data_limits: list[dict[str, Any]] | None = None,
         port_forwards: list[dict[str, Any]] | None = None,
     ) -> TeltonikaData:
@@ -1026,7 +1072,7 @@ class TeltonikaData:
             dhcp_leases=dhcp_leases,
             vpn_tunnels=derive_vpn_tunnels(interfaces, wireguard_config or []),
             sim_cards=derive_sim_cards(sim_cards),
-            failover=derive_failover(failover, networks),
+            failover=derive_failover(failover, failover_config, networks),
             data_limits=derive_data_limits(data_limits, interface_config),
             port_forwards=derive_port_forwards(port_forwards),
         )
