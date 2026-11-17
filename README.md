@@ -4,9 +4,11 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/docs/faq/custom_repositories)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Native Home Assistant integration for Teltonika RUTC and RUTX routers.
+Native Home Assistant integration for Teltonika routers with RutOS 7.
 It talks to the local RutOS REST API, so no Modbus, MQTT, router scripts or
-helper entities are needed, and no cloud account.
+helper entities are needed, and no cloud account. It was developed on a
+RUTC50 and is meant for the RUTC and RUTX families; other RutOS 7 routers use
+the same API, see [Supported routers](#supported-routers).
 
 It grew out of a camper setup: switch between Wi-Fi and mobile data, get told
 when a hotspot needs a login, and restart things without opening the router
@@ -120,20 +122,41 @@ Home Assistant home zone from the router's GPS (see the
 
 ## Supported routers
 
+What counts is the **RutOS version**, not the model name. The integration
+does not check the model: setup needs a login and an answer from the router's
+`/system/device/status` page, nothing else. Everything it does goes through the
+RutOS REST API, and it reads the modems, Wi-Fi radios, interfaces, VPN
+instances, SIM slots, firewall rules and failover interfaces from the router
+instead of assuming names. So any Teltonika device that runs RutOS 7 with the
+REST API should work, and the entities follow the hardware it has.
+
 | Family | Examples | Status |
 |---|---|---|
-| RUTC | RUTC50 | Developed against a RUTC50 (RutOS 7.24) |
+| RUTC | RUTC50 | Developed and tested on a RUTC50 (RutOS 7.24) |
 | RUTX | RUTX11, RUTX50, RUTX14 | Same API, not yet tested on hardware |
+| Other RutOS 7 devices | RUTM (RUTM50, RUTM30), RUT1xx/2xx/9xx (RUT241, RUT951), TRB gateways (TRB140, TRB246) | Teltonika's published API description (version 1.17.3 for RutOS 7.25) lists the same API for these families. Not tested here. The mobile data, SIM, GPS, Wi-Fi and WireGuard features depend on what the device has. |
 
-If a feature does not work on your model, please open an issue with the
-[debug log](#debug-logging) and the diagnostics download. They show which
-pages your router offers and how it names its fields, which is what is needed
-to add support for it.
+Features that need hardware or a RutOS function appear only when the router
+has it, for example GPS, a second SIM, Wi-Fi, WireGuard, the mobile data limit
+or failover. A router without a page answers with an error for it, and the
+integration then does not create those entities. Everything else keeps working.
+RutOS 6 (for example on older RUT9xx firmware) has no REST API of this kind and
+is not supported.
 
-RUTC and RUTX use the same RutOS API (the published API description for both
-families is identical). Modems, Wi-Fi radios and interfaces are read from the
-router, not hard-coded, so differences such as which radio is 2.4 or 5 GHz do
-not matter.
+Not every RutOS version has every page. The newer pages (failover, data
+limit, firewall rules) are read as optional, and an older RutOS 7 release may
+miss some of them.
+
+If a feature does not work on your model or RutOS version, please open an issue
+with the [debug log](#debug-logging) and the diagnostics download. They show
+which pages your router offers and how it names its fields, which is what is
+needed to add support for it. A report that says "works on a RUTM50" or "page X
+is missing on RutOS 7.1x" helps as much as a bug report, because the list above
+is only as good as what has been tested.
+
+The same RutOS API is described by Teltonika for RUTC and RUTX identically.
+Modems, Wi-Fi radios and interfaces are read from the router, not hard-coded,
+so differences such as which radio is 2.4 or 5 GHz do not matter.
 
 ## Prerequisites
 
@@ -151,9 +174,10 @@ to do what the integration does.
 
 ### Router
 
-- A Teltonika RUTC or RUTX router running **RutOS 7**. The REST API
-  description published for RUTC50 and RUTX starts at RutOS 7.9, and the
-  integration was developed against 7.24. Routers on RutOS 6 are not
+- A Teltonika router running **RutOS 7** with the REST API (RUTC, RUTX and
+  other RutOS 7 devices, see [Supported routers](#supported-routers)). The
+  REST API description published for RUTC50 and RUTX starts at RutOS 7.9, and
+  the integration was developed against 7.24. Routers on RutOS 6 are not
   supported.
 - The router web interface must be reachable from the Home Assistant host,
   because the REST API is served by it. It uses HTTPS on port 443 by

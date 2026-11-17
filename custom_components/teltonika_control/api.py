@@ -1,4 +1,4 @@
-"""Async client for the Teltonika RutOS REST API (RUTC and RUTX routers)."""
+"""Async client for the Teltonika RutOS REST API (RutOS 7 routers)."""
 
 from __future__ import annotations
 

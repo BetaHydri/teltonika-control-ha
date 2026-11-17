@@ -1,4 +1,4 @@
-"""Teltonika Control: native Home Assistant control for RUTC and RUTX routers."""
+"""Teltonika Control: native Home Assistant control for RutOS 7 routers."""
 
 from __future__ import annotations
 
