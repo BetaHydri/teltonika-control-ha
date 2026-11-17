@@ -8,6 +8,42 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-17
+
+### Added
+
+- **Failover state.** For every interface in the router's failover
+  configuration a sensor **Failover *interface*** (the router's text: online,
+  offline, standby, starting, notracking; attributes health score, seconds
+  since the last change, seconds online and offline and lost tracking probes)
+  and a binary sensor **Failover
+  *interface* online**. Read from `/failover/status`, which answers with a
+  dictionary keyed by interface name.
+- **Mobile data limit.** For each mobile interface with an enabled limit on
+  the router: used data, limit, used percent, reset time and a binary sensor
+  **Data limit reached**. Read from `/data_limit/status`; the router counts
+  and enforces the limit, the integration only shows it. The SIM slot comes
+  from the interface configuration.
+- **Port forward switches.** One switch per rule of `/firewall/port_forwards/config`
+  that turns the rule on or off. Only the `enabled` field is written, and the
+  setting is read back after the change like the roaming switches.
+- The three pages are optional: a router or user without them gets no
+  entities for them and everything else keeps working. They show up in the
+  debug report and the diagnostics.
+- The sample dashboard has failover pills for mobile data and Wi-Fi, a port
+  forward pill and a data limit pill. They hide themselves while their
+  entities do not exist.
+- The probe tool also reads `/data_limit/status` and the monthly data usage
+  pages.
+
+### Changed
+
+- The failover state and the data limit are read at most every two minutes,
+  like the DHCP clients, to keep the load on weak routers small. The port
+  forward rules are configuration and follow the configuration interval.
+- Docs: the router user needs read access to the new pages; the port forward
+  switches are listed under what the integration changes on the router.
+
 ## [0.9.1] - 2026-11-16
 
 ### Fixed

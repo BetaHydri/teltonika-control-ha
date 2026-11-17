@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -38,6 +39,8 @@ from .entity import (
     async_add_discovered,
 )
 from .models import (
+    DataLimit,
+    FailoverInterface,
     TeltonikaData,
     VpnTunnel,
     modem_registration,
@@ -475,6 +478,31 @@ async def async_setup_entry(
         async_add_entities,
         lambda c: (
             (
+                f"failover_{interface.interface_id}",
+                lambda i=interface.interface_id: TeltonikaFailoverSensor(c, i),
+            )
+            for interface in c.data.failover
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"data_limit_{limit.interface_id}_{description.key}",
+                lambda i=limit.interface_id, desc=description: TeltonikaDataLimitSensor(
+                    c, i, desc
+                ),
+            )
+            for limit in c.data.data_limits
+            for description in DATA_LIMIT_SENSORS
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
                 f"{modem_id}_{description.key}",
                 lambda m=modem_id, desc=description: TeltonikaModemSensor(c, m, desc),
             )
@@ -482,6 +510,138 @@ async def async_setup_entry(
             for description in MODEM_SENSORS
         ),
     )
+
+
+@dataclass(frozen=True, kw_only=True)
+class DataLimitSensorDescription(SensorEntityDescription):
+    """Describes a sensor of a data limit."""
+
+    value_fn: Callable[[DataLimit], StateType | datetime]
+
+
+DATA_LIMIT_SENSORS: tuple[DataLimitSensorDescription, ...] = (
+    DataLimitSensorDescription(
+        key="used",
+        translation_key="data_limit_used",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=2,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda limit: limit.used,
+    ),
+    DataLimitSensorDescription(
+        key="limit",
+        translation_key="data_limit",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=2,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda limit: limit.limit,
+    ),
+    DataLimitSensorDescription(
+        key="percent",
+        translation_key="data_limit_percent",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=lambda limit: limit.used_percent,
+    ),
+    DataLimitSensorDescription(
+        key="resets_at",
+        translation_key="data_limit_resets_at",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda limit: limit.resets_at,
+    ),
+)
+
+
+class TeltonikaDataLimitSensor(TeltonikaEntity, SensorEntity):
+    """The used data, the limit or the reset time of a mobile data limit."""
+
+    entity_description: DataLimitSensorDescription
+
+    def __init__(
+        self,
+        coordinator: TeltonikaCoordinator,
+        interface_id: str,
+        description: DataLimitSensorDescription,
+    ) -> None:
+        super().__init__(coordinator, f"data_limit_{interface_id}_{description.key}")
+        self.entity_description = description
+        self._interface_id = interface_id
+        limit = self.limit
+        self._attr_translation_placeholders = {
+            "name": limit.label if limit else interface_id
+        }
+
+    @property
+    def limit(self) -> DataLimit | None:
+        """Return the current data limit of this interface."""
+        for limit in self.coordinator.data.data_limits:
+            if limit.interface_id == self._interface_id:
+                return limit
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the limit was switched off on the router."""
+        return super().available and self.limit is not None
+
+    @property
+    def native_value(self) -> StateType | datetime:
+        """Return the value."""
+        limit = self.limit
+        return self.entity_description.value_fn(limit) if limit else None
+
+
+class TeltonikaFailoverSensor(TeltonikaEntity, SensorEntity):
+    """The failover state of an uplink: online, offline, standby and so on."""
+
+    _attr_translation_key = "failover"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, interface_id: str) -> None:
+        super().__init__(coordinator, f"failover_{interface_id}")
+        self._interface_id = interface_id
+        interface = self.interface
+        self._attr_translation_placeholders = {
+            "name": interface.label if interface else interface_id
+        }
+
+    @property
+    def interface(self) -> FailoverInterface | None:
+        """Return the current failover state of this interface."""
+        for interface in self.coordinator.data.failover:
+            if interface.interface_id == self._interface_id:
+                return interface
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the interface left the failover configuration."""
+        return super().available and self.interface is not None
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the state the router reports."""
+        interface = self.interface
+        return interface.status if interface else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the health score and the times the router counts."""
+        interface = self.interface
+        if interface is None:
+            return None
+        return {
+            "score": interface.score,
+            "seconds_since_change": interface.age,
+            "seconds_online": interface.seconds_online,
+            "seconds_offline": interface.seconds_offline,
+            "tracking_lost": interface.lost,
+        }
 
 
 @dataclass(frozen=True, kw_only=True)

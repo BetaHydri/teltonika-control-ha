@@ -783,6 +783,159 @@ def derive_sim_cards(raw: Iterable[dict[str, Any]] | None) -> list[SimCard]:
     return sorted(cards, key=lambda card: (card.modem_id or "", card.slot or 0))
 
 
+@dataclass(frozen=True, slots=True)
+class FailoverInterface:
+    """The failover (mwan3) state of one uplink interface."""
+
+    interface_id: str
+    label: str
+    status: str | None
+    online: bool | None
+    score: float | None
+    age: int | None
+    # The router counts seconds online and offline, and tracking probes lost.
+    seconds_online: int | None
+    seconds_offline: int | None
+    lost: int | None
+
+
+def failover_label(interface_id: str, wifi_networks: set[str]) -> str:
+    """Name an interface by its kind and keep the router's name in brackets."""
+    if interface_id in wifi_networks:
+        return f"Wi-Fi ({interface_id})"
+    if interface_id.startswith("mob"):
+        return f"Mobile ({interface_id})"
+    return interface_id
+
+
+def derive_failover(
+    raw: Any, wifi_networks: set[str] | None = None
+) -> list[FailoverInterface]:
+    """Read ``/failover/status``: a dictionary with one entry per interface.
+
+    Interfaces that are not part of the failover configuration are skipped.
+    """
+    if not isinstance(raw, dict):
+        return []
+    networks = wifi_networks or set()
+    interfaces: list[FailoverInterface] = []
+    for name, item in raw.items():
+        if not isinstance(item, dict) or not name or not _flag(item.get("enabled"), True):
+            continue
+        status = str(item["status"]).strip() if item.get("status") is not None else ""
+        interfaces.append(
+            FailoverInterface(
+                interface_id=str(name),
+                label=failover_label(str(name), networks),
+                status=status or None,
+                online=status.lower() == "online" if status else None,
+                score=to_float(item.get("score")),
+                age=to_int(item.get("age")),
+                seconds_online=to_int(item.get("online")),
+                seconds_offline=to_int(item.get("offline")),
+                lost=to_int(item.get("lost")),
+            )
+        )
+    return sorted(interfaces, key=lambda interface: interface.interface_id)
+
+
+@dataclass(frozen=True, slots=True)
+class DataLimit:
+    """The data limit of one mobile interface and how much of it is used."""
+
+    interface_id: str
+    label: str
+    used: float | None
+    limit: float | None
+    resets_at: datetime | None
+
+    @property
+    def used_percent(self) -> float | None:
+        """Return the used part of the limit in percent."""
+        if self.used is None or not self.limit:
+            return None
+        return round(self.used / self.limit * 100, 1)
+
+    @property
+    def reached(self) -> bool | None:
+        """Return whether the limit is used up."""
+        if self.used is None or not self.limit:
+            return None
+        return self.used >= self.limit
+
+
+def derive_data_limits(
+    raw: Iterable[dict[str, Any]] | None, interface_config: Iterable[dict[str, Any]]
+) -> list[DataLimit]:
+    """Read ``/data_limit/status``; only interfaces with an enabled limit count.
+
+    The router names the SIM slot of an interface in ``interfaces/config``.
+    """
+    slots = {
+        str(item["id"]): to_int(item.get("sim"))
+        for item in interface_config
+        if item.get("id")
+    }
+    limits: list[DataLimit] = []
+    for item in raw or []:
+        interface_id = str(item.get("interface") or item.get("id") or "")
+        limit = to_float(item.get("data_limit"))
+        if not interface_id or not _flag(item.get("enabled"), False) or not limit:
+            continue
+        slot = slots.get(interface_id)
+        reset = to_float(item.get("due_reset_time"))
+        limits.append(
+            DataLimit(
+                interface_id=interface_id,
+                label=f"SIM {slot}" if slot else interface_id,
+                used=to_float(item.get("data_used")),
+                limit=limit,
+                resets_at=datetime.fromtimestamp(reset, UTC) if reset else None,
+            )
+        )
+    return sorted(limits, key=lambda item: item.interface_id)
+
+
+@dataclass(frozen=True, slots=True)
+class PortForward:
+    """One port forwarding rule of the firewall."""
+
+    rule_id: str
+    name: str
+    enabled: bool
+    protocol: str | None
+    external_port: str | None
+    internal_port: str | None
+
+
+def _joined(value: Any) -> str | None:
+    if isinstance(value, (list, tuple)):
+        text = ", ".join(str(part) for part in value)
+    else:
+        text = str(value) if value is not None else ""
+    return text.strip() or None
+
+
+def derive_port_forwards(raw: Iterable[dict[str, Any]] | None) -> list[PortForward]:
+    """Read ``/firewall/port_forwards/config``; a rule without the flag is on."""
+    rules: list[PortForward] = []
+    for item in raw or []:
+        rule_id = str(item.get("id") or "")
+        if not rule_id:
+            continue
+        rules.append(
+            PortForward(
+                rule_id=rule_id,
+                name=str(item.get("name") or "").strip() or rule_id,
+                enabled=_flag(item.get("enabled"), True),
+                protocol=_joined(item.get("proto")),
+                external_port=_joined(item.get("src_dport")),
+                internal_port=_joined(item.get("dest_port")),
+            )
+        )
+    return sorted(rules, key=lambda rule: rule.rule_id)
+
+
 @dataclass(slots=True)
 class TeltonikaData:
     """One snapshot of the router state."""
@@ -811,6 +964,9 @@ class TeltonikaData:
     dhcp_leases: list[dict[str, Any]] | None = None
     vpn_tunnels: list[VpnTunnel] = field(default_factory=list)
     sim_cards: list[SimCard] = field(default_factory=list)
+    failover: list[FailoverInterface] = field(default_factory=list)
+    data_limits: list[DataLimit] = field(default_factory=list)
+    port_forwards: list[PortForward] = field(default_factory=list)
 
     @classmethod
     def build(
@@ -829,6 +985,9 @@ class TeltonikaData:
         dhcp_leases: list[dict[str, Any]] | None = None,
         wireguard_config: list[dict[str, Any]] | None = None,
         sim_cards: list[dict[str, Any]] | None = None,
+        failover: dict[str, Any] | None = None,
+        data_limits: list[dict[str, Any]] | None = None,
+        port_forwards: list[dict[str, Any]] | None = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
@@ -867,6 +1026,9 @@ class TeltonikaData:
             dhcp_leases=dhcp_leases,
             vpn_tunnels=derive_vpn_tunnels(interfaces, wireguard_config or []),
             sim_cards=derive_sim_cards(sim_cards),
+            failover=derive_failover(failover, networks),
+            data_limits=derive_data_limits(data_limits, interface_config),
+            port_forwards=derive_port_forwards(port_forwards),
         )
 
     @property

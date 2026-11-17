@@ -40,7 +40,7 @@ INTERFACES_STATUS = [
 ]
 
 INTERFACES_CONFIG = [
-    {"id": "mob1s1a1", "metric": "4"},
+    {"id": "mob1s1a1", "metric": "4", "modem": "2-1.1", "sim": "1"},
     {"id": "wan2", "metric": "10"},
 ]
 
@@ -211,6 +211,78 @@ SIM_CARDS = [
 ]
 
 
+PORT_FORWARDS = [
+    {
+        ".type": "redirect",
+        "id": "cfg_ssh",
+        "name": "SSH to the NAS",
+        "enabled": "1",
+        "proto": ["tcp"],
+        "src_dport": "2222",
+        "dest_ip": "192.168.1.20",
+        "dest_port": "22",
+    },
+    {
+        ".type": "redirect",
+        "id": "cfg_web",
+        "name": "",
+        "enabled": "0",
+        "proto": ["tcp", "udp"],
+        "src_dport": "8443",
+        "dest_ip": "192.168.1.21",
+        "dest_port": "443",
+    },
+]
+
+# The answer of /failover/status is a dictionary keyed by interface name.
+FAILOVER_STATUS = {
+    "mob1s1a1": {
+        "enabled": True,
+        "score": 6,
+        "up": True,
+        "age": 2,
+        "turn": 1800,
+        "online": 3600,
+        "uptime": 3610,
+        "track_ip": [{"ip": "1.1.1.1", "latency": 0, "packetloss": 0, "status": "up"}],
+        "lost": 0,
+        "offline": 0,
+        "running": True,
+        "status": "online",
+    },
+    "wan2": {
+        "enabled": True,
+        "score": 0,
+        "up": True,
+        "age": 6,
+        "turn": 9474,
+        "online": 0,
+        "uptime": 66671,
+        "track_ip": [{"ip": "1.1.1.1", "latency": 0, "packetloss": 0, "status": "down"}],
+        "lost": 3,
+        "offline": 66649,
+        "running": True,
+        "status": "offline",
+    },
+    "lan": {"enabled": False, "status": "notracking"},
+}
+
+# 2 GB used of a 10 GB limit; the router reports used bytes as a string.
+DATA_LIMIT_STATUS = [
+    {
+        "id": "mob1s1a1",
+        "interface": "mob1s1a1",
+        "enabled": "1",
+        "data_limit": 10_000_000_000,
+        "data_used": "2000000000",
+        "due_reset_time": 1796000000,
+        "data_warning_enabled": "0",
+        "data_warning_limit": 0,
+    },
+    {"id": "mob1s2a1", "interface": "mob1s2a1", "enabled": "0"},
+]
+
+
 def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[str, Any]:
     """Return fresh copies; optionally give Wi-Fi a better metric than mobile."""
     data = {
@@ -225,6 +297,9 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
         "dhcp": deepcopy(DHCP_LEASES),
         "wireguard": deepcopy(WIREGUARD_CONFIG),
         "sim_cards": deepcopy(SIM_CARDS),
+        "port_forwards": deepcopy(PORT_FORWARDS),
+        "failover": deepcopy(FAILOVER_STATUS),
+        "data_limit": deepcopy(DATA_LIMIT_STATUS),
     }
     if wireguard:
         data["interfaces"].append(deepcopy(WIREGUARD_INTERFACE))
