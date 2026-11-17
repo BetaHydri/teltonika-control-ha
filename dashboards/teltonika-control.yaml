@@ -499,7 +499,7 @@ views:
                   type: custom:bubble-card
                   card_type: button
                   button_type: name
-                  name: Firewall
+                  name: Open firewall
                   icon: mdi:shield-check
                   styles: *style_green
                   tap_action: &open_firewall
@@ -507,6 +507,17 @@ views:
                     navigation_path: /teltonika-firewall
                   button_action:
                     tap_action: *open_firewall
+                  # The arrow shows that the pill is a link to another page.
+                  sub_button:
+                    bottom: []
+                    main:
+                      - entity: sensor.my_router_open_port_forwards
+                        icon: mdi:chevron-right
+                        show_icon: true
+                        show_name: false
+                        show_state: false
+                        state_background: false
+                        tap_action: *open_firewall
               - type: conditional
                 conditions:
                   - condition: or
@@ -521,12 +532,38 @@ views:
                   type: custom:bubble-card
                   card_type: button
                   button_type: name
-                  name: Firewall, open to the internet
+                  name: "Open firewall: open to the internet"
                   icon: mdi:shield-alert
                   styles: *style_orange
                   tap_action: *open_firewall
                   button_action:
                     tap_action: *open_firewall
+                  # Left: port forwards that are on, middle: rules open to the
+                  # internet, right: the arrow that shows the pill is a link.
+                  sub_button:
+                    bottom: []
+                    main:
+                      - entity: sensor.my_router_open_port_forwards
+                        icon: mdi:arrow-decision
+                        show_icon: true
+                        show_name: false
+                        show_state: true
+                        state_background: false
+                        tap_action: *open_firewall
+                      - entity: sensor.my_router_firewall_rules_open_to_the_internet
+                        icon: mdi:shield-alert
+                        show_icon: true
+                        show_name: false
+                        show_state: true
+                        state_background: false
+                        tap_action: *open_firewall
+                      - entity: sensor.my_router_open_port_forwards
+                        icon: mdi:chevron-right
+                        show_icon: true
+                        show_name: false
+                        show_state: false
+                        state_background: false
+                        tap_action: *open_firewall
           # Hotspot with a login page: the button changes with the state.
           - type: vertical-stack
             cards:

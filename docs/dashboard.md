@@ -184,10 +184,13 @@ list. Fix that entity and save again.
   reboot the router. With a WireGuard instance on the router, a **Restart
   WireGuard tunnel** pill appears while the instance is switched on (replace
   `homebase` in its two entity IDs with the name of your instance, or delete
-  the pill). A **Firewall** pill (version 0.11.0 or newer) opens the separate
-  [firewall dashboard](firewall-dashboard.md) with the port forwards and
-  traffic rules. It is green while nothing is open to the internet and orange
-  while a port forward or a rule is on, and it only appears while the router
+  the pill). A **Open firewall** pill (version 0.11.0 or newer) opens the
+  separate [firewall dashboard](firewall-dashboard.md) with the port forwards
+  and traffic rules. It only links there and changes nothing: the arrow on its
+  right shows that it is a link, and nothing is switched from this pill. It is
+  green while nothing is open to the internet. While a port forward or a rule
+  is on it turns orange and shows two small counters, the port forwards that
+  are on and the rules open to the internet. It only appears while the router
   has such rules. Below the reboot pill, **Router health** shows uptime, DHCP
   clients, CPU load and memory usage. The hotspot button changes with the
   state: it starts
