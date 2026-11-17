@@ -405,17 +405,14 @@ A rule that is on lets traffic from the internet reach a device in your
 network, so keep rules off that you do not need and do not put these switches
 on a dashboard that guests can use.
 
-A rule that comes from the `wan` zone also catches traffic that arrives
-through other interfaces in that zone, for example a VPN tunnel, if its
-interface belongs to the `wan` zone (Network, Firewall, General settings shows
-the zones). A rule for port 80 or 443 that points to another device or port can
-then make the router's own web interface unreachable through the VPN while the
-rule is on. Switch such a rule on only while you need it, and use the
-router's LAN address or another port for the web interface in that time. Seen
-on a RUTC50: with a port 80 forward on, the router's web interface still
-worked from the router's own Wi-Fi, but not through a site-to-site WireGuard
-tunnel from another network. Check which zone the tunnel interface belongs to
-(Network, Firewall, General settings, covered networks of each zone).
+A rule from the `wan` zone applies to every interface in that zone: on a
+RUTC50 these are the mobile interfaces and the Wi-Fi client networks, but not
+the WireGuard tunnels, which have their own zone. Still, with a forward for
+port 80 on, one RUTC50 stopped answering its web interface (port 80 and 443)
+through a site-to-site WireGuard tunnel from another network, while the same
+web interface worked from the router's own Wi-Fi. The cause was not found. If
+you forward port 80 or 443, switch the rule on only while you need it and use
+the router locally in that time.
 
 ## GPS
 
