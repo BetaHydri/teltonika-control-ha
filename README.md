@@ -30,7 +30,8 @@ uses Bubble Card and Mushroom, for the dashboard only.
   a [firewall dashboard](docs/firewall-dashboard.md) shows what is open to the
   internet right now.
 - **Your data volume under control**: used data, your contract's limit in
-  percent, and a warning before the month is over.
+  percent, and a warning from Home Assistant at the percentage you choose, with
+  no dependence on the router's own SMS warning.
 - **Mobile and VPN at a glance**: signal, network type, roaming, SIM switching,
   and a WireGuard tunnel you can restart from an automation.
 - **Ready-made dashboards**: paste the YAML, replace one placeholder, done.
@@ -443,6 +444,42 @@ the router's limit with 1 MB = 1,048,576 bytes, so the two differ by about 5
 percent when you enter the same number. The option applies to every mobile
 interface that has a limit on the router; with two SIMs on different plans,
 leave it empty.
+
+**Warnings from Home Assistant, independent of the router.** With the plan set,
+the percentage is the share of your contract, so you can warn yourself at any
+point you like without the router's SMS warning and without a helper. This
+notifies you at 80 and at 95 percent, and names the volume that is left:
+
+```yaml
+alias: Mobile data volume warning
+mode: queued
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.my_router_data_limit_used_sim_1
+    above: 80
+    id: "80"
+  - trigger: numeric_state
+    entity_id: sensor.my_router_data_limit_used_sim_1
+    above: 95
+    id: "95"
+actions:
+  - action: notify.notify
+    data:
+      title: "Mobile data: {{ trigger.id }} percent used"
+      message: >-
+        {{ states('sensor.my_router_data_used_sim_1') | float(0) | round(1) }} GB
+        of {{ states('sensor.my_router_data_limit_sim_1') | float(0) | round(1) }} GB
+        used. The counter resets on
+        {{ as_timestamp(states('sensor.my_router_data_limit_reset_sim_1'))
+           | timestamp_custom('%d.%m.', true) }}.
+```
+
+A numeric state trigger fires once when the value crosses the threshold, and
+fires again in the next month after the router has reset its counter. Use your
+own entity IDs (see **Settings, Devices & services, Teltonika Control,
+Entities**; in another language the endings differ). The router's data limit
+only has to be enabled so that it keeps the count; the warning does not depend
+on its SMS warning or on its cut-off.
 
 ### Failover
 
