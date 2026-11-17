@@ -37,6 +37,18 @@ BASE_SCHEMA = {
 }
 
 
+def _device_entry_ids(device: dr.DeviceEntry) -> list[str]:
+    """Return the config entry of a device on new and old Home Assistant versions.
+
+    A device belongs to a single config entry; newer versions deprecate the
+    ``config_entries`` set in favour of ``config_entry_id``.
+    """
+    entry_id = getattr(device, "config_entry_id", None)
+    if entry_id:
+        return [entry_id]
+    return list(device.config_entries)
+
+
 def _coordinator(hass: HomeAssistant, call: ServiceCall) -> TeltonikaCoordinator:
     device_ids = set(call.data.get(ATTR_DEVICE_ID, []))
     entity_registry = er.async_get(hass)
@@ -51,7 +63,7 @@ def _coordinator(hass: HomeAssistant, call: ServiceCall) -> TeltonikaCoordinator
         device = device_registry.async_get(device_id)
         if device is None:
             continue
-        for entry_id in device.config_entries:
+        for entry_id in _device_entry_ids(device):
             entry = hass.config_entries.async_get_entry(entry_id)
             if (
                 entry is not None

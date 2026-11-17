@@ -8,6 +8,50 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-17
+
+### Added
+
+- **Traffic rule switches.** One switch **Firewall rule *name*** for every rule
+  in `/firewall/traffic_rules/config` that turns the rule on or off. Only the
+  `enabled` field is written, and the setting is read back after the change,
+  like the port forward switches. The attributes say what the rule does:
+  `kind`, `group`, `source_zone`, `destination_zone`, `protocol`, `ports`,
+  `action`. The router's own rules (named `Allow-...`, group `system`) are
+  created **disabled**, because switching one off by accident can cut a
+  connection; enable the ones you want in the entity settings.
+- **Firewall counters.** **Open port forwards** and **Firewall rules open to the
+  internet** count what is on, and list the names in the attribute `rules`, for
+  example for a warning when something stays open.
+- **Firewall dashboard.** A separate dashboard for the port forwards and traffic
+  rules, `dashboards/teltonika-firewall.yaml`, with a guide in
+  `docs/firewall-dashboard.md`: the rules of the router are listed by
+  themselves, grouped into port forwards, access to the router from the
+  internet and forwarding to the network. Every switch asks for confirmation.
+  It needs the Mushroom and auto-entities frontend cards. The guide also shows
+  a version without auto-entities, a pop-up version and an automation that
+  warns when a port stays open.
+- The port forward switches have the attribute `kind` (`port_forward`), which
+  the firewall dashboard uses to find them.
+
+### Changed
+
+- The main sample dashboard no longer has a pill for one port forward. It has a
+  **Firewall** pill that opens the firewall dashboard, green while nothing is
+  open to the internet and orange while a port forward or a rule is on. It only
+  appears while the router has such rules.
+
+### Fixed
+
+- Home Assistant logged a deprecation warning when a service was used:
+  `DeviceEntry.config_entries` is replaced by `config_entry_id`. The service
+  target now uses the new attribute and keeps working on older versions.
+
+### Notes
+
+- The traffic rules page is optional like the other new pages: a router or user
+  without it gets no firewall rule entities and everything else keeps working.
+
 ## [0.10.1] - 2026-11-17
 
 ### Added

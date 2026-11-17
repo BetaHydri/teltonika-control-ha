@@ -80,6 +80,7 @@ def mock_router(
     wireguard: bool = True,
     sim_cards: bool = True,
     port_forwards: bool = True,
+    traffic_rules: bool = True,
     failover: bool = True,
     data_limit: bool = True,
 ) -> None:
@@ -102,6 +103,7 @@ def mock_router(
         (wireguard, "/wireguard/config", data["wireguard"]),
         (sim_cards, "/sim_cards/config", data["sim_cards"]),
         (port_forwards, "/firewall/port_forwards/config", data["port_forwards"]),
+        (traffic_rules, "/firewall/traffic_rules/config", data["traffic_rules"]),
         (failover, "/failover/status", data["failover"]),
         (failover, "/failover/interfaces/config", data["failover_config"]),
         (data_limit, "/data_limit/status", data["data_limit"]),
@@ -149,6 +151,8 @@ def mock_router(
         method(f"{BASE}/sim_cards/config/cfg_sim2", json={"success": True})
         method(f"{BASE}/firewall/port_forwards/config/cfg_ssh", json={"success": True})
         method(f"{BASE}/firewall/port_forwards/config/cfg_web", json={"success": True})
+        method(f"{BASE}/firewall/traffic_rules/config/15", json={"success": True})
+        method(f"{BASE}/firewall/traffic_rules/config/21", json={"success": True})
 
 
 def mock_login_failure(aioclient_mock: Any) -> None:

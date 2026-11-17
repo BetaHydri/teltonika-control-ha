@@ -234,6 +234,69 @@ PORT_FORWARDS = [
     },
 ]
 
+TRAFFIC_RULES = [
+    {
+        ".type": "rule",
+        "id": "6",
+        "name": "Allow-Ping",
+        "enabled": "1",
+        "src": "wan",
+        "proto": ["icmp"],
+        "target": "ACCEPT",
+    },
+    {
+        ".type": "rule",
+        "id": "15",
+        "name": "Enable_SSH_WAN",
+        "enabled": "0",
+        "src": "wan",
+        "proto": ["tcp"],
+        "dest_port": ["22"],
+        "target": "ACCEPT",
+    },
+    {
+        ".type": "rule",
+        "id": "21",
+        "name": "ha-gcs",
+        "enabled": "1",
+        "src": "wan",
+        "proto": ["tcp", "udp"],
+        "dest_port": ["9123"],
+        "target": "ACCEPT",
+    },
+    {
+        ".type": "rule",
+        "id": "45",
+        "name": "ha-gcs-ipv4-forward",
+        "enabled": "1",
+        "src": "wan",
+        "dest": "lan",
+        "proto": ["tcp", "udp"],
+        "dest_port": ["9123"],
+        "target": "ACCEPT",
+    },
+    {
+        ".type": "rule",
+        "id": "19",
+        "name": "Allow-mDNS",
+        "enabled": "1",
+        "src": "lan",
+        "proto": ["udp"],
+        "dest_port": ["5353"],
+        "target": "ACCEPT",
+    },
+    {
+        ".type": "rule",
+        "id": "50",
+        "name": "Block-telnet",
+        "enabled": "1",
+        "src": "wan",
+        "proto": ["tcp"],
+        "dest_port": ["23"],
+        "target": "REJECT",
+    },
+]
+
 # The answer of /failover/status is a dictionary keyed by interface ID.
 # /failover/interfaces/config gives each ID its name and type (a RUTC50 names
 # its Wi-Fi interfaces wan2 and wan3 here, with the network names as "name").
@@ -306,6 +369,7 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
         "wireguard": deepcopy(WIREGUARD_CONFIG),
         "sim_cards": deepcopy(SIM_CARDS),
         "port_forwards": deepcopy(PORT_FORWARDS),
+        "traffic_rules": deepcopy(TRAFFIC_RULES),
         "failover": deepcopy(FAILOVER_STATUS),
         "failover_config": deepcopy(FAILOVER_CONFIG),
         "data_limit": deepcopy(DATA_LIMIT_STATUS),

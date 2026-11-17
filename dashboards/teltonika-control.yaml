@@ -13,10 +13,10 @@
 # adjust those two entity IDs as well. The WireGuard pill uses the instance name
 # "homebase": replace it with the name of your WireGuard instance, or delete the
 # pill if you have none.
-# Four blocks are optional and hide themselves while their entities do not
-# exist: the failover pill, the port
-# forward pill (rule name my_rule), and the data limit pills (SIM slot 1).
-# Adjust or delete them like the WireGuard pill.
+# Three blocks are optional and hide themselves while their entities do not
+# exist: the failover pill, the firewall pill (a link to the separate firewall
+# dashboard, dashboards/teltonika-firewall.yaml) and the data limit pills (SIM
+# slot 1). Adjust or delete them like the WireGuard pill.
 #
 # Two columns like a phone or tablet layout; every action that interrupts a
 # connection asks for confirmation. The "tap_action" and "button_action" blocks
@@ -479,53 +479,54 @@ views:
                   text: Restart the WireGuard tunnel? The VPN is down for a few seconds.
               button_action:
                 tap_action: *reconnect_vpn
-          # Port forward (optional): tap to open or close one rule. Orange while
-          # the rule is on, because it lets traffic from the internet reach a
-          # device in your network. Opening asks for confirmation. Replace
-          # "my_rule" with the name of your rule (the entity is called
-          # switch.<router>_port_forward_<rule name>), or delete the block.
+          # Firewall (optional): opens the separate firewall dashboard with the
+          # port forwards and traffic rules. The pill only appears while the
+          # router has port forwards or traffic rules. Green while nothing is
+          # open to the internet, orange while a port forward or a rule is on.
+          # The dashboard path is the one of your firewall dashboard, see
+          # docs/firewall-dashboard.md.
           - type: vertical-stack
             cards:
               - type: conditional
                 conditions:
-                  - condition: state
-                    entity: switch.my_router_port_forward_my_rule
-                    state: "on"
+                  - condition: numeric_state
+                    entity: sensor.my_router_open_port_forwards
+                    below: 1
+                  - condition: numeric_state
+                    entity: sensor.my_router_firewall_rules_open_to_the_internet
+                    below: 1
                 card:
                   type: custom:bubble-card
                   card_type: button
                   button_type: name
-                  name: "Port forward: open"
-                  icon: mdi:lock-open-alert
-                  styles: *style_orange
-                  tap_action: &port_forward_close
-                    action: perform-action
-                    perform_action: switch.turn_off
-                    target:
-                      entity_id: switch.my_router_port_forward_my_rule
+                  name: Firewall
+                  icon: mdi:shield-check
+                  styles: *style_green
+                  tap_action: &open_firewall
+                    action: navigate
+                    navigation_path: /teltonika-firewall
                   button_action:
-                    tap_action: *port_forward_close
+                    tap_action: *open_firewall
               - type: conditional
                 conditions:
-                  - condition: state
-                    entity: switch.my_router_port_forward_my_rule
-                    state: "off"
+                  - condition: or
+                    conditions:
+                      - condition: numeric_state
+                        entity: sensor.my_router_open_port_forwards
+                        above: 0
+                      - condition: numeric_state
+                        entity: sensor.my_router_firewall_rules_open_to_the_internet
+                        above: 0
                 card:
                   type: custom:bubble-card
                   card_type: button
                   button_type: name
-                  name: "Port forward: closed"
-                  icon: mdi:lock
-                  styles: *style_grey
-                  tap_action: &port_forward_open
-                    action: perform-action
-                    perform_action: switch.turn_on
-                    target:
-                      entity_id: switch.my_router_port_forward_my_rule
-                    confirmation:
-                      text: Open this port forward? Traffic from the internet can then reach a device in your network.
+                  name: Firewall, open to the internet
+                  icon: mdi:shield-alert
+                  styles: *style_orange
+                  tap_action: *open_firewall
                   button_action:
-                    tap_action: *port_forward_open
+                    tap_action: *open_firewall
           # Hotspot with a login page: the button changes with the state.
           - type: vertical-stack
             cards:

@@ -981,6 +981,77 @@ def derive_port_forwards(raw: Iterable[dict[str, Any]] | None) -> list[PortForwa
     return sorted(rules, key=lambda rule: rule.rule_id)
 
 
+# The router's own rules are named "Allow-...". Rules are sorted into groups so
+# that a dashboard can show the ones that let the internet in, and a rule that
+# the router needs for itself is not switched off by accident.
+TRAFFIC_GROUP_SYSTEM = "system"
+TRAFFIC_GROUP_ACCESS = "access"
+TRAFFIC_GROUP_FORWARD = "forward"
+TRAFFIC_GROUP_OTHER = "other"
+SYSTEM_RULE_PREFIX = "Allow-"
+# Zones that are the inside of the router; rules from them do not let the
+# internet in.
+INSIDE_ZONES = {"lan"}
+
+
+@dataclass(frozen=True, slots=True)
+class TrafficRule:
+    """One traffic rule of the firewall."""
+
+    rule_id: str
+    name: str
+    enabled: bool
+    source: str | None
+    destination: str | None
+    protocol: str | None
+    ports: str | None
+    action: str | None
+    group: str
+
+    @property
+    def opens_internet(self) -> bool:
+        """Return whether the rule is on and lets outside traffic in."""
+        return self.enabled and self.group in (TRAFFIC_GROUP_ACCESS, TRAFFIC_GROUP_FORWARD)
+
+
+def traffic_rule_group(
+    name: str, source: str | None, destination: str | None, action: str | None
+) -> str:
+    """Sort a traffic rule: router rule, access to the router, forward or other."""
+    if name.startswith(SYSTEM_RULE_PREFIX):
+        return TRAFFIC_GROUP_SYSTEM
+    if (action or "").upper() != "ACCEPT" or not source or source in INSIDE_ZONES:
+        return TRAFFIC_GROUP_OTHER
+    return TRAFFIC_GROUP_FORWARD if destination else TRAFFIC_GROUP_ACCESS
+
+
+def derive_traffic_rules(raw: Iterable[dict[str, Any]] | None) -> list[TrafficRule]:
+    """Read ``/firewall/traffic_rules/config``; a rule without the flag is on."""
+    rules: list[TrafficRule] = []
+    for item in raw or []:
+        rule_id = str(item.get("id") or "")
+        if not rule_id:
+            continue
+        name = str(item.get("name") or "").strip() or rule_id
+        source = _joined(item.get("src"))
+        destination = _joined(item.get("dest"))
+        action = _joined(item.get("target"))
+        rules.append(
+            TrafficRule(
+                rule_id=rule_id,
+                name=name,
+                enabled=_flag(item.get("enabled"), True),
+                source=source,
+                destination=destination,
+                protocol=_joined(item.get("proto")),
+                ports=_joined(item.get("dest_port")),
+                action=action,
+                group=traffic_rule_group(name, source, destination, action),
+            )
+        )
+    return sorted(rules, key=lambda rule: (to_int(rule.rule_id, 10**6) or 0, rule.rule_id))
+
+
 @dataclass(slots=True)
 class TeltonikaData:
     """One snapshot of the router state."""
@@ -1012,6 +1083,7 @@ class TeltonikaData:
     failover: list[FailoverInterface] = field(default_factory=list)
     data_limits: list[DataLimit] = field(default_factory=list)
     port_forwards: list[PortForward] = field(default_factory=list)
+    traffic_rules: list[TrafficRule] = field(default_factory=list)
 
     @classmethod
     def build(
@@ -1034,6 +1106,7 @@ class TeltonikaData:
         failover_config: list[dict[str, Any]] | None = None,
         data_limits: list[dict[str, Any]] | None = None,
         port_forwards: list[dict[str, Any]] | None = None,
+        traffic_rules: list[dict[str, Any]] | None = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
@@ -1075,6 +1148,7 @@ class TeltonikaData:
             failover=derive_failover(failover, failover_config, networks),
             data_limits=derive_data_limits(data_limits, interface_config),
             port_forwards=derive_port_forwards(port_forwards),
+            traffic_rules=derive_traffic_rules(traffic_rules),
         )
 
     @property

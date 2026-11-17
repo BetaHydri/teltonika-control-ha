@@ -128,7 +128,9 @@
       "data_limit_used": { "name": "Datenverbrauch {name}" },
       "data_limit": { "name": "Datenlimit {name}" },
       "data_limit_percent": { "name": "Datenlimit genutzt {name}" },
-      "data_limit_resets_at": { "name": "Datenlimit Zurücksetzen {name}" }
+      "data_limit_resets_at": { "name": "Datenlimit Zurücksetzen {name}" },
+      "open_port_forwards": { "name": "Offene Portweiterleitungen" },
+      "open_internet_rules": { "name": "Firewall-Regeln zum Internet offen" }
     },
     "device_tracker": {
       "gps": { "name": "Position" }
@@ -181,7 +183,8 @@
       "access_point": { "name": "Access Point {name}" },
       "tunnel": { "name": "WireGuard {name} aktiviert" },
       "data_roaming": { "name": "Daten-Roaming SIM {slot} erlauben" },
-      "port_forward": { "name": "Portweiterleitung {name}" }
+      "port_forward": { "name": "Portweiterleitung {name}" },
+      "traffic_rule": { "name": "Firewall-Regel {name}" }
     }
   },
   "exceptions": {

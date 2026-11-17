@@ -98,6 +98,27 @@ VPN_LATENCY_SENSOR = RouterSensorDescription(
     value_fn=lambda d: d.vpn_latency,
 )
 
+OPEN_PORT_FORWARDS_SENSOR = RouterSensorDescription(
+    key="open_port_forwards",
+    translation_key="open_port_forwards",
+    state_class=SensorStateClass.MEASUREMENT,
+    value_fn=lambda d: sum(1 for rule in d.port_forwards if rule.enabled),
+    attrs_fn=lambda d: {
+        "rules": [rule.name for rule in d.port_forwards if rule.enabled]
+    },
+)
+
+OPEN_INTERNET_RULES_SENSOR = RouterSensorDescription(
+    key="open_internet_rules",
+    translation_key="open_internet_rules",
+    state_class=SensorStateClass.MEASUREMENT,
+    value_fn=lambda d: sum(1 for rule in d.traffic_rules if rule.opens_internet),
+    attrs_fn=lambda d: {
+        "rules": [rule.name for rule in d.traffic_rules if rule.opens_internet]
+    },
+)
+
+
 def _usage(data: TeltonikaData, name: str) -> StateType:
     return getattr(data.system_usage, name, None) if data.system_usage else None
 
@@ -472,6 +493,30 @@ async def async_setup_entry(
             for tunnel in c.data.vpn_tunnels
             for description in TUNNEL_SENSORS
         ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                OPEN_PORT_FORWARDS_SENSOR.key,
+                lambda: TeltonikaRouterSensor(c, OPEN_PORT_FORWARDS_SENSOR),
+            ),
+        )
+        if c.data.port_forwards
+        else (),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                OPEN_INTERNET_RULES_SENSOR.key,
+                lambda: TeltonikaRouterSensor(c, OPEN_INTERNET_RULES_SENSOR),
+            ),
+        )
+        if c.data.traffic_rules
+        else (),
     )
     async_add_discovered(
         entry,

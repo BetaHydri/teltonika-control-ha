@@ -16,7 +16,13 @@ from .entity import (
     TeltonikaTunnelEntity,
     async_add_discovered,
 )
-from .models import AccessPoint, PortForward, SimCard
+from .models import (
+    TRAFFIC_GROUP_SYSTEM,
+    AccessPoint,
+    PortForward,
+    SimCard,
+    TrafficRule,
+)
 
 PARALLEL_UPDATES = 1
 
@@ -77,6 +83,83 @@ async def async_setup_entry(
         ),
     )
 
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"traffic_rule_{rule.rule_id}",
+                lambda r=rule.rule_id: TeltonikaTrafficRuleSwitch(c, r),
+            )
+            for rule in c.data.traffic_rules
+        ),
+    )
+
+
+class TeltonikaTrafficRuleSwitch(TeltonikaEntity, SwitchEntity):
+    """Turns a traffic rule of the router firewall on or off.
+
+    Only the on/off flag of the rule is written. The router's own rules
+    ("Allow-...") are created disabled; enable the ones you want in the entity
+    settings. A rule that is on can let the internet reach the router or your
+    network, and switching off the rule that carries your own remote access
+    locks you out.
+    """
+
+    _attr_translation_key = "traffic_rule"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, rule_id: str) -> None:
+        super().__init__(coordinator, f"traffic_rule_{rule_id}")
+        self._rule_id = rule_id
+        rule = self.rule
+        self._attr_translation_placeholders = {"name": rule.name if rule else rule_id}
+        self._attr_entity_registry_enabled_default = (
+            rule is None or rule.group != TRAFFIC_GROUP_SYSTEM
+        )
+
+    @property
+    def rule(self) -> TrafficRule | None:
+        """Return the current settings of this rule."""
+        for rule in self.coordinator.data.traffic_rules:
+            if rule.rule_id == self._rule_id:
+                return rule
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the rule was removed from the router."""
+        return super().available and self.rule is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the rule is on."""
+        rule = self.rule
+        return rule.enabled if rule else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return what the rule matches and does."""
+        rule = self.rule
+        if rule is None:
+            return None
+        return {
+            "kind": "traffic_rule",
+            "group": rule.group,
+            "source_zone": rule.source,
+            "destination_zone": rule.destination,
+            "protocol": rule.protocol,
+            "ports": rule.ports,
+            "action": rule.action,
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the rule on."""
+        await self.coordinator.async_set_traffic_rule(self._rule_id, True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the rule off."""
+        await self.coordinator.async_set_traffic_rule(self._rule_id, False)
+
 
 class TeltonikaPortForwardSwitch(TeltonikaEntity, SwitchEntity):
     """Turns a port forwarding rule of the router firewall on or off.
@@ -119,6 +202,7 @@ class TeltonikaPortForwardSwitch(TeltonikaEntity, SwitchEntity):
         if rule is None:
             return None
         return {
+            "kind": "port_forward",
             "protocol": rule.protocol,
             "external_port": rule.external_port,
             "internal_port": rule.internal_port,

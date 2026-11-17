@@ -88,6 +88,7 @@ PAGES: dict[str, tuple[str, str]] = {
     "wireguard": ("async_wireguard_config", "config"),
     "sim_cards": ("async_sim_cards_config", "config"),
     "port_forwards": ("async_port_forwards_config", "config"),
+    "traffic_rules": ("async_traffic_rules_config", "config"),
     "multi_ap": ("async_multi_ap_config", "config"),
     "wireless_status": ("async_wireless_status", "status"),
     "modems": ("async_modems_status", "status"),
@@ -206,6 +207,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 "wireguard",
                 "sim_cards",
                 "port_forwards",
+                "traffic_rules",
                 "failover",
                 "failover_config",
                 "data_limit",
@@ -222,6 +224,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         wireguard_config = parts["wireguard"] or []
         sim_cards = parts["sim_cards"] or []
         port_forwards = parts["port_forwards"] or []
+        traffic_rules = parts["traffic_rules"] or []
         failover = parts["failover"]
         failover_config = parts["failover_config"] or []
         data_limits = parts["data_limit"] or []
@@ -247,6 +250,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             failover_config=failover_config,
             data_limits=data_limits,
             port_forwards=port_forwards,
+            traffic_rules=traffic_rules,
         )
         data.portal_waiting = self.portal_waiting
         probe_internet = bool(self._probe_url) and data.uplink is not None
@@ -305,7 +309,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             "Router report: modems=%d (online %d), sim settings=%d, radios=%d, "
             "wifi clients/multi AP=%d, access points=%d, gps=%s, "
             "wireguard tunnels=%d, usage=%s, dhcp=%s, failover interfaces=%d, "
-            "data limits=%d, port forwards=%d",
+            "data limits=%d, port forwards=%d, traffic rules=%d",
             len(data.modems),
             len(online),
             len(data.sim_cards),
@@ -319,6 +323,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             len(data.failover),
             len(data.data_limits),
             len(data.port_forwards),
+            len(data.traffic_rules),
         )
 
     async def _async_read_pages(self, names: list[str]) -> dict[str, Any]:
@@ -593,6 +598,24 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             raise HomeAssistantError(
                 "The router did not apply the port forward setting. Check it in "
                 "Network, Firewall, Port forwards."
+            )
+
+    async def async_set_traffic_rule(self, rule_id: str, enabled: bool) -> None:
+        """Turn a traffic rule on or off and check that it took effect."""
+        _LOGGER.debug("Action: traffic rule %s -> enabled=%s", rule_id, enabled)
+        if not any(rule.rule_id == rule_id for rule in self.data.traffic_rules):
+            raise HomeAssistantError(f"Traffic rule {rule_id} not found")
+        async with translate_errors():
+            await self.client.async_set_traffic_rule_enabled(rule_id, enabled)
+        await asyncio.sleep(PORT_FORWARD_REFRESH_DELAY)
+        await self.async_refresh()
+        current = next(
+            (rule for rule in self.data.traffic_rules if rule.rule_id == rule_id), None
+        )
+        if current is None or current.enabled is not enabled:
+            raise HomeAssistantError(
+                "The router did not apply the traffic rule setting. Check it in "
+                "Network, Firewall, Traffic rules."
             )
 
     async def async_switch_sim(self, modem_id: str, target_sim: int) -> None:
