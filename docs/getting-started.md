@@ -317,7 +317,7 @@ Some campsite and hotel Wi-Fi networks need a click on a landing page.
 
 The **Hotspot login** sensor shows `login_required` while Wi-Fi is the uplink
 but has no internet. The README has an
-[example notification](../README.md#notification-example) for it.
+[example notification](automation-examples.md#hotspot-needs-a-login) for it.
 
 ### Restart the mobile connection or switch the SIM
 
