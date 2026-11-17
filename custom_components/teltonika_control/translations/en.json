@@ -149,6 +149,7 @@
       "failover_mobile_online": { "name": "Failover mobile online" },
       "failover_wifi_online": { "name": "Failover Wi-Fi online" },
       "failover_ethernet_online": { "name": "Failover Ethernet online" },
+      "gps_signal": { "name": "GPS signal" },
       "data_limit_reached": { "name": "Data limit reached {name}" }
     },
     "button": {

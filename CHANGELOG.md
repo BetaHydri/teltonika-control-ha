@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-17
+
+### Fixed
+
+- **The Uplink sensor follows the failover.** It showed the interface with the
+  best metric even when the router's failover reported it offline, so a Wi-Fi
+  whose hotspot blocks the check pings showed as the uplink while the traffic
+  went over mobile data. Now an interface that the failover calls offline is
+  passed over (attribute `failover_skipped`). If all interfaces are offline,
+  the metric decides as before.
+- **GPS without a fix.** The position now stays at the last known one instead
+  of turning `unknown`, also across a restart of Home Assistant. The satellite
+  sensor shows 0 instead of `unknown` when the receiver has no fix.
+
+### Added
+
+- **GPS signal** binary sensor: on while the receiver has a fix. Attributes:
+  satellites in use and the time of the last fix. The device tracker gets the
+  attributes `fix` and `last_fix`.
+
 ## [0.12.0] - 2026-11-17
 
 ### Added

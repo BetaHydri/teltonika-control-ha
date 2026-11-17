@@ -207,7 +207,7 @@ GPS_SENSORS: tuple[RouterSensorDescription, ...] = (
         key="gps_satellites",
         translation_key="gps_satellites",
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda d: d.gps.satellites if d.gps else None,
+        value_fn=lambda d: d.gps_satellites,
     ),
     RouterSensorDescription(
         key="gps_accuracy",
@@ -248,6 +248,7 @@ ROUTER_SENSORS: tuple[RouterSensorDescription, ...] = (
                 "interface": d.uplink.name,
                 "metric": d.uplink.metric,
                 "wifi_ssid": d.wifi_client.ssid if d.wifi_client else None,
+                "failover_skipped": d.uplink.skipped,
             }
             if d.uplink
             else {}

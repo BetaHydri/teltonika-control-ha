@@ -136,6 +136,9 @@ class Uplink:
     kind: str
     ip: str | None
     metric: int | None
+    # The interface with the best metric that the failover reports as offline,
+    # so that it was passed over for this one.
+    skipped: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,18 +214,34 @@ def wifi_network_names(wireless_config: Iterable[dict[str, Any]]) -> set[str]:
 
 
 def derive_uplink(
-    interfaces: Iterable[dict[str, Any]], wifi_networks: set[str]
+    interfaces: Iterable[dict[str, Any]],
+    wifi_networks: set[str],
+    offline: set[str] | None = None,
 ) -> Uplink | None:
-    """Pick the default-route interface with the lowest metric."""
-    best: dict[str, Any] | None = None
-    for interface in interfaces:
-        if not has_default_route(interface):
-            continue
-        metric = to_int(interface.get("metric"), 99)
-        if best is None or metric < to_int(best.get("metric"), 99):
-            best = interface
-    if best is None:
+    """Pick the default-route interface with the lowest metric.
+
+    The metric only says what the router would like to use. An interface that
+    the failover reports as offline (for example a Wi-Fi whose hotspot blocks
+    the check pings) does not carry traffic, so the best interface that is not
+    offline wins. If every interface is offline the metric alone decides.
+    """
+    offline = offline or set()
+    candidates = [i for i in interfaces if has_default_route(i)]
+    if not candidates:
         return None
+
+    def lowest(items: list[dict[str, Any]]) -> dict[str, Any]:
+        return min(items, key=lambda item: to_int(item.get("metric"), 99))
+
+    def is_offline(item: dict[str, Any]) -> bool:
+        return interface_name(item) in offline or str(item.get("id", "")) in offline
+
+    best = lowest(candidates)
+    skipped: str | None = None
+    working = [i for i in candidates if not is_offline(i)]
+    if working and is_offline(best):
+        skipped = interface_name(best)
+        best = lowest(working)
 
     name = interface_name(best)
     if name in wifi_networks:
@@ -244,6 +263,7 @@ def derive_uplink(
         kind=kind,
         ip=ip,
         metric=to_int(best.get("metric")),
+        skipped=skipped,
     )
 
 
@@ -799,6 +819,8 @@ class FailoverInterface:
     seconds_online: int | None
     seconds_offline: int | None
     lost: int | None
+    # The interface name from the failover configuration (``wifi4``).
+    name: str = ""
 
 
 # The router names the kind of each failover interface in its configuration.
@@ -879,6 +901,7 @@ def derive_failover(
                 seconds_online=to_int(item.get("online")),
                 seconds_offline=to_int(item.get("offline")),
                 lost=to_int(item.get("lost")),
+                name=name,
             )
         )
     return sorted(interfaces, key=lambda interface: interface.interface_id)
@@ -1074,6 +1097,11 @@ class TeltonikaData:
     access_points: list[AccessPoint] = field(default_factory=list)
     gps: GpsPosition | None = None
     gps_available: bool = False
+    # Satellites in use as the router reports them, also without a position.
+    gps_satellites: int | None = None
+    # The last position that came with a fix, and when; kept by the coordinator.
+    gps_last_known: GpsPosition | None = None
+    gps_last_fix: datetime | None = None
     multi_ap: list[dict[str, Any]] = field(default_factory=list)
     saved_networks: list[SavedNetwork] = field(default_factory=list)
     router_time: datetime | None = None
@@ -1116,7 +1144,12 @@ class TeltonikaData:
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
-        uplink = derive_uplink(interfaces, networks)
+        failover_rows = derive_failover(failover, failover_config, networks)
+        offline = {row.name or row.interface_id for row in failover_rows if row.online is False}
+        # The Wi-Fi client is matched to the interface the router would like to
+        # use, the uplink to the one that works.
+        configured_uplink = derive_uplink(interfaces, networks)
+        uplink = derive_uplink(interfaces, networks, offline)
         multi_ap = multi_ap or []
         system_usage = derive_system_usage(usage)
         return cls(
@@ -1131,7 +1164,7 @@ class TeltonikaData:
                 wireless_status,
                 wireless_config,
                 wireless_devices,
-                uplink.name if uplink else None,
+                configured_uplink.name if configured_uplink else None,
             ),
             wifi_first=derive_wifi_first(interfaces, interface_config, networks),
             stations=derive_stations(wireless_config, interfaces),
@@ -1140,6 +1173,7 @@ class TeltonikaData:
             ),
             gps=derive_gps(gps),
             gps_available=bool(gps),
+            gps_satellites=to_int(gps.get("satellites")) if isinstance(gps, dict) else None,
             multi_ap=multi_ap,
             saved_networks=derive_saved_networks(
                 wireless_config, multi_ap, wireless_devices
@@ -1151,11 +1185,25 @@ class TeltonikaData:
             dhcp_leases=dhcp_leases,
             vpn_tunnels=derive_vpn_tunnels(interfaces, wireguard_config or []),
             sim_cards=derive_sim_cards(sim_cards),
-            failover=derive_failover(failover, failover_config, networks),
+            failover=failover_rows,
             data_limits=derive_data_limits(data_limits, interface_config, data_plan_bytes),
             port_forwards=derive_port_forwards(port_forwards),
             traffic_rules=derive_traffic_rules(traffic_rules),
         )
+
+    @property
+    def gps_fix(self) -> bool | None:
+        """Return whether the receiver has a fix now, None without GPS."""
+        if not self.gps_available:
+            return None
+        return self.gps is not None and self.gps_satellites != 0
+
+    @property
+    def gps_position(self) -> GpsPosition | None:
+        """Return the position to show: the live one, else the last known one."""
+        if self.gps_fix:
+            return self.gps
+        return self.gps_last_known or self.gps
 
     @property
     def portal_state(self) -> str:

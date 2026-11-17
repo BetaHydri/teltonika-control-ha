@@ -379,4 +379,6 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
     if wifi_metric is not None:
         data["interfaces"][2]["metric"] = wifi_metric
         data["config"][1]["metric"] = str(wifi_metric)
+        # A Wi-Fi that is meant to carry the traffic is online for the failover.
+        data["failover"]["wan2"]["status"] = "online"
     return data

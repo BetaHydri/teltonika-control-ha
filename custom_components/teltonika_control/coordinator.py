@@ -8,7 +8,7 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -17,7 +17,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import (
     TeltonikaApiError,
@@ -60,6 +62,7 @@ from .const import (
 from .debug import shape_text
 from .models import (
     SAVED_MULTI_AP,
+    GpsPosition,
     RouterInfo,
     ScanNetwork,
     TeltonikaData,
@@ -168,6 +171,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         # Last GPS reading with satellites, and how many empty ones came since.
         self._last_fix: dict[str, Any] | None = None
         self._gps_misses = 0
+        # The last position that came with a fix survives a restart, so that a
+        # parked router without sky view still has a place.
+        self._known_store: Store[dict[str, Any]] = Store(
+            hass, 1, f"{DOMAIN}.{entry.entry_id}.gps"
+        )
+        self._known_position: GpsPosition | None = None
+        self._known_at: datetime | None = None
         self._config_interval: float = entry.options.get(
             CONF_CONFIG_INTERVAL, DEFAULT_CONFIG_INTERVAL
         )
@@ -190,6 +200,56 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             sw_version=self.router.firmware,
             configuration_url=f"https://{self.router.host}",
         )
+
+    async def _async_setup(self) -> None:
+        """Load the last known GPS position."""
+        stored = await self._known_store.async_load()
+        if not isinstance(stored, dict):
+            return
+        try:
+            self._known_position = GpsPosition(
+                latitude=float(stored["latitude"]),
+                longitude=float(stored["longitude"]),
+                altitude=stored.get("altitude"),
+                speed=None,
+                accuracy=stored.get("accuracy"),
+                satellites=stored.get("satellites"),
+                heading=None,
+                fix_status=None,
+            )
+            self._known_at = dt_util.parse_datetime(str(stored.get("at")))
+        except (KeyError, TypeError, ValueError):
+            self._known_position = None
+            self._known_at = None
+
+    def _remember_position(self, data: TeltonikaData) -> None:
+        """Keep the last position with a fix, and hand it to the snapshot."""
+        position = data.gps
+        if data.gps_fix and position is not None:
+            moved = (
+                self._known_position is None
+                or abs(position.latitude - self._known_position.latitude) > 0.0001
+                or abs(position.longitude - self._known_position.longitude) > 0.0001
+            )
+            self._known_position = position
+            self._known_at = dt_util.utcnow()
+            if moved:
+                self._known_store.async_delay_save(self._known_snapshot, 120)
+        data.gps_last_known = self._known_position
+        data.gps_last_fix = self._known_at
+
+    def _known_snapshot(self) -> dict[str, Any]:
+        position = self._known_position
+        if position is None:
+            return {}
+        return {
+            "latitude": position.latitude,
+            "longitude": position.longitude,
+            "altitude": position.altitude,
+            "accuracy": position.accuracy,
+            "satellites": position.satellites,
+            "at": self._known_at.isoformat() if self._known_at else None,
+        }
 
     async def _async_update_data(self) -> TeltonikaData:
         client = self.client
@@ -260,6 +320,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data_plan_bytes=self._data_plan_bytes,
         )
         data.portal_waiting = self.portal_waiting
+        self._remember_position(data)
         probe_internet = bool(self._probe_url) and data.uplink is not None
         internet, vpn = await asyncio.gather(
             self._async_probe_internet() if probe_internet else _nothing(),

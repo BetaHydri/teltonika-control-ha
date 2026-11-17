@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.device_tracker import SourceType, TrackerEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -42,18 +44,27 @@ class TeltonikaGpsTracker(TeltonikaEntity, TrackerEntity):
 
     @property
     def latitude(self) -> float | None:
-        """Return the latitude, None without a fix."""
-        gps = self.coordinator.data.gps
-        return gps.latitude if gps else None
+        """Return the latitude: live, else the last known one."""
+        position = self.coordinator.data.gps_position
+        return position.latitude if position else None
 
     @property
     def longitude(self) -> float | None:
-        """Return the longitude, None without a fix."""
-        gps = self.coordinator.data.gps
-        return gps.longitude if gps else None
+        """Return the longitude: live, else the last known one."""
+        position = self.coordinator.data.gps_position
+        return position.longitude if position else None
 
     @property
     def location_accuracy(self) -> float:
         """Return the accuracy in meters."""
-        gps = self.coordinator.data.gps
-        return gps.accuracy if gps and gps.accuracy is not None else 0
+        position = self.coordinator.data.gps_position
+        return position.accuracy if position and position.accuracy is not None else 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Say whether the position is live or the last one with a fix."""
+        data = self.coordinator.data
+        attributes: dict[str, Any] = {"fix": bool(data.gps_fix)}
+        if data.gps_last_fix is not None:
+            attributes["last_fix"] = data.gps_last_fix.isoformat()
+        return attributes
