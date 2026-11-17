@@ -21,6 +21,27 @@ This is an independent community project. It is not affiliated with or
 endorsed by Teltonika Networks. Teltonika, RUT and RutOS are names of their
 respective owners and are used here only to say which routers are supported.
 
+## Relationship to the Home Assistant Teltonika integration
+
+Home Assistant ships its own
+[Teltonika integration](https://www.home-assistant.io/integrations/teltonika/)
+(domain `teltonika`, library `teltasync`). It reads the cellular modem sensors
+(signal values, modem temperature, operator, connection type) and has no
+controls. Teltonika Control uses the same local RutOS REST API, but adds
+control and the camper features on top: uplink priority, hotspot login
+handling, Wi-Fi management, WireGuard, roaming and SIM control, GPS, router
+health, and a ready-made dashboard.
+
+- Both can be installed side by side. They use different domains, so entities
+  and devices do not collide. Each one polls the router on its own; on a weak
+  router, use only one of them or raise the intervals in the
+  [options](#options).
+- If you only need the modem signal sensors, the core integration is enough.
+- Teltonika Control is a custom repository and is not part of the HACS default
+  store, because the core integration covers the same devices through the
+  same API. Installation and updates work as described in
+  [Installation](#installation).
+
 ## Features
 
 ### Major features
