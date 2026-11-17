@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.teltonika_control.const import (
     CONF_CONFIG_INTERVAL,
+    CONF_DATA_PLAN,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
     CONF_VPN_HOST,
@@ -127,4 +128,5 @@ async def test_options_flow_disables_probe(
         CONF_PROBE_URL: "",
         CONF_VPN_HOST: "",
         CONF_VPN_PORT: DEFAULT_VPN_PORT,
+        CONF_DATA_PLAN: 0,
     }

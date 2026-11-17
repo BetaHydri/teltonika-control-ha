@@ -52,9 +52,11 @@
           "config_interval": "Configuration interval (seconds)",
           "probe_url": "Internet check URL",
           "vpn_host": "VPN check host",
-          "vpn_port": "VPN check port"
+          "vpn_port": "VPN check port",
+          "data_plan_gb": "Mobile data plan (GB)"
         },
         "data_description": {
+          "data_plan_gb": "The data volume of your mobile contract per month in gigabytes (1 GB = 1000 MB). With a plan, the percentage and the \"limit reached\" sensor of the data limit refer to the plan, not to the limit set on the router. The router still needs an enabled data limit, because it keeps the count, but you can set that limit high so that the router never switches the mobile data off. Leave empty to use the router's limit.",
           "scan_interval": "How often the status of the router is polled (signal, uplink, modem, GPS, load).",
           "config_interval": "How often pages that rarely change are read again (Wi-Fi and WireGuard configuration, 30 to 3600 seconds, default 300). Actions of this integration read them again at once. A higher value keeps the load on the router low.",
           "probe_url": "Must answer HTTP 204 when the internet works. Used to detect a hotspot login page. Leave empty to turn the check off.",

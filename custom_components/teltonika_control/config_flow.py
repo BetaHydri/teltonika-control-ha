@@ -31,6 +31,7 @@ from .api import (
 )
 from .const import (
     CONF_CONFIG_INTERVAL,
+    CONF_DATA_PLAN,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
     CONF_VPN_HOST,

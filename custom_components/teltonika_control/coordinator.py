@@ -29,6 +29,7 @@ from .api import (
 from .const import (
     AP_REFRESH_DELAY,
     CONF_CONFIG_INTERVAL,
+    CONF_DATA_PLAN,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
     CONF_VPN_HOST,
@@ -150,6 +151,11 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self._probe_url: str = entry.options.get(CONF_PROBE_URL, DEFAULT_PROBE_URL)
         self.vpn_host: str = entry.options.get(CONF_VPN_HOST, "")
         self._vpn_port: int = entry.options.get(CONF_VPN_PORT, DEFAULT_VPN_PORT)
+        # The data plan in gigabytes (1 GB = 10^9 bytes, as providers count);
+        # 0 or missing means no plan.
+        self._data_plan_bytes: float = (
+            float(entry.options.get(CONF_DATA_PLAN) or 0) * 1_000_000_000
+        )
         # Last good answer of every page, when it was read, and until when a
         # page that did not answer (or does not exist) is left alone.
         self._last_good: dict[str, Any] = {}
@@ -251,6 +257,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data_limits=data_limits,
             port_forwards=port_forwards,
             traffic_rules=traffic_rules,
+            data_plan_bytes=self._data_plan_bytes,
         )
         data.portal_waiting = self.portal_waiting
         probe_internet = bool(self._probe_url) and data.uplink is not None

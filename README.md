@@ -409,6 +409,22 @@ connection down instead. On a router that you reach through its mobile data,
 for example in a camper, set the limit above your plan or use the rate limit,
 or you cut yourself off.
 
+**Mobile data plan.** Many providers do not cut the connection when the monthly
+volume is used up but slow it down. Then the router's cut-off is worse than what
+the provider does, and the limit on the router is only useful as a counter. Set
+**Mobile data plan (GB)** in the options of the integration to the volume of
+your contract (a contract of 60000 MB is 60 GB). The percentage, the **Data
+limit** sensor, the sensor **Data limit reached** and the dashboard pills then
+refer to your plan instead of the router's limit. The router still needs an
+enabled data limit, because it keeps the count: set it high, for example
+100000 MB, so that it never switches the mobile data off, and set its SMS
+warning to the volume where you want to be warned. Leave the option empty to
+use the router's limit. The plan counts with 1 GB = 1000 MB as providers do,
+the router's limit with 1 MB = 1,048,576 bytes, so the two differ by about 5
+percent when you enter the same number. The option applies to every mobile
+interface that has a limit on the router; with two SIMs on different plans,
+leave it empty.
+
 ### Failover
 
 The router checks its uplinks with its failover function (Network, Failover)
@@ -797,6 +813,8 @@ automation:
   Leave empty to turn the check off.
 - **VPN check host** and **VPN check port**: optional, see
   [VPN check](#vpn-check).
+- **Mobile data plan (GB)**: optional, the volume of your mobile contract per
+  month. See [Mobile data limit](#mobile-data-limit).
 
 The integration reads the pages one after the other and keeps the load on the
 router low, because a RUTC50 has a weak CPU. If the router still feels slow,

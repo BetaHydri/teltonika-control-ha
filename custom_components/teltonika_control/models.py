@@ -910,11 +910,16 @@ class DataLimit:
 
 
 def derive_data_limits(
-    raw: Iterable[dict[str, Any]] | None, interface_config: Iterable[dict[str, Any]]
+    raw: Iterable[dict[str, Any]] | None,
+    interface_config: Iterable[dict[str, Any]],
+    plan_bytes: float | None = None,
 ) -> list[DataLimit]:
     """Read ``/data_limit/status``; only interfaces with an enabled limit count.
 
-    The router names the SIM slot of an interface in ``interfaces/config``.
+    The router names the SIM slot of an interface in ``interfaces/config``. With
+    a data plan the limit is the plan, not the router's own limit: the router
+    only keeps the count, and what the provider does when the plan is used up
+    (usually slowing the connection down) is not the router's business.
     """
     slots = {
         str(item["id"]): to_int(item.get("sim"))
@@ -924,8 +929,8 @@ def derive_data_limits(
     limits: list[DataLimit] = []
     for item in raw or []:
         interface_id = str(item.get("interface") or item.get("id") or "")
-        limit = to_float(item.get("data_limit"))
-        if not interface_id or not _flag(item.get("enabled"), False) or not limit:
+        router_limit = to_float(item.get("data_limit"))
+        if not interface_id or not _flag(item.get("enabled"), False) or not router_limit:
             continue
         slot = slots.get(interface_id)
         reset = to_float(item.get("due_reset_time"))
@@ -934,7 +939,7 @@ def derive_data_limits(
                 interface_id=interface_id,
                 label=f"SIM {slot}" if slot else interface_id,
                 used=to_float(item.get("data_used")),
-                limit=limit,
+                limit=plan_bytes if plan_bytes and plan_bytes > 0 else router_limit,
                 resets_at=datetime.fromtimestamp(reset, UTC) if reset else None,
             )
         )
@@ -1107,6 +1112,7 @@ class TeltonikaData:
         data_limits: list[dict[str, Any]] | None = None,
         port_forwards: list[dict[str, Any]] | None = None,
         traffic_rules: list[dict[str, Any]] | None = None,
+        data_plan_bytes: float | None = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
@@ -1146,7 +1152,7 @@ class TeltonikaData:
             vpn_tunnels=derive_vpn_tunnels(interfaces, wireguard_config or []),
             sim_cards=derive_sim_cards(sim_cards),
             failover=derive_failover(failover, failover_config, networks),
-            data_limits=derive_data_limits(data_limits, interface_config),
+            data_limits=derive_data_limits(data_limits, interface_config, data_plan_bytes),
             port_forwards=derive_port_forwards(port_forwards),
             traffic_rules=derive_traffic_rules(traffic_rules),
         )
