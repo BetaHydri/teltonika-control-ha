@@ -1,0 +1,191 @@
+# Teltonika Control firewall dashboard
+#
+# A separate dashboard for the port forwards and traffic rules of the router,
+# so that the main dashboard stays small. Open it from the "Firewall" pill of the
+# main dashboard or from the sidebar. See docs/firewall-dashboard.md.
+#
+# Prerequisites for THIS dashboard only, not for the integration. Install these
+# through HACS (Frontend): "Mushroom" for the rule cards and the badges, and
+# "auto-entities", which lists the rules of your router by itself, so you do not
+# have to write one card per rule.
+#
+# Replace the placeholder once, see docs/firewall-dashboard.md:
+#   my_router  ->  entity ID prefix of the router device
+#
+# Every switch asks for confirmation. A rule that is on lets the internet reach
+# the router or your network. Switching off the rule that carries your own
+# remote access locks you out, so look at the name first.
+title: Teltonika Firewall
+views:
+  - title: Firewall
+    path: teltonika-firewall
+    icon: mdi:shield-lock
+    type: sections
+    max_columns: 2
+    dense_section_placement: true
+    badges:
+      - type: custom:mushroom-template-badge
+        entity: sensor.my_router_open_port_forwards
+        icon: mdi:arrow-decision
+        label: Port forwards on
+        color: >-
+          {% if states('sensor.my_router_open_port_forwards') | int(0) > 0 %}orange{% else %}green{% endif %}
+        content: "{{ states('sensor.my_router_open_port_forwards') }}"
+      - type: custom:mushroom-template-badge
+        entity: sensor.my_router_firewall_rules_open_to_the_internet
+        icon: mdi:shield-alert
+        label: Rules open to the internet
+        color: >-
+          {% if states('sensor.my_router_firewall_rules_open_to_the_internet') | int(0) > 0 %}orange{% else %}green{% endif %}
+        content: "{{ states('sensor.my_router_firewall_rules_open_to_the_internet') }}"
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Port forwards
+            heading_style: title
+            icon: mdi:arrow-decision
+          # One card per port forward of the router. Orange while a forward is
+          # on, grey while it is off. Tap to switch, with confirmation.
+          - type: custom:auto-entities
+            show_empty: false
+            card:
+              type: grid
+              columns: 1
+              square: false
+            card_param: cards
+            sort:
+              method: friendly_name
+            filter:
+              include:
+                - domain: switch
+                  integration: teltonika_control
+                  attributes:
+                    kind: port_forward
+                  options:
+                    type: custom:mushroom-template-card
+                    primary: "{{ state_attr(entity, 'friendly_name') }}"
+                    secondary: >-
+                      {{ 'Open' if is_state(entity, 'on') else 'Closed' }}
+                      · {{ state_attr(entity, 'protocol') }}
+                      · port {{ state_attr(entity, 'external_port') }}
+                      → {{ state_attr(entity, 'internal_port') or 'same port' }}
+                    icon: >-
+                      {{ 'mdi:lock-open-alert' if is_state(entity, 'on') else 'mdi:lock' }}
+                    icon_color: >-
+                      {{ 'orange' if is_state(entity, 'on') else 'grey' }}
+                    multiline_secondary: true
+                    tap_action:
+                      action: toggle
+                      confirmation:
+                        text: >-
+                          Change this port forward? While it is on, traffic from
+                          the internet can reach a device in your network.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Access to the router from the internet
+            heading_style: title
+            icon: mdi:router-network
+          # Traffic rules that let the internet reach the router itself, such as
+          # SSH, the web interface or Modbus. The router ships them switched
+          # off. Your own rules, for example for remote access, show up here too.
+          - type: custom:auto-entities
+            show_empty: false
+            card:
+              type: grid
+              columns: 1
+              square: false
+            card_param: cards
+            sort:
+              method: friendly_name
+            filter:
+              include:
+                - domain: switch
+                  integration: teltonika_control
+                  attributes:
+                    kind: traffic_rule
+                    group: access
+                  options:
+                    type: custom:mushroom-template-card
+                    primary: "{{ state_attr(entity, 'friendly_name') }}"
+                    secondary: >-
+                      {{ 'On' if is_state(entity, 'on') else 'Off' }}
+                      · from {{ state_attr(entity, 'source_zone') }}
+                      · {{ state_attr(entity, 'protocol') or 'all protocols' }}
+                      {% if state_attr(entity, 'ports') %}port {{ state_attr(entity, 'ports') }}{% endif %}
+                    icon: >-
+                      {{ 'mdi:lock-open-alert' if is_state(entity, 'on') else 'mdi:lock' }}
+                    icon_color: >-
+                      {{ 'orange' if is_state(entity, 'on') else 'grey' }}
+                    multiline_secondary: true
+                    tap_action:
+                      action: toggle
+                      confirmation:
+                        text: >-
+                          Change this firewall rule? A rule that is on lets the
+                          internet reach the router. If it carries your own
+                          remote access, switching it off locks you out.
+      - type: grid
+        cards:
+          - type: heading
+            heading: Forwarding to your network
+            heading_style: title
+            icon: mdi:lan-connect
+          # Traffic rules that let the internet reach devices behind the router.
+          # They usually belong to a port forward and are switched together
+          # with it.
+          - type: custom:auto-entities
+            show_empty: false
+            card:
+              type: grid
+              columns: 1
+              square: false
+            card_param: cards
+            sort:
+              method: friendly_name
+            filter:
+              include:
+                - domain: switch
+                  integration: teltonika_control
+                  attributes:
+                    kind: traffic_rule
+                    group: forward
+                  options:
+                    type: custom:mushroom-template-card
+                    primary: "{{ state_attr(entity, 'friendly_name') }}"
+                    secondary: >-
+                      {{ 'On' if is_state(entity, 'on') else 'Off' }}
+                      · {{ state_attr(entity, 'source_zone') }}
+                      → {{ state_attr(entity, 'destination_zone') }}
+                      · {{ state_attr(entity, 'protocol') or 'all protocols' }}
+                      {% if state_attr(entity, 'ports') %}port {{ state_attr(entity, 'ports') }}{% endif %}
+                    icon: >-
+                      {{ 'mdi:swap-horizontal-bold' if is_state(entity, 'on') else 'mdi:block-helper' }}
+                    icon_color: >-
+                      {{ 'orange' if is_state(entity, 'on') else 'grey' }}
+                    multiline_secondary: true
+                    tap_action:
+                      action: toggle
+                      confirmation:
+                        text: >-
+                          Change this firewall rule? A rule that is on lets
+                          traffic from the internet reach devices in your
+                          network.
+      - type: grid
+        cards:
+          - type: heading
+            heading: What is on right now
+            heading_style: title
+            icon: mdi:shield-search
+          # The two counters with the names of the rules that are on, for a
+          # quick look and as the base for automations.
+          - type: markdown
+            content: >-
+              **Port forwards that are on:**
+              {% set rules = state_attr('sensor.my_router_open_port_forwards', 'rules') %}
+              {{ rules | join(', ') if rules else 'none' }}
+
+              **Firewall rules open to the internet:**
+              {% set rules = state_attr('sensor.my_router_firewall_rules_open_to_the_internet', 'rules') %}
+              {{ rules | join(', ') if rules else 'none' }}

@@ -346,6 +346,18 @@ class TeltonikaClient:
         """Return the port forwarding rules."""
         return await self._async_list("/firewall/port_forwards/config")
 
+    async def async_traffic_rules_config(self) -> list[dict[str, Any]]:
+        """Return the traffic rules of the firewall."""
+        return await self._async_list("/firewall/traffic_rules/config")
+
+    async def async_set_traffic_rule_enabled(self, rule_id: str, enabled: bool) -> None:
+        """Turn one traffic rule on or off; only this field is sent."""
+        await self.async_request(
+            "PUT",
+            f"/firewall/traffic_rules/config/{quote(rule_id, safe='')}",
+            json={"data": {"enabled": "1" if enabled else "0"}},
+        )
+
     async def async_set_port_forward_enabled(
         self, rule_id: str, enabled: bool
     ) -> None:

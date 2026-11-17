@@ -77,15 +77,17 @@ health, and a ready-made dashboard.
   [WireGuard tunnels](#wireguard-tunnels).
 - **Router health**: uptime, CPU load, memory usage and the number of DHCP
   clients (connected devices).
-- **Failover state, data limit and port forwards**: the router's failover
-  state per uplink, the usage of the router's mobile data limit with a
-  "limit reached" sensor, and a switch for each port forwarding rule. See
-  [Mobile data limit](#mobile-data-limit), [Failover](#failover) and
-  [Port forwards](#port-forwards).
+- **Firewall control**: a switch for every port forward and traffic rule of
+  the router, counters of what is open to the internet, and a separate
+  [firewall dashboard](docs/firewall-dashboard.md). See [Firewall](#firewall).
+- **Failover state and data limit**: the router's failover state per uplink and
+  the usage of the router's mobile data limit with a "limit reached" sensor.
+  See [Mobile data limit](#mobile-data-limit) and [Failover](#failover).
 - **Ready-made dashboard**: a complete dashboard with coloured pills, two
   columns and badges. It needs the Bubble Card and Mushroom frontend cards,
   for this dashboard only. See
-  [docs/dashboard.md](docs/dashboard.md).
+  [docs/dashboard.md](docs/dashboard.md). The port forwards and traffic rules
+  have a [separate firewall dashboard](docs/firewall-dashboard.md).
 
 ### Other features
 
@@ -207,6 +209,7 @@ to:
 | Failover state | Network, Failover | Read |
 | Data limit usage | Network, Mobile, Data limit | Read |
 | Port forward switches | Network, Firewall, Port forwards | Read and write |
+| Traffic rule switches | Network, Firewall, Traffic rules | Read and write |
 | Reboot router | System, Administration, General | Write |
 
 Teltonika's API description does not list the exact permission entry for each
@@ -215,8 +218,8 @@ description does. If an action is refused, Home Assistant shows the router's
 error message; grant read or write on that page to the group and try again.
 
 Read-only extras are optional. If the user may not read the system usage, the
-DHCP leases, the WireGuard configuration, the failover state, the data limits
-or the port forwards, the router answers with an error
+DHCP leases, the WireGuard configuration, the failover state, the data limits,
+the port forwards or the traffic rules, the router answers with an error
 and the integration simply does not create those entities. Nothing else is
 affected. A tunnel whose configuration cannot be read is shown (interface
 state and counters) but gets no switch and no reconnect button.
@@ -233,10 +236,12 @@ Knowing this helps you decide how much to allow:
 - Saved Wi-Fi client networks (`join_wifi` and `forget_wifi`).
 - Restart of the mobile connection, SIM slot switch and router reboot.
 - The data roaming flag of each SIM ("Deny data roaming", only this field).
-- The on/off flag of port forwarding rules (only this field; a rule that is
-  on lets traffic from the internet reach a device in your network).
+- The on/off flag of port forwarding rules and of traffic rules (only this
+  field; a rule that is on lets traffic from the internet reach the router or a
+  device in your network).
 
-It never changes passwords, users, other firewall settings or firmware.
+It never creates, edits or deletes a firewall rule, and never changes
+passwords, users, other firewall settings or firmware.
 
 #### Security Notes
 
@@ -316,7 +321,10 @@ automatically.
 | Failover *interface* | sensor | The router's failover state of an uplink: `online`, `offline`, `standby`, `starting` or `notracking`. Attributes: health `score`, `seconds_since_change`, `seconds_online`, `seconds_offline`, `tracking_lost`. One per interface in the failover configuration |
 | Failover *interface* online | binary sensor | On while the failover check says the uplink is online |
 | Failover mobile, Wi-Fi, Ethernet online | binary sensors | On while any interface of that kind is online. Same name on every router, one per kind that exists in the failover configuration |
-| Port forward *name* | switch | Turns a port forwarding rule on or off. Attributes: `protocol`, `external_port`, `internal_port`. See [Port forwards](#port-forwards) |
+| Port forward *name* | switch | Turns a port forwarding rule on or off. Attributes: `kind`, `protocol`, `external_port`, `internal_port`. See [Firewall](#firewall) |
+| Firewall rule *name* | switch | Turns a traffic rule on or off. Attributes: `kind`, `group`, `source_zone`, `destination_zone`, `protocol`, `ports`, `action`. The router's own rules (`Allow-...`) are created disabled. See [Firewall](#firewall) |
+| Open port forwards | sensor | Number of port forwards that are on; the attribute `rules` lists them |
+| Firewall rules open to the internet | sensor | Number of traffic rules that are on and let outside traffic in; the attribute `rules` lists them |
 | Position | device tracker | Only on routers with GPS, see [GPS](#gps) |
 | GPS speed, altitude, satellites, accuracy | sensors | Only on routers with GPS. Heading and fix status are disabled by default |
 
@@ -394,16 +402,48 @@ online** is the router's check result, not proof that the Wi-Fi has no
 internet. Use **Wi-Fi connected**, the uplink sensors and **Internet** for the
 actual Wi-Fi state.
 
-### Port forwards
+### Firewall
 
-Each port forwarding rule of the router (Network, Firewall, Port forwards)
-becomes a switch **Port forward *name*** (the rule name, or its ID when it has
-none). Use it to open a rule only when you need it, for example for remote
-access while you are on site. Only the on/off flag of the rule is written, the
-integration reads it back and reports an error if the router did not apply it.
-A rule that is on lets traffic from the internet reach a device in your
-network, so keep rules off that you do not need and do not put these switches
-on a dashboard that guests can use.
+The router's firewall has port forwards and traffic rules. The integration
+turns every rule into a switch, so you can open a port only while you need it,
+from the dashboard, a script or an automation. It writes only the on/off flag
+of a rule, reads it back, and shows an error if the router did not apply it. It
+never creates, edits or deletes a rule.
+
+**Port forwards** (Network, Firewall, Port forwards) become the switches
+**Port forward *name*** (the rule name, or its ID when it has none), with
+protocol and ports as attributes.
+
+**Traffic rules** (Network, Firewall, Traffic rules) become the switches
+**Firewall rule *name***. The integration sorts them with the attribute
+`group`:
+
+| `group` | Rule | Created |
+|---|---|---|
+| `access` | Lets the internet reach the router itself, such as `Enable_SSH_WAN`, `Enable_HTTP_WAN`, `Enable_HTTPS_WAN`, `Enable_CLI_WAN`, `Enable_MODBUSD_WAN` and rules you made yourself | Enabled |
+| `forward` | Lets the internet reach devices behind the router | Enabled |
+| `system` | The router's own rules, named `Allow-...` (DHCP, ping, WireGuard, IPsec) | **Disabled** |
+| `other` | Rules that block traffic, or only apply inside your network | Enabled |
+
+The router's own rules are created disabled, because switching one off by
+accident can cut a connection. Enable the ones you want under **Settings,
+Devices & services, Teltonika Control, Entities**.
+
+Two counters, **Open port forwards** and **Firewall rules open to the
+internet**, tell you how much is open and list the names in the attribute
+`rules`. Use them for a warning when something stays open, see the
+[automation example](docs/firewall-dashboard.md#automation-warn-when-a-port-stays-open).
+
+A rule that is on lets traffic from the internet reach the router or a device in
+your network. Keep rules off that you do not need and do not put these
+switches on a dashboard that guests can use. **The rule that carries your own
+remote access is in the list too. Switching it off locks you out until you can
+reach the router another way.**
+
+A dedicated [firewall dashboard](docs/firewall-dashboard.md) shows the rules of
+your router by themselves, separately from the main dashboard, which only has a
+**Firewall** pill that links to it. See
+[docs/firewall-dashboard.md](docs/firewall-dashboard.md).
 
 A rule from the `wan` zone applies to every interface in that zone: on a
 RUTC50 these are the mobile interfaces and the Wi-Fi client networks, but not

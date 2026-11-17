@@ -26,7 +26,7 @@ Prerequisites for the integration:
   With an older version, delete the **Restart WireGuard tunnel** pill and the
   **Router health** block from the file. Version 0.6.0 or newer is
   recommended, because it polls the router much more gently. The failover,
-  data limit and port forward pills need version 0.10.1 or newer; without
+  data limit and firewall pills need version 0.11.0 or newer; without
   it, delete them.
 - Home Assistant 2024.8 or newer for the `perform-action` button setting.
 
@@ -86,11 +86,11 @@ Use find and replace in a text editor on a copy of the file:
    router's own Wi-Fi, as it appears in your list.
 4. Replace `homebase` in the two WireGuard entities with the name of your
    WireGuard instance, or delete that pill if you have none.
-5. Replace `my_rule` in the port forward entity with the name of your rule,
-   and `sim_1` in the data limit entities with your SIM slot. Delete the
+5. Replace `sim_1` in the data limit entities with your SIM slot. Delete the
    blocks you do not need. They hide themselves while their entities do not
    exist. The failover pill needs no change, it uses the entity that exists
-   once per kind on every router.
+   once per kind on every router. The **Firewall** pill links to the
+   [firewall dashboard](firewall-dashboard.md) and needs only the router prefix.
 
 If Home Assistant runs in another language than English, the ending of each
 entity ID is in that language too (for example `uplink_ip_adresse` in
@@ -131,7 +131,7 @@ differ. These are the entities the dashboard uses:
 | Mobile data connected | `binary_sensor.my_modem_mobile_data_connected` |
 | Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
 | Failover mobile online (optional) | `binary_sensor.my_router_failover_mobile_online` |
-| Port forward (optional, one per rule) | `switch.my_router_port_forward_my_rule` |
+| Open port forwards, firewall rules open to the internet (optional) | `sensor.my_router_open_port_forwards`, `sensor.my_router_firewall_rules_open_to_the_internet` |
 | Restart mobile connection | `button.my_modem_restart_mobile_connection` |
 | SIM slot | `select.my_modem_sim_slot` |
 | Scan for Wi-Fi networks | `button.my_router_scan_for_wi_fi_networks` |
@@ -184,9 +184,11 @@ list. Fix that entity and save again.
   reboot the router. With a WireGuard instance on the router, a **Restart
   WireGuard tunnel** pill appears while the instance is switched on (replace
   `homebase` in its two entity IDs with the name of your instance, or delete
-  the pill). A **Port forward** pill (version 0.10.0 or newer) opens or closes
-  one rule: orange while it is open, grey while it is closed, and opening asks
-  for confirmation. Below the reboot pill, **Router health** shows uptime, DHCP
+  the pill). A **Firewall** pill (version 0.11.0 or newer) opens the separate
+  [firewall dashboard](firewall-dashboard.md) with the port forwards and
+  traffic rules. It is green while nothing is open to the internet and orange
+  while a port forward or a rule is on, and it only appears while the router
+  has such rules. Below the reboot pill, **Router health** shows uptime, DHCP
   clients, CPU load and memory usage. The hotspot button changes with the
   state: it starts
   `teltonika_control.portal_mode`, shows that it waits, and reports when
@@ -240,4 +242,5 @@ The dashboard itself needs no helpers, scripts or YAML packages.
 ## See also
 
 - [Getting started guide](getting-started.md)
+- [Firewall dashboard](firewall-dashboard.md)
 - [README](../README.md)
