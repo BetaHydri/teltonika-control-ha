@@ -9,6 +9,7 @@ CONF_CONFIG_INTERVAL = "config_interval"
 CONF_PROBE_URL = "probe_url"
 CONF_VPN_HOST = "vpn_host"
 CONF_VPN_PORT = "vpn_port"
+CONF_DATA_PLAN = "data_plan_gb"
 
 DEFAULT_USERNAME = "admin"
 DEFAULT_SCAN_INTERVAL = 30
