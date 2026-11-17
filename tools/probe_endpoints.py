@@ -7,7 +7,9 @@ Sends only GET requests (plus the login). For every endpoint it prints whether
 it exists and the structure of the answer: key names and value types. Numbers
 and booleans are shown, text values only for a short list of harmless keys, so
 keys, addresses, names and serial numbers never appear in the output. You can
-paste the result into an issue or a chat.
+paste the result into an issue or a chat. At the end it prints a table of the
+network interfaces (names, types, failover use); interface names are not
+personal data.
 
 Set the router address and login in environment variables, then run it:
 
@@ -253,6 +255,68 @@ class Probe:
         return data
 
 
+def print_interface_table(
+    interfaces: Any, failover_config: Any, wireless_config: Any = None
+) -> None:
+    """Print what each network interface is: its name, type and failover use.
+
+    Interface names and types are not personal data. Wi-Fi network names and
+    addresses are not printed.
+    """
+    print("\nInterfaces (/interfaces/status):")
+    if isinstance(interfaces, list):
+        for item in interfaces:
+            if not isinstance(item, dict):
+                continue
+            route = any(
+                isinstance(r, dict) and r.get("target") == "0.0.0.0" and r.get("mask") == 0
+                for r in item.get("route") or []
+            )
+            print(
+                "    id={id} name={name} ifname={ifname} proto={proto} type={type} "
+                "up={up} metric={metric} mwan_enabled={mwan} default_route={route}".format(
+                    id=item.get("id"),
+                    name=item.get("name"),
+                    ifname=item.get("ifname"),
+                    proto=item.get("proto"),
+                    type=item.get("type"),
+                    up=item.get("up"),
+                    metric=item.get("metric"),
+                    mwan=item.get("mwan_enabled"),
+                    route=route,
+                )
+            )
+    print("\nFailover interfaces (/failover/interfaces/config):")
+    if isinstance(failover_config, list):
+        for item in failover_config:
+            if isinstance(item, dict):
+                print(
+                    "    id={id} name={name} enabled={enabled} network_type={nt} "
+                    "family={family} track_method={method}".format(
+                        id=item.get("id"),
+                        name=item.get("name"),
+                        enabled=item.get("enabled"),
+                        nt=item.get("network_type"),
+                        family=item.get("family"),
+                        method=item.get("track_method"),
+                    )
+                )
+    print("\nWi-Fi interfaces (/wireless/interfaces/config), no names:")
+    if isinstance(wireless_config, list):
+        for item in wireless_config:
+            if isinstance(item, dict):
+                print(
+                    "    id={id} mode={mode} device={device} network={network} "
+                    "enabled={enabled}".format(
+                        id=item.get("id"),
+                        mode=item.get("mode"),
+                        device=item.get("device"),
+                        network=item.get("network"),
+                        enabled=item.get("enabled"),
+                    )
+                )
+
+
 async def main() -> int:
     try:
         host = os.environ["TELTONIKA_HOST"].strip().rstrip("/")
@@ -270,6 +334,12 @@ async def main() -> int:
         probe = Probe(session, f"{scheme}://{host}/api")
         await probe.login(user, password)
         results = {path: await probe.get(path) for path in CANDIDATES}
+        wireless = await probe.get("/wireless/interfaces/config")
+        print_interface_table(
+            results.get("/interfaces/status"),
+            results.get("/failover/interfaces/config"),
+            wireless,
+        )
 
         # Peers and details of every WireGuard instance.
         instances = results.get("/wireguard/config")
