@@ -28,6 +28,7 @@ import asyncio
 import json
 import os
 import re
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -187,6 +188,21 @@ def find_keys(value: Any, needle: str, path: str = "") -> list[tuple[str, Any]]:
     return found
 
 
+def usage_rows(data: Any) -> list[str]:
+    """Show the entries of a data usage answer: time, received and sent."""
+    rows = data.get("usage") if isinstance(data, dict) else data
+    lines: list[str] = []
+    for entry in rows[:40] if isinstance(rows, list) else []:
+        if (
+            isinstance(entry, list)
+            and len(entry) == 3
+            and all(isinstance(n, (int, float)) and not isinstance(n, bool) for n in entry)
+        ):
+            stamp = datetime.fromtimestamp(entry[0], UTC).strftime("%Y-%m-%d %H:%M")
+            lines.append(f"     {stamp} UTC  rx={entry[1]}  tx={entry[2]}")
+    return lines
+
+
 class Probe:
     def __init__(self, session: aiohttp.ClientSession, base: str) -> None:
         self._session = session
@@ -229,6 +245,9 @@ class Probe:
         if len(text) > MAX_LINE:
             text = text[:MAX_LINE] + " ...(cut)"
         print(f"OK   GET {path}\n     {text}")
+        if path.startswith("/data_usage/"):
+            for line in usage_rows(data):
+                print(line)
         for key_path, shown in find_keys(data, "roaming"):
             print(f"     >>> ROAMING {key_path} = {shown!r}")
         return data
