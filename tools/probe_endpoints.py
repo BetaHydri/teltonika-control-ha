@@ -71,6 +71,9 @@ CANDIDATES = (
     "/multiwan/status",
     "/firewall/port_forwards/config",
     "/firewall/rules/config",
+    "/firewall/traffic_rules/config",
+    "/firewall/zones/config",
+    "/firewall/nat_rules/config",
     # Others
     "/modems/status",
     "/modems/config",
@@ -317,6 +320,71 @@ def print_interface_table(
                 )
 
 
+def _joined(value: Any) -> str:
+    if isinstance(value, list):
+        return ",".join(str(item) for item in value)
+    return "-" if value in (None, "") else str(value)
+
+
+def print_firewall_table(zones: Any, rules: Any, forwards: Any) -> None:
+    """Print the firewall zones (with their networks), traffic rules and forwards.
+
+    Zone names, rule names and port numbers are router settings, not personal
+    data. IP addresses and MAC addresses are not printed.
+    """
+    print("\nFirewall zones (/firewall/zones/config):")
+    if isinstance(zones, list):
+        for item in zones:
+            if isinstance(item, dict):
+                print(
+                    "    name={name} networks={net} input={i} output={o} forward={f} "
+                    "masq={masq} extra_src={src}".format(
+                        name=item.get("name"),
+                        net=_joined(item.get("network")),
+                        i=item.get("input"),
+                        o=item.get("output"),
+                        f=item.get("forward"),
+                        masq=item.get("masq"),
+                        src=_joined(item.get("extra_src")),
+                    )
+                )
+    print("\nTraffic rules (/firewall/traffic_rules/config):")
+    if isinstance(rules, list):
+        for item in rules:
+            if isinstance(item, dict):
+                print(
+                    "    id={id} name={name} enabled={en} src={src} dest={dest} "
+                    "proto={proto} dest_port={port} target={target} family={fam}".format(
+                        id=item.get("id"),
+                        name=item.get("name"),
+                        en=item.get("enabled"),
+                        src=item.get("src"),
+                        dest=item.get("dest"),
+                        proto=_joined(item.get("proto")),
+                        port=item.get("dest_port"),
+                        target=item.get("target"),
+                        fam=item.get("family"),
+                    )
+                )
+    print("\nPort forwards (/firewall/port_forwards/config):")
+    if isinstance(forwards, list):
+        for item in forwards:
+            if isinstance(item, dict):
+                print(
+                    "    id={id} name={name} enabled={en} src={src} dest={dest} "
+                    "src_dport={sp} dest_port={dp} reflection={refl}".format(
+                        id=item.get("id"),
+                        name=item.get("name"),
+                        en=item.get("enabled"),
+                        src=item.get("src"),
+                        dest=item.get("dest"),
+                        sp=item.get("src_dport"),
+                        dp=item.get("dest_port"),
+                        refl=item.get("reflection"),
+                    )
+                )
+
+
 async def main() -> int:
     try:
         host = os.environ["TELTONIKA_HOST"].strip().rstrip("/")
@@ -339,6 +407,11 @@ async def main() -> int:
             results.get("/interfaces/status"),
             results.get("/failover/interfaces/config"),
             wireless,
+        )
+        print_firewall_table(
+            results.get("/firewall/zones/config"),
+            results.get("/firewall/traffic_rules/config"),
+            results.get("/firewall/port_forwards/config"),
         )
 
         # Peers and details of every WireGuard instance.
