@@ -405,6 +405,14 @@ A rule that is on lets traffic from the internet reach a device in your
 network, so keep rules off that you do not need and do not put these switches
 on a dashboard that guests can use.
 
+A rule that comes from the `wan` zone also catches traffic that arrives
+through other interfaces in that zone, for example a VPN tunnel, if its
+interface belongs to the `wan` zone (Network, Firewall, General settings shows
+the zones). A rule for port 80 or 443 that points to another device or port can
+then make the router's own web interface unreachable through the VPN while the
+rule is on. Switch such a rule on only while you need it, and use the
+router's LAN address or another port for the web interface in that time.
+
 ## GPS
 
 Routers with a GPS receiver report their position through the REST API. The
