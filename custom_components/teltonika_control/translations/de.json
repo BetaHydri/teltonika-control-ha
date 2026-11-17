@@ -149,6 +149,7 @@
       "failover_mobile_online": { "name": "Failover Mobilfunk online" },
       "failover_wifi_online": { "name": "Failover WLAN online" },
       "failover_ethernet_online": { "name": "Failover Ethernet online" },
+      "gps_signal": { "name": "GPS-Empfang" },
       "data_limit_reached": { "name": "Datenlimit erreicht {name}" }
     },
     "button": {

@@ -139,6 +139,15 @@ async def async_setup_entry(
         entry,
         async_add_entities,
         lambda c: (
+            (("gps_signal", lambda: TeltonikaGpsSignal(c)),)
+            if c.data.gps_available
+            else ()
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
             (
                 f"data_limit_{limit.interface_id}_reached",
                 lambda i=limit.interface_id: TeltonikaDataLimitReached(c, i),
@@ -218,6 +227,30 @@ class TeltonikaFailoverOnline(TeltonikaEntity, BinarySensorEntity):
         """Return whether the uplink is online."""
         interface = self.interface
         return interface.online if interface else None
+
+
+class TeltonikaGpsSignal(TeltonikaEntity, BinarySensorEntity):
+    """Whether the GPS receiver has a fix, so that the position is current."""
+
+    _attr_translation_key = "gps_signal"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "gps_signal")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the receiver has a fix."""
+        return self.coordinator.data.gps_fix
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the satellites in use and when the last fix was."""
+        data = self.coordinator.data
+        attributes: dict[str, Any] = {"satellites": data.gps_satellites}
+        if data.gps_last_fix is not None:
+            attributes["last_fix"] = data.gps_last_fix.isoformat()
+        return attributes
 
 
 class TeltonikaDataLimitReached(TeltonikaEntity, BinarySensorEntity):

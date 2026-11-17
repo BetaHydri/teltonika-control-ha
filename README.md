@@ -337,7 +337,7 @@ automatically.
 
 | Entity | Type | Notes |
 |---|---|---|
-| Uplink | sensor | `wifi`, `mobile`, `ethernet` or `other` |
+| Uplink | sensor | `wifi`, `mobile`, `ethernet` or `other`: the interface that carries the traffic, skipping one that the failover reports offline |
 | Uplink IP address | sensor | Diagnostic |
 | Wi-Fi network, signal, link speed, band | sensors | Router as Wi-Fi client |
 | Hotspot login | sensor | `no_wifi`, `idle`, `waiting`, `login_required`, `online` |
@@ -476,10 +476,16 @@ notification is **Failover mobile online** turning off for a few minutes.
 
 The router decides "online" by pinging its check addresses through the
 interface. A Wi-Fi network that does not answer these pings (some hotspots do
-not) shows `offline` even though it carries traffic. So **Failover Wi-Fi
-online** is the router's check result, not proof that the Wi-Fi has no
-internet. Use **Wi-Fi connected**, the uplink sensors and **Internet** for the
-actual Wi-Fi state.
+not) shows `offline` even though it is connected, and the router then sends the
+traffic over mobile data. The **Uplink** sensor follows this: it shows the
+interface that really carries the traffic, and its attribute `failover_skipped`
+names the Wi-Fi that was passed over. If every interface is offline, the
+router's priority decides. So a slow connection with a connected Wi-Fi can mean
+that you are on mobile data; check the **Uplink** sensor, and set a check
+address that the hotspot answers (for example its gateway) in Network, Failover.
+**Failover Wi-Fi online** is the router's check result, not proof that the
+Wi-Fi has no internet. Use **Wi-Fi connected** and **Internet** for the state of
+the Wi-Fi itself.
 
 ### Firewall
 
@@ -535,7 +541,12 @@ integration reads it with every update and creates, only on routers that
 answer the GPS request:
 
 - **Position**, a device tracker that shows the router on the Home Assistant
-  map, with the accuracy in meters.
+  map, with the accuracy in meters. Without a fix it keeps the last position
+  that had one (also across a restart of Home Assistant); its attributes `fix`
+  and `last_fix` tell whether the position is live and when the last fix was.
+- **GPS signal**, a binary sensor that is on while the receiver has a fix, with
+  the satellites in use and the time of the last fix as attributes. Use it for a
+  notification when the position stops being current.
 - **GPS speed** (km/h), **GPS altitude** (m), **GPS satellites** and
   **GPS accuracy**.
 - **GPS heading** and **GPS fix status**, disabled by default.
@@ -545,11 +556,13 @@ write GPS noise into the history on every update. The receiver of a RUTC50
 now and then reports a single empty reading (0 satellites, accuracy 500 m)
 between normal ones of 5 to 9 satellites. Up to three such readings in a row
 are ignored and the last good values stay, so sensors and zone automations do
-not jump; a longer loss of the fix shows up as 0 satellites. While the router
-has no fix (it reports zeros), the entities are `unknown` and the position is
-not
-trusted. The router needs a clear view of the sky and a connected GPS
-antenna, and GPS must be switched on in the router.
+not jump; a longer loss of the fix shows up as 0 satellites and **GPS signal**
+turning off. While the router has no fix it reports zeros: speed, altitude and
+accuracy are then `unknown`, **GPS satellites** shows 0, and the position stays
+at the last known one. A router that never had a fix since the integration was
+set up has no position. If the signal stays off, the receiver sees no
+satellites: it needs a clear view of the sky, a connected GPS antenna, and GPS
+must be switched on in the router.
 
 If the user of the integration may not read the GPS data, the GPS entities do
 not appear. Give it read access to the GPS page, see the
