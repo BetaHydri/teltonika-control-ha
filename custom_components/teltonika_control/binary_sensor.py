@@ -14,7 +14,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import PORTAL_LOGIN_REQUIRED, UPLINK_WIFI
+from .const import PORTAL_LOGIN_REQUIRED, UPLINK_ETHERNET, UPLINK_MOBILE, UPLINK_WIFI
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
 from .entity import (
     TeltonikaEntity,
@@ -26,6 +26,7 @@ from .models import DataLimit, FailoverInterface, TeltonikaData, modem_is_roamin
 
 PARALLEL_UPDATES = 0
 
+FAILOVER_KINDS = {UPLINK_MOBILE, UPLINK_WIFI, UPLINK_ETHERNET}
 
 @dataclass(frozen=True, kw_only=True)
 class RouterBinarySensorDescription(BinarySensorEntityDescription):
@@ -128,12 +129,61 @@ async def async_setup_entry(
         async_add_entities,
         lambda c: (
             (
+                f"failover_kind_{kind}",
+                lambda k=kind: TeltonikaFailoverKindOnline(c, k),
+            )
+            for kind in sorted({i.kind for i in c.data.failover} & FAILOVER_KINDS)
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
                 f"data_limit_{limit.interface_id}_reached",
                 lambda i=limit.interface_id: TeltonikaDataLimitReached(c, i),
             )
             for limit in c.data.data_limits
         ),
     )
+
+
+class TeltonikaFailoverKindOnline(TeltonikaEntity, BinarySensorEntity):
+    """On while any uplink of one kind (mobile, Wi-Fi, Ethernet) is online.
+
+    The entity has the same name on every router, so a dashboard or an
+    automation does not need the interface names of the router.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(self, coordinator: TeltonikaCoordinator, kind: str) -> None:
+        super().__init__(coordinator, f"failover_kind_{kind}")
+        self._kind = kind
+        self._attr_translation_key = f"failover_{kind}_online"
+
+    @property
+    def _interfaces(self) -> list[FailoverInterface]:
+        return [i for i in self.coordinator.data.failover if i.kind == self._kind]
+
+    @property
+    def available(self) -> bool:
+        """Return False if no interface of this kind is in the failover."""
+        return super().available and bool(self._interfaces)
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether any interface of this kind is online."""
+        states = [i.online for i in self._interfaces if i.online is not None]
+        return any(states) if states else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the interfaces of this kind that are online."""
+        return {
+            "online_interfaces": [i.label for i in self._interfaces if i.online],
+            "interfaces": [i.label for i in self._interfaces],
+        }
 
 
 class TeltonikaFailoverOnline(TeltonikaEntity, BinarySensorEntity):

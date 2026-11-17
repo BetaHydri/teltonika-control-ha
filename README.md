@@ -314,7 +314,8 @@ automatically.
 | WireGuard *name* received, sent | sensors | Traffic counters of the tunnel interface. Diagnostic |
 | Reboot router | button | Add a confirmation in your dashboard |
 | Failover *interface* | sensor | The router's failover state of an uplink: `online`, `offline`, `standby`, `starting` or `notracking`. Attributes: health `score`, `seconds_since_change`, `seconds_online`, `seconds_offline`, `tracking_lost`. One per interface in the failover configuration |
-| Failover *interface* online | binary sensor | On while the failover check says the uplink is online. Use it to be told when mobile data drops |
+| Failover *interface* online | binary sensor | On while the failover check says the uplink is online |
+| Failover mobile, Wi-Fi, Ethernet online | binary sensors | On while any interface of that kind is online. Same name on every router, one per kind that exists in the failover configuration |
 | Port forward *name* | switch | Turns a port forwarding rule on or off. Attributes: `protocol`, `external_port`, `internal_port`. See [Port forwards](#port-forwards) |
 | Position | device tracker | Only on routers with GPS, see [GPS](#gps) |
 | GPS speed, altitude, satellites, accuracy | sensors | Only on routers with GPS. Heading and fix status are disabled by default |
@@ -367,22 +368,31 @@ is enabled on the router or the user may not read the page.
 ### Failover
 
 The router checks its uplinks with its failover function (Network, Failover)
-and keeps a state for each one. The integration shows it for every enabled
-interface in the failover configuration: a sensor **Failover *interface*** with
-the router's own text and a binary sensor **Failover *interface* online**. An
-interface is named "Mobile (...)" or "Wi-Fi (...)" when the integration can
-tell what it is, otherwise by its router name. The state can lag behind a
-change by up to two minutes, because the page is read like the DHCP clients.
-A good trigger for a notification is the binary sensor of the mobile
-interface turning off for a few minutes.
+and keeps a state for each one. The integration shows it for every interface
+that is enabled in the failover configuration: a sensor **Failover
+*interface*** with the router's own text and a binary sensor **Failover
+*interface* online**.
 
-Only interfaces that are part of the failover configuration appear. A Wi-Fi
-client is often not one of them: on a RUTC50 with a Wi-Fi uplink, the Wi-Fi
-client interface was missing, while other listed interfaces that had no working
-connection stayed `offline`. These entities are
-correct, they just describe other interfaces. Disable the ones you do not
-need, and use **Wi-Fi connected**, the uplink sensors and **Internet** for the
-Wi-Fi state.
+What each interface is comes from the router: its failover configuration says
+`mobile`, `wireless` or `wired`, and gives the interface its name. So the
+entities are called "Mobile (mob1s1a1)" or "Wi-Fi (wifi4)" without any setting
+from you. A RUTC50 lists its Wi-Fi networks as `wan2` and `wan3` there; the
+integration reads the real names from the configuration.
+
+For automations and dashboards that should work on any router, there is one
+binary sensor per kind that is present: **Failover mobile online**, **Failover
+Wi-Fi online** and **Failover Ethernet online**. Each is on while any interface
+of that kind is online and lists them in its attributes. Use these instead of
+the per-interface entities. The state can lag behind a change by up to two
+minutes, because the page is read like the DHCP clients. A good trigger for a
+notification is **Failover mobile online** turning off for a few minutes.
+
+The router decides "online" by pinging its check addresses through the
+interface. A Wi-Fi network that does not answer these pings (some hotspots do
+not) shows `offline` even though it carries traffic. So **Failover Wi-Fi
+online** is the router's check result, not proof that the Wi-Fi has no
+internet. Use **Wi-Fi connected**, the uplink sensors and **Internet** for the
+actual Wi-Fi state.
 
 ### Port forwards
 

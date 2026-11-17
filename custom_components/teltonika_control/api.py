@@ -334,6 +334,10 @@ class TeltonikaClient:
         data = await self.async_request("GET", "/failover/status")
         return data if isinstance(data, dict) else {}
 
+    async def async_failover_config(self) -> list[dict[str, Any]]:
+        """Return the failover interfaces with their name and type."""
+        return await self._async_list("/failover/interfaces/config")
+
     async def async_data_limit_status(self) -> list[dict[str, Any]]:
         """Return the used data and the limit of each mobile interface."""
         return await self._async_list("/data_limit/status")

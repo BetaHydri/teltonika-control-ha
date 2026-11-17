@@ -8,6 +8,34 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-17
+
+### Added
+
+- **Failover by kind.** One binary sensor per kind of uplink that exists in
+  the router's failover configuration: **Failover mobile online**, **Failover
+  Wi-Fi online** and **Failover Ethernet online**. Each is on while any
+  interface of that kind is online. The entity has the same name on every
+  router, so dashboards and automations need no interface names.
+
+### Fixed
+
+- The failover entities now read what each interface is from the router's
+  failover configuration (`/failover/interfaces/config`: type `mobile`,
+  `wireless` or `wired`, and the interface name). A RUTC50 lists its Wi-Fi
+  networks there as `wan2` and `wan3`; 0.10.0 named them by these IDs and could
+  not tell that they are Wi-Fi. They are now called for example "Wi-Fi
+  (wifi4)". The entity IDs of existing entities do not change.
+- Docs: the router's failover check pings its check addresses through the
+  interface, so a Wi-Fi network that blocks these pings shows `offline` while
+  it carries traffic. The README says so, and the sample dashboard has no
+  Wi-Fi failover pill.
+
+### Changed
+
+- The sample dashboard's failover pill uses **Failover mobile online** and no
+  longer contains an interface name.
+
 ## [0.10.0] - 2026-11-17
 
 ### Added

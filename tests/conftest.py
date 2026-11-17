@@ -103,6 +103,7 @@ def mock_router(
         (sim_cards, "/sim_cards/config", data["sim_cards"]),
         (port_forwards, "/firewall/port_forwards/config", data["port_forwards"]),
         (failover, "/failover/status", data["failover"]),
+        (failover, "/failover/interfaces/config", data["failover_config"]),
         (data_limit, "/data_limit/status", data["data_limit"]),
     ):
         if enabled:
