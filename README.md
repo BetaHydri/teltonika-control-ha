@@ -69,7 +69,8 @@ respective owners and are used here only to say which routers are supported.
   with one tap. Optionally the router goes back to mobile data on its own
   when the Wi-Fi has no internet.
 - **Hotspot login handling**: a sensor tells you when a campsite or hotel
-  Wi-Fi shows a login page. One service prefers the Wi-Fi, waits until you
+  Wi-Fi shows a login page, also when its login expires after a day while
+  mobile data keeps you online. One service prefers the Wi-Fi, waits until you
   confirmed the page, and falls back to mobile data if nothing happens.
   A result event drives your notifications.
 - **Wi-Fi network management**: scan for networks, pick one, enter the
@@ -343,7 +344,7 @@ automatically.
 | Hotspot login | sensor | `no_wifi`, `idle`, `waiting`, `login_required`, `online` |
 | Wi-Fi connected | binary sensor | Router is a Wi-Fi client, or a Wi-Fi interface carries the uplink |
 | Internet | binary sensor | Result of the internet check |
-| Hotspot login required | binary sensor | Wi-Fi is up but has no internet |
+| Hotspot login required | binary sensor | The Wi-Fi is connected but has no internet (also when the login of a hotspot expired and mobile data carries the traffic), see [Hotspots With a Login Page](#hotspots-with-a-login-page) |
 | VPN reachable | binary sensor | Only with a VPN check host, see [VPN check](#vpn-check) |
 | VPN latency | sensor | Connect time to the VPN check host in ms. Diagnostic, only with a VPN check host |
 | Access point *name* | switch | The router's own Wi-Fi, real state |
