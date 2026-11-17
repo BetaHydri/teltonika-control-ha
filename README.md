@@ -40,6 +40,8 @@ uses Bubble Card and Mushroom, for the dashboard only.
 
 ## Quick start
 
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=BetaHydri&repository=teltonika-control-ha&category=integration)
+
 1. In HACS, add `https://github.com/BetaHydri/teltonika-control-ha` as a
    **custom repository** (type Integration), install **Teltonika Control** and
    restart Home Assistant.
