@@ -52,7 +52,9 @@ uses Bubble Card and Mushroom, for the dashboard only.
    [firewall dashboard](docs/firewall-dashboard.md).
 
 New to this? The [step-by-step guide](docs/getting-started.md) takes you from
-the router user to your first dashboard card.
+the router user to your first dashboard card. The
+[best practices](docs/best-practices.md) cover router access, firewall
+switches, data limits and automations in one page.
 
 This is an independent community project. It is not affiliated with or
 endorsed by Teltonika Networks. Teltonika, RUT and RutOS are names of their
@@ -983,6 +985,7 @@ central repository instead and show a placeholder.
 ## See Also
 
 - [Step-by-step guide](docs/getting-started.md)
+- [Best practices](docs/best-practices.md)
 - [Dashboard for Teltonika Control](docs/dashboard.md)
 - [Teltonika API documentation](https://developers.teltonika-networks.com/)
 - [Changelog](CHANGELOG.md)
