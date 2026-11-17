@@ -8,7 +8,15 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.teltonika_control.models import derive_uplink
+from custom_components.teltonika_control.models import (
+    FailoverInterface,
+    TeltonikaData,
+    Uplink,
+    WifiClient,
+    derive_failover,
+    derive_portal_state,
+    derive_uplink,
+)
 
 from .conftest import entity_id, mock_router
 from .payloads import GPS_STATUS
@@ -48,6 +56,38 @@ def test_uplink_without_failover_data_follows_the_metric() -> None:
     assert uplink is not None
     assert uplink.kind == "wifi"
     assert uplink.skipped is None
+
+
+def test_expired_hotspot_login_is_seen_although_mobile_carries_the_traffic() -> None:
+    wifi = WifiClient("cfg", "ArtSpot", "wifi4", -50, 72, "2.4 GHz", 11)
+    mobile = Uplink("mob1s1a1", "mob1s1a1", "mobile", "10.1.2.3", 4)
+    kwargs = {"waiting": False, "wifi_client": wifi, "uplink": mobile, "internet": True}
+    assert derive_portal_state(**kwargs, wifi_failed=True) == "login_required"
+    assert derive_portal_state(**kwargs, wifi_failed=False) == "idle"
+    # Without a connected Wi-Fi there is nothing to log in to.
+    kwargs["wifi_client"] = None
+    assert derive_portal_state(**kwargs, wifi_failed=True) == "no_wifi"
+
+
+def test_wifi_failed_needs_a_wifi_interface_and_none_online() -> None:
+    def row(kind: str, online: bool | None) -> FailoverInterface:
+        return FailoverInterface("id", "x", kind, None, online, None, None, None, None, None)
+
+    assert TeltonikaData(failover=[]).wifi_failed is False
+    assert TeltonikaData(failover=[row("mobile", False)]).wifi_failed is False
+    assert TeltonikaData(failover=[row("wifi", False), row("wifi", False)]).wifi_failed
+    assert not TeltonikaData(failover=[row("wifi", False), row("wifi", True)]).wifi_failed
+    assert not TeltonikaData(failover=[row("wifi", None)]).wifi_failed
+
+
+def test_standby_counts_as_online_and_offline_as_offline() -> None:
+    raw = {
+        "mob1s1a1": {"enabled": True, "status": "standby"},
+        "wan2": {"enabled": True, "status": "offline"},
+        "wan3": {"enabled": True, "status": "starting"},
+    }
+    online = {i.interface_id: i.online for i in derive_failover(raw)}
+    assert online == {"mob1s1a1": True, "wan2": False, "wan3": None}
 
 
 async def test_gps_keeps_the_last_position_when_the_fix_is_lost(

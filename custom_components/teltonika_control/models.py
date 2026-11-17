@@ -518,8 +518,15 @@ def derive_portal_state(
     wifi_client: WifiClient | None,
     uplink: Uplink | None,
     internet: bool | None,
+    wifi_failed: bool = False,
 ) -> str:
-    """Return the captive portal state shown on the dashboard."""
+    """Return the captive portal state shown on the dashboard.
+
+    ``wifi_failed`` is true when the router's failover calls every Wi-Fi
+    interface offline. A hotspot whose login has expired fails that check while
+    the traffic goes over mobile data, so the internet check of Home Assistant
+    still passes and cannot show it.
+    """
     if waiting:
         return PORTAL_WAITING
     wifi_is_uplink = uplink is not None and uplink.kind == UPLINK_WIFI
@@ -527,6 +534,8 @@ def derive_portal_state(
     # clearly carries the default route, so that counts as connected too.
     if wifi_client is None and not wifi_is_uplink:
         return PORTAL_NO_WIFI
+    if wifi_failed:
+        return PORTAL_LOGIN_REQUIRED
     if wifi_is_uplink:
         if internet is False:
             return PORTAL_LOGIN_REQUIRED
@@ -859,6 +868,21 @@ def failover_kind(
     return UPLINK_OTHER
 
 
+def _failover_online(status: str) -> bool | None:
+    """Tell from the router's status text whether the check passes.
+
+    ``standby`` is a working interface that is not in use at the moment (the
+    router keeps it ready as a backup), so it counts as online. ``starting``
+    and ``notracking`` say nothing yet.
+    """
+    text = status.strip().lower()
+    if text in ("online", "standby"):
+        return True
+    if text == "offline":
+        return False
+    return None
+
+
 def derive_failover(
     raw: Any,
     config: Iterable[dict[str, Any]] | None = None,
@@ -895,7 +919,7 @@ def derive_failover(
                 label=f"{prefix} ({name})" if prefix else name,
                 kind=kind,
                 status=status or None,
-                online=status.lower() == "online" if status else None,
+                online=_failover_online(status),
                 score=to_float(item.get("score")),
                 age=to_int(item.get("age")),
                 seconds_online=to_int(item.get("online")),
@@ -1206,6 +1230,12 @@ class TeltonikaData:
         return self.gps_last_known or self.gps
 
     @property
+    def wifi_failed(self) -> bool:
+        """Return whether the failover calls every Wi-Fi interface offline."""
+        rows = [i for i in self.failover if i.kind == UPLINK_WIFI and i.online is not None]
+        return bool(rows) and not any(i.online for i in rows)
+
+    @property
     def portal_state(self) -> str:
         """Return the captive portal state."""
         return derive_portal_state(
@@ -1213,6 +1243,7 @@ class TeltonikaData:
             wifi_client=self.wifi_client,
             uplink=self.uplink,
             internet=self.internet,
+            wifi_failed=self.wifi_failed,
         )
 
     def modem(self, modem_id: str) -> dict[str, Any] | None:
