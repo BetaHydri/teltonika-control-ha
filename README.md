@@ -397,6 +397,18 @@ example above 80) for your notifications. The router sets the limit and the
 reset day, the integration only reads them. No entities appear while no limit
 is enabled on the router or the user may not read the page.
 
+The router takes the limit in MB but counts them as 1024 × 1024 bytes, while
+Home Assistant shows gigabytes of 1,000,000,000 bytes. A limit of 60000 MB
+therefore shows as 62.9 GB in the **Data limit** sensor, and the percentage is
+the same as on the router. Compare the percentage, not the gigabytes, with the
+router's web interface.
+
+**When the limit is reached the router switches the mobile data off**, unless
+you turn on **Enable rate limit** in the limit settings, which slows the
+connection down instead. On a router that you reach through its mobile data,
+for example in a camper, set the limit above your plan or use the rate limit,
+or you cut yourself off.
+
 ### Failover
 
 The router checks its uplinks with its failover function (Network, Failover)
