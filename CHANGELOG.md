@@ -8,6 +8,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-11-17
+
+### Fixed
+
+- **Expired hotspot login is detected.** A hotspot that asks for a new login
+  (for example every 24 hours) fails the failover check of the Wi-Fi, and the
+  router then sends the traffic over mobile data. The internet check of Home
+  Assistant still passed, so **Hotspot login** never showed `login_required`
+  and the notification did not come. It now also shows `login_required` when
+  the Wi-Fi is connected and the failover calls every Wi-Fi interface offline.
+  Portal mode reads the failover state on every poll, so it notices the login
+  without the usual delay.
+- **Failover `standby` counts as online.** The router reports an interface
+  that works but is not in use (the backup while another carries the traffic)
+  as `standby`. It was read as not online, so **Failover mobile online** showed
+  off, and the dashboard pill "Mobile offline", while Wi-Fi was the uplink and
+  mobile data was fine. `standby` is now online; `offline` stays offline, and
+  `starting` or `notracking` say nothing.
+
 ## [0.12.1] - 2026-11-17
 
 ### Fixed

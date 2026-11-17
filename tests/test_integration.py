@@ -60,10 +60,11 @@ async def test_entities_reflect_the_router(
     assert float(state("sensor", "wifi_signal")) == -61
     assert float(state("sensor", "wifi_bitrate")) == 78
     assert state("sensor", "wifi_band") == "2.4 GHz"
-    assert state("sensor", "portal_state") == "idle"
+    # The Wi-Fi is connected, but the router's failover calls it offline.
+    assert state("sensor", "portal_state") == "login_required"
     assert state("binary_sensor", "wifi_connected") == STATE_ON
     assert state("binary_sensor", "internet") == STATE_ON
-    assert state("binary_sensor", "login_required") == STATE_OFF
+    assert state("binary_sensor", "login_required") == STATE_ON
     assert float(state("sensor", "2-1.1_rsrp")) == -104
     assert float(state("sensor", "2-1.1_temperature")) == 45
     assert state("sensor", "2-1.1_operator") == "Testnet"

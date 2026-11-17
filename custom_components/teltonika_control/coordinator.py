@@ -957,6 +957,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             deadline = _monotonic() + minutes * 60
             await asyncio.sleep(PORTAL_FIRST_DELAY)
             while True:
+                # The failover page is read at most every two minutes; read it
+                # now, because the Wi-Fi only counts once the router sees it online.
+                self._fetched_at.pop("failover", None)
                 await self.async_refresh()
                 uplink = self.data.uplink
                 if uplink is not None and uplink.kind == UPLINK_WIFI and self.data.internet:

@@ -475,7 +475,8 @@ minutes, because the page is read like the DHCP clients. A good trigger for a
 notification is **Failover mobile online** turning off for a few minutes.
 
 The router decides "online" by pinging its check addresses through the
-interface. A Wi-Fi network that does not answer these pings (some hotspots do
+interface. An interface that is working but not in use is reported as `standby`
+(the router keeps it ready as a backup); the integration counts it as online. A Wi-Fi network that does not answer these pings (some hotspots do
 not) shows `offline` even though it is connected, and the router then sends the
 traffic over mobile data. The **Uplink** sensor follows this: it shows the
 interface that really carries the traffic, and its attribute `failover_skipped`
@@ -583,8 +584,15 @@ the hotspot only sees the router.
    Without internet after the wait time, the router goes back to mobile data
    and the event has `success: false`.
 
-The **Hotspot login** sensor shows `login_required` while Wi-Fi is the uplink
-but has no internet.
+The **Hotspot login** sensor shows `login_required` while the Wi-Fi is connected
+but has no internet. It sees this in two ways: the Wi-Fi is the uplink and the
+internet check fails, or the router's failover calls every Wi-Fi interface
+offline. The second one catches a hotspot whose login expires (many renew it
+every 24 hours): the router then sends the traffic over mobile data, the
+internet check of Home Assistant still passes, but the failover check through
+the Wi-Fi fails. A hotspot that never answers the failover pings (some block
+them) shows `login_required` all the time; give the Wi-Fi interface a check
+address that it answers in Network, Failover.
 
 To get a notification when a login is needed, or when the Wi-Fi is lost, use
 the [ready automations](docs/automation-examples.md#hotspot-needs-a-login).
