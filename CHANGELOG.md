@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-17
+
+### Added
+
+- **Mobile data plan option.** In the options you can enter the monthly volume
+  of your mobile contract in GB. The percentage, the **Data limit** sensor, the
+  **Data limit reached** sensor and the dashboard pills then refer to your
+  plan instead of the router's data limit. This fits providers that slow the
+  connection down when the volume is used up: the router's limit can be set
+  high, so that the router never switches the mobile data off, and only keeps
+  the count. Without the option nothing changes. The plan counts 1 GB as
+  1000 MB, the router's limit counts 1 MB as 1,048,576 bytes; the README
+  explains the difference.
+
 ## [0.11.0] - 2026-11-17
 
 ### Added
