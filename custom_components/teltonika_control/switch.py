@@ -1,4 +1,4 @@
-"""Switches for the router's own access points and WireGuard tunnels."""
+"""Switches for access points, WireGuard tunnels, data roaming and port forwards."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .entity import (
     TeltonikaTunnelEntity,
     async_add_discovered,
 )
-from .models import AccessPoint, SimCard
+from .models import AccessPoint, PortForward, SimCard
 
 PARALLEL_UPDATES = 1
 
@@ -64,6 +64,73 @@ async def async_setup_entry(
             and card.roaming_allowed is not None
         ),
     )
+
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"port_forward_{rule.rule_id}",
+                lambda r=rule.rule_id: TeltonikaPortForwardSwitch(c, r),
+            )
+            for rule in c.data.port_forwards
+        ),
+    )
+
+
+class TeltonikaPortForwardSwitch(TeltonikaEntity, SwitchEntity):
+    """Turns a port forwarding rule of the router firewall on or off.
+
+    Only the on/off flag of the rule is written. A rule that is on lets
+    traffic from the internet reach a device in your network.
+    """
+
+    _attr_translation_key = "port_forward"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, rule_id: str) -> None:
+        super().__init__(coordinator, f"port_forward_{rule_id}")
+        self._rule_id = rule_id
+        rule = self.rule
+        self._attr_translation_placeholders = {"name": rule.name if rule else rule_id}
+
+    @property
+    def rule(self) -> PortForward | None:
+        """Return the current settings of this rule."""
+        for rule in self.coordinator.data.port_forwards:
+            if rule.rule_id == self._rule_id:
+                return rule
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the rule was removed from the router."""
+        return super().available and self.rule is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the rule is on."""
+        rule = self.rule
+        return rule.enabled if rule else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the ports and protocol of the rule."""
+        rule = self.rule
+        if rule is None:
+            return None
+        return {
+            "protocol": rule.protocol,
+            "external_port": rule.external_port,
+            "internal_port": rule.internal_port,
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the rule on."""
+        await self.coordinator.async_set_port_forward(self._rule_id, True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the rule off."""
+        await self.coordinator.async_set_port_forward(self._rule_id, False)
 
 
 class TeltonikaRoamingSwitch(TeltonikaModemEntity, SwitchEntity):

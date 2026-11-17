@@ -77,6 +77,11 @@ health, and a ready-made dashboard.
   [WireGuard tunnels](#wireguard-tunnels).
 - **Router health**: uptime, CPU load, memory usage and the number of DHCP
   clients (connected devices).
+- **Failover state, data limit and port forwards**: the router's failover
+  state per uplink, the usage of the router's mobile data limit with a
+  "limit reached" sensor, and a switch for each port forwarding rule. See
+  [Mobile data limit](#mobile-data-limit), [Failover](#failover) and
+  [Port forwards](#port-forwards).
 - **Ready-made dashboard**: a complete dashboard with coloured pills, two
   columns and badges. It needs the Bubble Card and Mushroom frontend cards,
   for this dashboard only. See
@@ -100,10 +105,12 @@ health, and a ready-made dashboard.
 
 ### Planned
 
-Ideas that are not implemented yet: data usage limits and monthly counters
-(until then, use a Utility Meter helper, see the
+Ideas that are not implemented yet: own data usage limits and monthly counters
+for routers without a data limit (until then, set a data limit on the router,
+see [Mobile data limit](#mobile-data-limit), or use a Utility Meter helper, see
+the
 [step-by-step guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter)),
-system temperature of the router, failover state per interface, switches for port forwards,
+system temperature of the router,
 SMS notifications, the WireGuard handshake time (the router offers no status
 endpoint for it, see [WireGuard tunnels](#wireguard-tunnels)) and setting the
 Home Assistant home zone from the router's GPS (see the
@@ -197,6 +204,9 @@ to:
 | WireGuard switch and reconnect | Services, VPN, WireGuard | Read and write |
 | Restart mobile connection, SIM slot | Network, Mobile, Modems | Write |
 | Data roaming switches (SIM settings) | Network, Mobile, General | Read and write |
+| Failover state | Network, Failover | Read |
+| Data limit usage | Network, Mobile, Data limit | Read |
+| Port forward switches | Network, Firewall, Port forwards | Read and write |
 | Reboot router | System, Administration, General | Write |
 
 Teltonika's API description does not list the exact permission entry for each
@@ -205,7 +215,8 @@ description does. If an action is refused, Home Assistant shows the router's
 error message; grant read or write on that page to the group and try again.
 
 Read-only extras are optional. If the user may not read the system usage, the
-DHCP leases or the WireGuard configuration, the router answers with an error
+DHCP leases, the WireGuard configuration, the failover state, the data limits
+or the port forwards, the router answers with an error
 and the integration simply does not create those entities. Nothing else is
 affected. A tunnel whose configuration cannot be read is shown (interface
 state and counters) but gets no switch and no reconnect button.
@@ -222,8 +233,10 @@ Knowing this helps you decide how much to allow:
 - Saved Wi-Fi client networks (`join_wifi` and `forget_wifi`).
 - Restart of the mobile connection, SIM slot switch and router reboot.
 - The data roaming flag of each SIM ("Deny data roaming", only this field).
+- The on/off flag of port forwarding rules (only this field; a rule that is
+  on lets traffic from the internet reach a device in your network).
 
-It never changes passwords, users, firewall rules or firmware.
+It never changes passwords, users, other firewall settings or firmware.
 
 #### Security Notes
 
@@ -300,6 +313,9 @@ automatically.
 | Reconnect WireGuard *name* | button | Switches the instance off and on |
 | WireGuard *name* received, sent | sensors | Traffic counters of the tunnel interface. Diagnostic |
 | Reboot router | button | Add a confirmation in your dashboard |
+| Failover *interface* | sensor | The router's failover state of an uplink: `online`, `offline`, `standby`, `starting` or `notracking`. Attributes: health `score`, `seconds_since_change`, `seconds_online`, `seconds_offline`, `tracking_lost`. One per interface in the failover configuration |
+| Failover *interface* online | binary sensor | On while the failover check says the uplink is online. Use it to be told when mobile data or the Wi-Fi drops |
+| Port forward *name* | switch | Turns a port forwarding rule on or off. Attributes: `protocol`, `external_port`, `internal_port`. See [Port forwards](#port-forwards) |
 | Position | device tracker | Only on routers with GPS, see [GPS](#gps) |
 | GPS speed, altitude, satellites, accuracy | sensors | Only on routers with GPS. Heading and fix status are disabled by default |
 
@@ -326,6 +342,49 @@ outside the EU it can be expensive, so deny it there. The sample dashboard asks
 for confirmation before it allows roaming. The switches need the right to
 change the mobile settings (see the permissions) and appear only if the router
 answers the SIM settings page.
+
+### Mobile data limit
+
+If you set a **Data limit** for a mobile interface on the router (Network,
+Mobile, Data limit), the router counts the used data and switches the mobile
+data off when the limit is reached. The integration shows that counter, so you
+need no helper and no own counting. For each interface with an enabled limit
+(named after its SIM slot, for example **SIM 1**) it creates:
+
+| Entity | Type | Notes |
+|---|---|---|
+| Data used *SIM 1* | sensor | Used data of the current period, shown in GB |
+| Data limit *SIM 1* | sensor | The limit set on the router. Diagnostic |
+| Data limit used *SIM 1* | sensor | Used part of the limit in percent |
+| Data limit reset *SIM 1* | sensor | When the router sets the counter back to zero. Diagnostic |
+| Data limit reached *SIM 1* | binary sensor | On when the used data reaches the limit |
+
+Use the binary sensor or a numeric state trigger on the percent sensor (for
+example above 80) for your notifications. The router sets the limit and the
+reset day, the integration only reads them. No entities appear while no limit
+is enabled on the router or the user may not read the page.
+
+### Failover
+
+The router checks its uplinks with its failover function (Network, Failover)
+and keeps a state for each one. The integration shows it for every interface
+in the failover configuration, for example the mobile interface and your Wi-Fi
+client: a sensor **Failover *interface*** with the router's own text and a
+binary sensor **Failover *interface* online**. The state can lag behind a
+change by up to two minutes, because the page is read like the DHCP clients.
+A good trigger for a notification is the binary sensor of the mobile
+interface turning off for a few minutes.
+
+### Port forwards
+
+Each port forwarding rule of the router (Network, Firewall, Port forwards)
+becomes a switch **Port forward *name*** (the rule name, or its ID when it has
+none). Use it to open a rule only when you need it, for example for remote
+access while you are on site. Only the on/off flag of the rule is written, the
+integration reads it back and reports an error if the router did not apply it.
+A rule that is on lets traffic from the internet reach a device in your
+network, so keep rules off that you do not need and do not put these switches
+on a dashboard that guests can use.
 
 ## GPS
 

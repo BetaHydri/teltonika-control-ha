@@ -108,6 +108,9 @@ CANDIDATES = (
     "/messages/status",
     "/sms_utils/messages/status",
     "/data_limit/config",
+    "/data_limit/status",
+    "/data_usage/month/status",
+    "/data_usage/day/status",
     "/io/status",
     "/ntp/config",
 )
@@ -289,11 +292,20 @@ async def main() -> int:
                     f"/modems/{safe_id}/simcard/config",
                     f"/modems/{safe_id}/roaming",
                     f"/modems/{safe_id}/apns/config",
+                    f"/data_usage/month/modem/{safe_id}/status",
+                    f"/data_usage/month/modem/{safe_id}/sim/1/status",
+                    f"/data_usage/month/modem/{safe_id}/sim/2/status",
                 ):
                     await probe.get(path)
 
         interfaces = results.get("/interfaces/status")
         if isinstance(interfaces, list):
+            for item in interfaces:
+                name = item.get("id") if isinstance(item, dict) else None
+                if name and str(name).startswith("mob"):
+                    await probe.get(
+                        f"/data_usage/month/interface/{quote(str(name), safe='')}/status"
+                    )
             vpn = [
                 describe(item)
                 for item in interfaces

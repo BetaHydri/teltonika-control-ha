@@ -44,6 +44,7 @@ from .const import (
     METRIC_MOBILE_FIRST,
     METRIC_WIFI_FIRST,
     MISSING_PAGE_PAUSE,
+    PORT_FORWARD_REFRESH_DELAY,
     PORTAL_FIRST_DELAY,
     PORTAL_POLL_INTERVAL,
     PRIORITY_VERIFY_DELAY,
@@ -86,12 +87,15 @@ PAGES: dict[str, tuple[str, str]] = {
     "wireless_devices": ("async_wireless_devices_status", "config"),
     "wireguard": ("async_wireguard_config", "config"),
     "sim_cards": ("async_sim_cards_config", "config"),
+    "port_forwards": ("async_port_forwards_config", "config"),
     "multi_ap": ("async_multi_ap_config", "config"),
     "wireless_status": ("async_wireless_status", "status"),
     "modems": ("async_modems_status", "status"),
     "gps": ("async_gps_status", "status"),
     "usage": ("async_usage_status", "status"),
-    "dhcp": ("async_dhcp_leases", "dhcp"),
+    "dhcp": ("async_dhcp_leases", "medium"),
+    "failover": ("async_failover_status", "medium"),
+    "data_limit": ("async_data_limit_status", "medium"),
 }
 
 
@@ -200,6 +204,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 "dhcp",
                 "wireguard",
                 "sim_cards",
+                "port_forwards",
+                "failover",
+                "data_limit",
             ]
         )
         interface_config = parts["interface_config"] or []
@@ -212,7 +219,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         dhcp_leases = parts["dhcp"]
         wireguard_config = parts["wireguard"] or []
         sim_cards = parts["sim_cards"] or []
-
+        port_forwards = parts["port_forwards"] or []
+        failover = parts["failover"]
+        data_limits = parts["data_limit"] or []
         multi_ap: list[dict[str, Any]] = []
         if any(item.get("mode") == "multi_ap" for item in wireless_config):
             multi_ap = (await self._async_read_pages(["multi_ap"]))["multi_ap"] or []
@@ -231,6 +240,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             dhcp_leases=dhcp_leases if isinstance(dhcp_leases, list) else None,
             wireguard_config=wireguard_config,
             sim_cards=sim_cards,
+            failover=failover if isinstance(failover, dict) else None,
+            data_limits=data_limits,
+            port_forwards=port_forwards,
         )
         data.portal_waiting = self.portal_waiting
         probe_internet = bool(self._probe_url) and data.uplink is not None
@@ -288,7 +300,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         _LOGGER.debug(
             "Router report: modems=%d (online %d), sim settings=%d, radios=%d, "
             "wifi clients/multi AP=%d, access points=%d, gps=%s, "
-            "wireguard tunnels=%d, usage=%s, dhcp=%s",
+            "wireguard tunnels=%d, usage=%s, dhcp=%s, failover interfaces=%d, "
+            "data limits=%d, port forwards=%d",
             len(data.modems),
             len(online),
             len(data.sim_cards),
@@ -299,6 +312,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             len(data.vpn_tunnels),
             data.system_usage is not None,
             data.dhcp_leases is not None,
+            len(data.failover),
+            len(data.data_limits),
+            len(data.port_forwards),
         )
 
     async def _async_read_pages(self, names: list[str]) -> dict[str, Any]:
@@ -316,7 +332,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         for name in names:
             method, kind = PAGES[name]
             now = time.monotonic()
-            ttl = {"status": 0.0, "dhcp": min(DHCP_INTERVAL, self._config_interval)}.get(
+            ttl = {"status": 0.0, "medium": min(DHCP_INTERVAL, self._config_interval)}.get(
                 kind, self._config_interval
             )
             fetched = self._fetched_at.get(name)
@@ -555,6 +571,24 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             raise HomeAssistantError(
                 "The router did not apply the roaming setting. Check it in "
                 "Network, Mobile, General, SIM configuration."
+            )
+
+    async def async_set_port_forward(self, rule_id: str, enabled: bool) -> None:
+        """Turn a port forwarding rule on or off and check that it took effect."""
+        _LOGGER.debug("Action: port forward %s -> enabled=%s", rule_id, enabled)
+        if not any(rule.rule_id == rule_id for rule in self.data.port_forwards):
+            raise HomeAssistantError(f"Port forward {rule_id} not found")
+        async with translate_errors():
+            await self.client.async_set_port_forward_enabled(rule_id, enabled)
+        await asyncio.sleep(PORT_FORWARD_REFRESH_DELAY)
+        await self.async_refresh()
+        current = next(
+            (rule for rule in self.data.port_forwards if rule.rule_id == rule_id), None
+        )
+        if current is None or current.enabled is not enabled:
+            raise HomeAssistantError(
+                "The router did not apply the port forward setting. Check it in "
+                "Network, Firewall, Port forwards."
             )
 
     async def async_switch_sim(self, modem_id: str, target_sim: int) -> None:

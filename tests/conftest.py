@@ -41,6 +41,7 @@ def no_delays(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
         "AP_REFRESH_DELAY",
         "ROAMING_REFRESH_DELAY",
+        "PORT_FORWARD_REFRESH_DELAY",
         "VPN_RECONNECT_DELAY",
         "VPN_REFRESH_DELAY",
         "PORTAL_FIRST_DELAY",
@@ -78,13 +79,16 @@ def mock_router(
     dhcp: bool = True,
     wireguard: bool = True,
     sim_cards: bool = True,
+    port_forwards: bool = True,
+    failover: bool = True,
+    data_limit: bool = True,
 ) -> None:
     """Register answers for every endpoint the integration polls.
 
     ``gps`` is True for the default position, a dict for a custom answer and
     False for a router without GPS (the endpoint is missing). ``usage``,
-    ``dhcp`` and ``wireguard`` False simulate a user without the right to
-    read that page.
+    ``dhcp``, ``wireguard`` and the other page switches False simulate a user
+    without the right to read that page.
     """
     data = payloads(wifi_metric=wifi_metric, wireguard=wireguard)
     headers = {"Date": date} if date else None
@@ -97,6 +101,9 @@ def mock_router(
         (dhcp, "/dhcp/leases/ipv4/status", data["dhcp"]),
         (wireguard, "/wireguard/config", data["wireguard"]),
         (sim_cards, "/sim_cards/config", data["sim_cards"]),
+        (port_forwards, "/firewall/port_forwards/config", data["port_forwards"]),
+        (failover, "/failover/status", data["failover"]),
+        (data_limit, "/data_limit/status", data["data_limit"]),
     ):
         if enabled:
             aioclient_mock.get(f"{BASE}{path}", json={"success": True, "data": body})
@@ -139,6 +146,8 @@ def mock_router(
         method(f"{BASE}/wireguard/config/HOMEBASE", json={"success": True})
         method(f"{BASE}/sim_cards/config/cfg_sim1", json={"success": True})
         method(f"{BASE}/sim_cards/config/cfg_sim2", json={"success": True})
+        method(f"{BASE}/firewall/port_forwards/config/cfg_ssh", json={"success": True})
+        method(f"{BASE}/firewall/port_forwards/config/cfg_web", json={"success": True})
 
 
 def mock_login_failure(aioclient_mock: Any) -> None:

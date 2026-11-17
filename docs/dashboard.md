@@ -25,7 +25,9 @@ Prerequisites for the integration:
   management entities, the WireGuard entities and the router health sensors.
   With an older version, delete the **Restart WireGuard tunnel** pill and the
   **Router health** block from the file. Version 0.6.0 or newer is
-  recommended, because it polls the router much more gently.
+  recommended, because it polls the router much more gently. The failover,
+  data limit and port forward pills need version 0.10.0 or newer; without
+  it, delete them.
 - Home Assistant 2024.8 or newer for the `perform-action` button setting.
 
 Prerequisites for this dashboard only. They are not needed for the
@@ -84,6 +86,12 @@ Use find and replace in a text editor on a copy of the file:
    router's own Wi-Fi, as it appears in your list.
 4. Replace `homebase` in the two WireGuard entities with the name of your
    WireGuard instance, or delete that pill if you have none.
+5. Replace `mob1s1a1` and `wan2` in the failover entities with the interface
+   names of your router (Network, Failover; they are part of the entity IDs
+   in your list), `my_rule` in the port forward entity with the name of your
+   rule, and `sim_1` in the data limit entities with your SIM slot. Delete the
+   blocks you do not need. They hide themselves while their entities do not
+   exist.
 
 If Home Assistant runs in another language than English, the ending of each
 entity ID is in that language too (for example `uplink_ip_adresse` in
@@ -122,6 +130,9 @@ differ. These are the entities the dashboard uses:
 | Temperature | `sensor.my_modem_temperature` |
 | Data received, Data sent | `sensor.my_modem_data_received`, `_data_sent` |
 | Mobile data connected | `binary_sensor.my_modem_mobile_data_connected` |
+| Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
+| Failover state (optional, per interface) | `binary_sensor.my_router_failover_mobile_mob1s1a1_online`, `sensor.my_router_failover_mobile_mob1s1a1`, `binary_sensor.my_router_failover_wi_fi_wan2_online`, `sensor.my_router_failover_wi_fi_wan2` |
+| Port forward (optional, one per rule) | `switch.my_router_port_forward_my_rule` |
 | Restart mobile connection | `button.my_modem_restart_mobile_connection` |
 | SIM slot | `select.my_modem_sim_slot` |
 | Scan for Wi-Fi networks | `button.my_router_scan_for_wi_fi_networks` |
@@ -160,7 +171,9 @@ list. Fix that entity and save again.
   internet (a hotspot login page) and red when the Wi-Fi is gone. The **VPN**
   pill is green with the latency or red when the host behind the tunnel does
   not answer. It only appears when you set a VPN check host in the options,
-  see the [VPN check](../README.md#vpn-check).
+  see the [VPN check](../README.md#vpn-check). Two **failover** pills for
+  mobile data and Wi-Fi (version 0.10.0 or newer) are green while the
+  router's own check says the uplink is online and red when it is offline.
 - **Wi-Fi first and Mobile first** are two buttons without a drop-down. The
   active priority is coloured, the other one is grey, so they also show the
   current state. They call `teltonika_control.set_priority`. With Wi-Fi
@@ -170,7 +183,9 @@ list. Fix that entity and save again.
   reboot the router. With a WireGuard instance on the router, a **Restart
   WireGuard tunnel** pill appears while the instance is switched on (replace
   `homebase` in its two entity IDs with the name of your instance, or delete
-  the pill). Below the reboot pill, **Router health** shows uptime, DHCP
+  the pill). A **Port forward** pill (version 0.10.0 or newer) opens or closes
+  one rule: orange while it is open, grey while it is closed, and opening asks
+  for confirmation. Below the reboot pill, **Router health** shows uptime, DHCP
   clients, CPU load and memory usage. The hotspot button changes with the
   state: it starts
   `teltonika_control.portal_mode`, shows that it waits, and reports when
@@ -180,7 +195,10 @@ list. Fix that entity and save again.
   (plain at home, orange while roaming), two pills for the data roaming of SIM
   1 and SIM 2 (green when allowed, grey when denied; tap to change, and
   allowing asks for confirmation), signal values, the active SIM with
-  SIM 1 and SIM 2 buttons, modem temperature and the data counters.
+  SIM 1 and SIM 2 buttons, modem temperature and the data counters. A
+  **Data limit** pill (version 0.10.0 or newer, only with a limit set on the
+  router) shows the used part of the limit in percent, orange from 80 percent
+  and red when the limit is reached, with the used data as small pill.
 - **Add a Wi-Fi network**, in three steps:
   1. Press **Scan** (the pill) and choose a network with **Choose**. The list
      hides networks that are already saved in the same band and shows each
@@ -210,8 +228,10 @@ loaded yet. Reload the browser page (Ctrl+F5) after installing it.
 
 ## What is not included
 
-A monthly data limit is not part of this dashboard. Use a Utility Meter
-helper on the data counters of the modem if you need one, see
+A monthly counter for routers without a data limit is not part of this
+dashboard. The dashboard shows the data limit of the router (see **Mobile
+data** above). Without a limit on the router, use a Utility Meter helper on
+the data counters of the modem, see
 [step 11 of the getting started guide](getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter).
 
 The dashboard itself needs no helpers, scripts or YAML packages.

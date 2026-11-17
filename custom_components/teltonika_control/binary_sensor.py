@@ -22,7 +22,7 @@ from .entity import (
     TeltonikaTunnelEntity,
     async_add_discovered,
 )
-from .models import TeltonikaData, modem_is_roaming
+from .models import DataLimit, FailoverInterface, TeltonikaData, modem_is_roaming
 
 PARALLEL_UPDATES = 0
 
@@ -111,6 +111,97 @@ async def async_setup_entry(
             for modem_id in c.modem_ids()
         ),
     )
+
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"failover_{interface.interface_id}_online",
+                lambda i=interface.interface_id: TeltonikaFailoverOnline(c, i),
+            )
+            for interface in c.data.failover
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"data_limit_{limit.interface_id}_reached",
+                lambda i=limit.interface_id: TeltonikaDataLimitReached(c, i),
+            )
+            for limit in c.data.data_limits
+        ),
+    )
+
+
+class TeltonikaFailoverOnline(TeltonikaEntity, BinarySensorEntity):
+    """Whether the failover check says this uplink is online."""
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_translation_key = "failover_online"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, interface_id: str) -> None:
+        super().__init__(coordinator, f"failover_{interface_id}_online")
+        self._interface_id = interface_id
+        interface = self.interface
+        self._attr_translation_placeholders = {
+            "name": interface.label if interface else interface_id
+        }
+
+    @property
+    def interface(self) -> FailoverInterface | None:
+        """Return the current failover state of this interface."""
+        for interface in self.coordinator.data.failover:
+            if interface.interface_id == self._interface_id:
+                return interface
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the interface left the failover configuration."""
+        return super().available and self.interface is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the uplink is online."""
+        interface = self.interface
+        return interface.online if interface else None
+
+
+class TeltonikaDataLimitReached(TeltonikaEntity, BinarySensorEntity):
+    """On while the data limit of a mobile interface is used up."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_translation_key = "data_limit_reached"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, interface_id: str) -> None:
+        super().__init__(coordinator, f"data_limit_{interface_id}_reached")
+        self._interface_id = interface_id
+        limit = self.limit
+        self._attr_translation_placeholders = {
+            "name": limit.label if limit else interface_id
+        }
+
+    @property
+    def limit(self) -> DataLimit | None:
+        """Return the current data limit of this interface."""
+        for limit in self.coordinator.data.data_limits:
+            if limit.interface_id == self._interface_id:
+                return limit
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the limit was switched off on the router."""
+        return super().available and self.limit is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the limit is used up."""
+        limit = self.limit
+        return limit.reached if limit else None
 
 
 class TeltonikaModemRoaming(TeltonikaModemEntity, BinarySensorEntity):

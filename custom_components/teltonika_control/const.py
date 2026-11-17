@@ -21,7 +21,8 @@ MAX_SCAN_INTERVAL = 600
 DEFAULT_CONFIG_INTERVAL = 300
 MIN_CONFIG_INTERVAL = 30
 MAX_CONFIG_INTERVAL = 3600
-# The DHCP client list changes more often, but never more rarely than the
+# The DHCP client list, the failover state and the data limit usage change
+# more often than the configuration, but never more rarely than the
 # configuration interval allows.
 DHCP_INTERVAL = 120
 # Seconds to leave a page alone that does not exist or may not be read.
@@ -30,6 +31,8 @@ MISSING_PAGE_PAUSE = 300
 GPS_GLITCH_POLLS = 3
 # Seconds to wait after a roaming change before the setting is read back.
 ROAMING_REFRESH_DELAY = 3
+# Seconds to wait after a port forward change before the rule is read back.
+PORT_FORWARD_REFRESH_DELAY = 2
 
 # Returns HTTP 204 with working internet; a captive portal answers with
 # a redirect or a login page instead.

@@ -329,6 +329,29 @@ class TeltonikaClient:
         """Return the configured WireGuard instances."""
         return await self._async_list("/wireguard/config")
 
+    async def async_failover_status(self) -> dict[str, Any]:
+        """Return the failover state; the answer is keyed by interface name."""
+        data = await self.async_request("GET", "/failover/status")
+        return data if isinstance(data, dict) else {}
+
+    async def async_data_limit_status(self) -> list[dict[str, Any]]:
+        """Return the used data and the limit of each mobile interface."""
+        return await self._async_list("/data_limit/status")
+
+    async def async_port_forwards_config(self) -> list[dict[str, Any]]:
+        """Return the port forwarding rules."""
+        return await self._async_list("/firewall/port_forwards/config")
+
+    async def async_set_port_forward_enabled(
+        self, rule_id: str, enabled: bool
+    ) -> None:
+        """Turn one port forwarding rule on or off; only this field is sent."""
+        await self.async_request(
+            "PUT",
+            f"/firewall/port_forwards/config/{quote(rule_id, safe='')}",
+            json={"data": {"enabled": "1" if enabled else "0"}},
+        )
+
     async def async_sim_cards_config(self) -> list[dict[str, Any]]:
         """Return the settings of the SIM slots (roaming, band, operator)."""
         return await self._async_list("/sim_cards/config")

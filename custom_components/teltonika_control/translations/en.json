@@ -123,7 +123,12 @@
       "flash_usage": { "name": "Flash usage" },
       "dhcp_clients": { "name": "DHCP clients" },
       "tunnel_received": { "name": "WireGuard {name} received" },
-      "tunnel_sent": { "name": "WireGuard {name} sent" }
+      "tunnel_sent": { "name": "WireGuard {name} sent" },
+      "failover": { "name": "Failover {name}" },
+      "data_limit_used": { "name": "Data used {name}" },
+      "data_limit": { "name": "Data limit {name}" },
+      "data_limit_percent": { "name": "Data limit used {name}" },
+      "data_limit_resets_at": { "name": "Data limit reset {name}" }
     },
     "device_tracker": {
       "gps": { "name": "Position" }
@@ -135,7 +140,9 @@
       "mobile_connected": { "name": "Mobile data connected" },
       "roaming": { "name": "Roaming" },
       "vpn_reachable": { "name": "VPN reachable" },
-      "tunnel_up": { "name": "WireGuard {name}" }
+      "tunnel_up": { "name": "WireGuard {name}" },
+      "failover_online": { "name": "Failover {name} online" },
+      "data_limit_reached": { "name": "Data limit reached {name}" }
     },
     "button": {
       "reboot": { "name": "Reboot router" },
@@ -170,7 +177,8 @@
     "switch": {
       "access_point": { "name": "Access point {name}" },
       "tunnel": { "name": "WireGuard {name} enabled" },
-      "data_roaming": { "name": "Allow data roaming SIM {slot}" }
+      "data_roaming": { "name": "Allow data roaming SIM {slot}" },
+      "port_forward": { "name": "Port forward {name}" }
     }
   },
   "exceptions": {
