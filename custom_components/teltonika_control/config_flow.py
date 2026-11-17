@@ -247,6 +247,7 @@ class TeltonikaOptionsFlow(OptionsFlow):
                         CONF_PROBE_URL: user_input.get(CONF_PROBE_URL, "").strip(),
                         CONF_VPN_HOST: vpn_host,
                         CONF_VPN_PORT: vpn_port,
+                        CONF_DATA_PLAN: user_input.get(CONF_DATA_PLAN, 0),
                     }
                 )
 
@@ -292,6 +293,12 @@ class TeltonikaOptionsFlow(OptionsFlow):
                         CONF_VPN_PORT,
                         default=options.get(CONF_VPN_PORT, DEFAULT_VPN_PORT),
                     ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+                    vol.Optional(
+                        CONF_DATA_PLAN,
+                        description={
+                            "suggested_value": suggested.get(CONF_DATA_PLAN) or None
+                        },
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0, max=100000)),
                 }
             ),
         )
