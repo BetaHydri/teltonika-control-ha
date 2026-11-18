@@ -22,6 +22,9 @@
 # connection asks for confirmation. The "tap_action" and "button_action" blocks
 # are identical on purpose, so the file works with old and new Bubble Card
 # versions.
+# The small control buttons on the right of a pill (hand, switch, circle) use a
+# sensor or button as their entity, never a "select": Bubble Card draws a
+# drop-down for a select, and choosing from it would skip the confirmation.
 title: Teltonika Control
 views:
   - title: Router
@@ -349,7 +352,7 @@ views:
                       sub_button:
                         bottom: []
                         main:
-                          - entity: select.my_router_uplink_priority
+                          - entity: sensor.my_router_uplink
                             icon: mdi:radiobox-marked
                             show_icon: true
                             show_name: false
@@ -376,7 +379,7 @@ views:
                       sub_button:
                         bottom: []
                         main:
-                          - entity: select.my_router_uplink_priority
+                          - entity: sensor.my_router_uplink
                             icon: mdi:radiobox-blank
                             show_icon: true
                             show_name: false
@@ -403,7 +406,7 @@ views:
                       sub_button:
                         bottom: []
                         main:
-                          - entity: select.my_router_uplink_priority
+                          - entity: sensor.my_router_uplink
                             icon: mdi:radiobox-blank
                             show_icon: true
                             show_name: false
@@ -422,7 +425,7 @@ views:
                       sub_button:
                         bottom: []
                         main:
-                          - entity: select.my_router_uplink_priority
+                          - entity: sensor.my_router_uplink
                             icon: mdi:radiobox-marked
                             show_icon: true
                             show_name: false
@@ -452,7 +455,7 @@ views:
                       sub_button:
                         bottom: []
                         main:
-                          - entity: select.my_router_uplink_priority
+                          - entity: sensor.my_router_uplink
                             icon: mdi:radiobox-blank
                             show_icon: true
                             show_name: false
@@ -471,7 +474,7 @@ views:
                       sub_button:
                         bottom: []
                         main:
-                          - entity: select.my_router_uplink_priority
+                          - entity: sensor.my_router_uplink
                             icon: mdi:radiobox-blank
                             show_icon: true
                             show_name: false
@@ -1098,7 +1101,7 @@ views:
                 sub_button:
                   bottom: []
                   main:
-                    - entity: select.my_modem_sim_slot
+                    - entity: sensor.my_router_uplink
                       icon: mdi:gesture-tap
                       show_icon: true
                       show_name: false
@@ -1128,7 +1131,7 @@ views:
                 sub_button:
                   bottom: []
                   main:
-                    - entity: select.my_modem_sim_slot
+                    - entity: sensor.my_router_uplink
                       icon: mdi:gesture-tap
                       show_icon: true
                       show_name: false
