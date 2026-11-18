@@ -210,7 +210,8 @@ list. Fix that entity and save again.
   the close button back. If you prefer a page of its own, use
   [dashboards/teltonika-sms.yaml](../dashboards/teltonika-sms.yaml) and let the
   pill navigate to it as the firewall pill does. Tapping the **Firmware** pill
-  opens a **Firmware** pop-up with the update state, the status and the
+  opens a **Firmware** pop-up with the update state, the installed version, the
+  new version (only while the router has found one), the status and the
   two buttons **Download firmware** and **Install firmware**, both with a
   confirmation (version 0.17.0 or newer); the install entity is disabled by
   default, see [Firmware update](../README.md#firmware-update). The hotspot button changes with the

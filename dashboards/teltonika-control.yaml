@@ -960,6 +960,22 @@ views:
                 entities:
                   - entity: update.my_router_firmware
                     name: Firmware
+                  - type: attribute
+                    entity: update.my_router_firmware
+                    attribute: installed_version
+                    name: Installed version
+                    icon: mdi:chip
+                  # Only while the router has found a newer firmware.
+                  - type: conditional
+                    conditions:
+                      - entity: update.my_router_firmware
+                        state: "on"
+                    row:
+                      type: attribute
+                      entity: update.my_router_firmware
+                      attribute: latest_version
+                      name: New version
+                      icon: mdi:package-up
                   - entity: sensor.my_router_firmware_status
                     name: Status
               - type: markdown
