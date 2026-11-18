@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-11-18
+
+### Added
+
+- **The Wi-Fi scan says it has started.** **Last Wi-Fi action** now shows
+  `Scanning for networks ...` as soon as you press **Scan for Wi-Fi networks**
+  and replaces it with the result when the scan is done. Before, the pill showed
+  the old result for the several seconds a scan takes, so it looked as if
+  nothing happened. Pressing the button again while a scan runs is ignored
+  instead of starting a second scan.
+
 ### Changed
 
 - **Sample dashboard: controls are recognisable without the colour.** Every

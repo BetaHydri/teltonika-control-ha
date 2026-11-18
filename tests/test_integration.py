@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from copy import deepcopy
 from typing import Any
 
@@ -707,6 +708,64 @@ async def test_wifi_entities_scan_and_add_a_network(
     assert hass.states.get(password).state == ""
     assert hass.states.get(found).attributes["options"] == []
     assert hass.states.get(action).state == "Saved Camp5"
+
+
+async def test_scan_says_it_has_started_and_ignores_a_second_press(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+    action = entity_id(hass, "sensor", "last_action")
+    started = asyncio.Event()
+    release = asyncio.Event()
+    calls = 0
+
+    async def slow_scan(radio: str | None = None) -> list[dict[str, Any]]:
+        nonlocal calls
+        calls += 1
+        started.set()
+        await release.wait()
+        return []
+
+    monkeypatch.setattr(coordinator, "async_scan_wifi", slow_scan)
+
+    first = asyncio.create_task(coordinator.async_scan_networks())
+    await started.wait()
+    assert hass.states.get(action).state == "Scanning for networks ..."
+    assert coordinator.scanning
+
+    await coordinator.async_scan_networks()
+    assert calls == 1
+
+    release.set()
+    await first
+    assert not coordinator.scanning
+    assert hass.states.get(action).state == "0 new networks (0 seen, 0 already saved)"
+
+
+async def test_failed_scan_is_reported_and_can_be_repeated(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+
+    async def failing_scan(radio: str | None = None) -> list[dict[str, Any]]:
+        raise HomeAssistantError("radio busy")
+
+    monkeypatch.setattr(coordinator, "async_scan_wifi", failing_scan)
+    with pytest.raises(HomeAssistantError, match="radio busy"):
+        await coordinator.async_scan_networks()
+
+    assert not coordinator.scanning
+    assert coordinator.last_action == "Scan failed: radio busy"
 
 
 async def test_adding_needs_a_selection_and_a_password(

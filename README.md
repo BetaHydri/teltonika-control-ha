@@ -358,7 +358,7 @@ automatically.
 | Add selected network | button | Saves the found network with the password |
 | Saved networks | select | Wi-Fi clients and Multi AP list entries saved on the router |
 | Remove selected network | button | Removes the selected saved network |
-| Last Wi-Fi action | sensor | Result of the last scan, add or remove |
+| Last Wi-Fi action | sensor | Says `Scanning for networks ...` while a scan runs, then the result of the scan, add or remove |
 | Router time | sensor | The router's clock. Diagnostic, disabled by default |
 | Uptime, CPU load, Memory usage | sensors | Diagnostic. Flash usage is also available, disabled by default |
 | DHCP clients | sensor | Number of leases; the attribute `devices` lists host name, IP address and interface (no MAC addresses) |
@@ -605,7 +605,10 @@ the [ready automations](docs/automation-examples.md#hotspot-needs-a-login).
 Everything needed to add a network is an entity of the router device, so a
 dashboard needs no helpers or scripts:
 
-1. **Scan for Wi-Fi networks** (button) scans with all radios.
+1. **Scan for Wi-Fi networks** (button) scans with all radios. The scan takes
+   a few seconds; **Last Wi-Fi action** says `Scanning for networks ...` at
+   once and shows the result when it is done. Pressing the button again while
+   a scan runs does nothing.
 2. **Found networks** (select) lists each network once per band with its best
    signal, for example `Camp5 [5 GHz · secured · -60 dBm]`. Networks that are
    already saved in the same band are hidden.
@@ -616,8 +619,8 @@ dashboard needs no helpers or scripts:
 4. **Add selected network** (button) saves it. Without a password for a
    secured network, Home Assistant shows "Enter the Wi-Fi password (at least 8
    characters) first". Mobile data stays preferred.
-5. **Last Wi-Fi action** (sensor) shows the result, for example
-   `Saved Camp5` or `Scan failed: ...`.
+5. **Last Wi-Fi action** (sensor) shows what is happening and the result, for
+   example `Scanning for networks ...`, `Saved Camp5` or `Scan failed: ...`.
 
 To remove a network, choose it in **Saved networks** and press **Remove
 selected network**. The list holds the Wi-Fi client networks and the entries of

@@ -187,6 +187,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self.selected_saved: str | None = None
         self.wifi_password = ""
         self.last_action: str | None = None
+        self.scanning = False
 
     @property
     def router_device_info(self) -> DeviceInfo:
@@ -882,11 +883,18 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     async def async_scan_networks(self) -> None:
         """Scan with all radios and fill the list of networks that can be added."""
+        if self.scanning:
+            return
+        # The scan takes a few seconds; say so at once instead of staying silent.
+        self.scanning = True
+        self._report("Scanning for networks ...")
         try:
             found = await self.async_scan_wifi(None)
         except HomeAssistantError as err:
             self._report(f"Scan failed: {err}")
             raise
+        finally:
+            self.scanning = False
         networks, seen, hidden = build_scan_networks(found, self.data.saved_networks)
         self.scan_results = networks
         self.selected_scan = networks[0].label if networks else None
