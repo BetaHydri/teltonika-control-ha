@@ -207,9 +207,9 @@ list. Fix that entity and save again.
   takes no room until it is opened. If you prefer a page of its own, use
   [dashboards/teltonika-sms.yaml](../dashboards/teltonika-sms.yaml) and let the
   pill navigate to it as the firewall pill does. Tapping the **Firmware** pill
-  opens a **Firmware** pop-up with the update state, the download state and the
+  opens a **Firmware** pop-up with the update state, the status and the
   two buttons **Download firmware** and **Install firmware**, both with a
-  confirmation (version 0.16.0 or newer); the install entity is disabled by
+  confirmation (version 0.17.0 or newer); the install entity is disabled by
   default, see [Firmware update](../README.md#firmware-update). The hotspot button changes with the
   state: it starts
   `teltonika_control.portal_mode`, shows that it waits, and reports when
@@ -247,6 +247,14 @@ list. Fix that entity and save again.
   and accuracy, on routers with GPS.
 
 Every action that interrupts the connection asks for confirmation first.
+
+### Pop-ups: SMS and firmware
+
+Both pop-ups open from a pill. The number in the SMS picture is hidden.
+
+![The Send SMS pop-up](images/send-sms.png)
+
+![The Firmware pop-up](images/firmware-update.png)
 
 ### What the small buttons on the right mean
 

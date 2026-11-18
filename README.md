@@ -15,7 +15,7 @@ It grew out of a camper and is useful wherever a Teltonika router runs
 RutOS 7. Developed on a RUTC50; other RutOS 7 routers use the same API, see
 [Supported routers](#supported-routers).
 
-[![The ready-made dashboard: uplink, router control, mobile data, Wi-Fi management and GPS](docs/images/dashboard-sample.png)](docs/dashboard.md)
+[![The ready-made dashboard: uplink, router control, mobile data, Wi-Fi management, GPS, and pop-ups for SMS and firmware](docs/images/dashboard-sample.png)](docs/dashboard.md)
 
 The ready-made [dashboard](docs/dashboard.md) (map blurred in this picture). It
 uses Bubble Card and Mushroom, for the dashboard only.
@@ -780,8 +780,12 @@ If the router has an SMS page, the integration creates the sensor **SMS
 messages** (how many messages the router holds), the entities to send an SMS
 from the dashboard and the service `send_sms`.
 
-**Sending from the dashboard.** Four entities work together, like the Wi-Fi
-management fields:
+**Sending from the dashboard.** In the [sample dashboard](docs/dashboard.md)
+the **SMS** pill opens this pop-up (the number is hidden in the picture):
+
+[![The Send SMS pop-up of the sample dashboard: number, text, result and the Send button](docs/images/send-sms.png)](docs/dashboard.md)
+
+Four entities work together, like the Wi-Fi management fields:
 
 | Entity | What it does |
 |---|---|
@@ -846,7 +850,11 @@ history. Only the event carries them, and events are not recorded either.
 The **Firmware** entity (update) tells you when the router has found a newer
 stable firmware at its update server. It does not install anything and has no
 Install button on purpose, so nobody starts a router restart by accident from
-the Home Assistant update list. Two buttons do the work, in two steps:
+the Home Assistant update list. Two buttons do the work, in two steps. In the
+[sample dashboard](docs/dashboard.md) the **Firmware** pill opens them as a
+pop-up:
+
+[![The Firmware pop-up of the sample dashboard: update state, status, download and install buttons](docs/images/firmware-update.png)](docs/dashboard.md)
 
 | Entity | What it does |
 |---|---|
