@@ -439,40 +439,62 @@ parts it took.
 
 ## Alarm by SMS when the camper moves
 
-Sends the position by SMS as soon as the router leaves the home zone, for
-example as a theft warning at a parking spot. It works without internet at the
-camper, because the SMS goes out through the router's own SIM; Home Assistant
-only has to run. Replace `zone.hymer_home` with your zone, and switch the
-automation off while you drive.
+Sends the position by SMS and as a push notification when the camper moves
+away from its parking spot while nobody is with it, for example as a theft
+warning. It works without internet at the camper, because the SMS goes out
+through the router's own SIM; Home Assistant only has to run.
+
+Two checks keep it from raising false alarms:
+
+- **Nobody is with the camper.** The alarm only counts when no person is
+  within 500 m of the camper. While you drive, you are with it and nothing
+  happens; no switch to turn off.
+- **It has to last.** The camper must be more than 200 m from the parking spot
+  for 3 minutes in a row, so a wrong GPS reading does not trigger it.
+
+The parking spot is a zone, for example one that follows the camper when you
+park (see [Move the home zone with the camper](#move-the-home-zone-with-the-camper)).
+Replace `zone.camper_spot`, `person.me` and `person.partner`, and the notify
+service and number with your own.
 
 ```yaml
 automation:
-  - alias: "Router: SMS alarm when the camper moves"
+  - alias: "Router: alarm when the camper moves and nobody is with it"
     triggers:
-      - trigger: state
-        entity_id: device_tracker.my_router_position
-        from: home
-        to: not_home
-        for: "00:02:00"
-    conditions:
-      - condition: state
-        entity_id: input_boolean.camper_parked
-        state: "on"
+      - trigger: template
+        value_template: >-
+          {{ distance('device_tracker.my_router_position', 'zone.camper_spot') * 1000 > 200
+             and distance('person.me', 'device_tracker.my_router_position') | float(999) > 0.5
+             and distance('person.partner', 'device_tracker.my_router_position') | float(999) > 0.5 }}
+        for: "00:03:00"
     actions:
+      - action: notify.all_mobile_apps
+        data:
+          title: "ALARM: camper is moving"
+          message: "Nobody is with it. Tap for the map."
+          data:
+            clickAction: >-
+              https://www.google.com/maps?q={{
+                state_attr('device_tracker.my_router_position', 'latitude') | round(6) }},{{
+                state_attr('device_tracker.my_router_position', 'longitude') | round(6) }}
       - action: teltonika_control.send_sms
+        continue_on_error: true
         target:
           entity_id: sensor.my_router_sms_messages
         data:
           number: "+491701234567"
           message: >-
-            ALARM: camper moved. https://www.google.com/maps?q={{
+            ALARM: camper is moving. https://www.google.com/maps?q={{
               state_attr('device_tracker.my_router_position', 'latitude') | round(6) }},{{
               state_attr('device_tracker.my_router_position', 'longitude') | round(6) }}
 ```
 
-The helper `input_boolean.camper_parked` is a switch you create yourself
-(Settings, Devices & services, Helpers) and turn on when you park. The two
-minutes avoid an alarm from a single wrong GPS reading.
+The notification comes first and the SMS has `continue_on_error`, so one
+failing does not stop the other. The notification needs Home Assistant to reach
+the internet; the SMS does not. To get an update while the camper keeps moving,
+add a `time_pattern` trigger (for example every 15 minutes) with the same
+conditions. A person without a position counts as far away, so keep the phone
+location of the people you want to count switched on.
 
 ## Daily status by SMS
 

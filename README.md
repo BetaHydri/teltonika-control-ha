@@ -830,7 +830,7 @@ Ready automations: [send an SMS from a dashboard button with a fixed
 text](docs/automation-examples.md#send-an-sms-from-a-button), [send the typed
 SMS from a script](docs/automation-examples.md#send-the-typed-sms-from-a-script),
 [the position as a Google Maps link](docs/automation-examples.md#send-the-position-by-sms),
-[an alarm when the camper moves](docs/automation-examples.md#alarm-by-sms-when-the-camper-moves),
+[an alarm when the camper moves and nobody is with it](docs/automation-examples.md#alarm-by-sms-when-the-camper-moves),
 [a daily status](docs/automation-examples.md#daily-status-by-sms),
 [an SMS when the data volume runs low](docs/automation-examples.md#send-an-sms-when-the-data-volume-runs-low)
 and [commands by SMS](docs/automation-examples.md#commands-by-sms).
@@ -841,6 +841,17 @@ and [commands by SMS](docs/automation-examples.md#commands-by-sms).
 trigger, for example to forward the SMS of your provider as a notification, see
 the [automation examples](docs/automation-examples.md#forward-a-new-sms). Messages
 that were already on the router when Home Assistant started are not announced.
+**SMS Utilities of the router.** The router can already answer SMS commands by
+itself: **Services, Mobile Utilities, SMS Utilities** has rules where a text such
+as `status`, `iostatus`, `reboot`, `mobileon` or `mobileoff` makes the router do
+something and answer with the result, protected by the device admin password.
+It works without Home Assistant, so use it for what the router knows. This
+integration adds what the router cannot do: SMS written from Home Assistant
+(alarms, status messages, a position link) with data of any entity, and the
+reaction of an automation to a received message. A message that matches a rule
+is handled by the router, so it can be missing from the inbox that this
+integration shows; ordinary texts are listed.
+
 The router is asked every two minutes, so an SMS can take up to that long to
 show up. The integration never deletes messages; the router does that itself
 when its storage is full.
