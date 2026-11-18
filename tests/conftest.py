@@ -83,6 +83,8 @@ def mock_router(
     traffic_rules: bool = True,
     failover: bool = True,
     data_limit: bool = True,
+    sms: bool = True,
+    firmware: dict[str, Any] | bool = True,
 ) -> None:
     """Register answers for every endpoint the integration polls.
 
@@ -107,6 +109,12 @@ def mock_router(
         (failover, "/failover/status", data["failover"]),
         (failover, "/failover/interfaces/config", data["failover_config"]),
         (data_limit, "/data_limit/status", data["data_limit"]),
+        (sms, "/messages/status", data["sms"]),
+        (
+            firmware is not False,
+            "/firmware/device/updates/status",
+            firmware if isinstance(firmware, dict) else data["firmware_updates"],
+        ),
     ):
         if enabled:
             aioclient_mock.get(f"{BASE}{path}", json={"success": True, "data": body})
@@ -153,6 +161,10 @@ def mock_router(
         method(f"{BASE}/firewall/port_forwards/config/cfg_web", json={"success": True})
         method(f"{BASE}/firewall/traffic_rules/config/15", json={"success": True})
         method(f"{BASE}/firewall/traffic_rules/config/21", json={"success": True})
+        method(
+            f"{BASE}/messages/actions/send",
+            json={"success": True, "data": {"sms_used": 2}},
+        )
 
 
 def mock_login_failure(aioclient_mock: Any) -> None:

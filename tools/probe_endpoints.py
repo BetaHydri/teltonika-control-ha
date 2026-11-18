@@ -57,8 +57,15 @@ CANDIDATES = (
     "/system/info",
     "/system/uptime",
     "/firmware/device/status",
+    "/firmware/device/updates/status",
+    "/firmware/device/progress/status",
+    "/firmware/modem/updates/status",
     "/firmware/status",
     "/firmware/fota/status",
+    "/speedtest/status",
+    "/vrrp/status",
+    "/ddns/status",
+    "/hotspot/status",
     # Network
     "/interfaces/status",
     "/dhcp/leases/ipv4/status",
@@ -141,6 +148,24 @@ SAFE_STRING_KEYS = {
     "sim",
     "sim_id",
     "default_sim",
+    # Firmware versions, speed test results and message dates: they say which
+    # format and unit the router uses. No names, numbers or texts of messages.
+    "version",
+    "stable_version",
+    "kernel_version",
+    "build_date",
+    "date",
+    "stable_date",
+    "size",
+    "stable_size",
+    "percents",
+    "process",
+    "update_exists",
+    "avgDownloadSpeed",
+    "avgUploadSpeed",
+    "downloaded",
+    "uploaded",
+    "startTime",
 }
 SENSITIVE = re.compile(
     r"key|pass|secret|token|serial|imei|imsi|iccid|mac|addr|ip|host|endpoint|"

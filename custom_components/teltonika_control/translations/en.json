@@ -1,5 +1,6 @@
 {
   "config": {
+    "flow_title": "{name} ({host})",
     "step": {
       "user": {
         "title": "Connect a Teltonika router",
@@ -19,6 +20,14 @@
         "title": "Sign in again",
         "description": "The router {host} rejected the stored password.",
         "data": {
+          "password": "Password"
+        }
+      },
+      "dhcp_confirm": {
+        "title": "Teltonika router found",
+        "description": "A Teltonika router was found at {host}. Enter the login of a RutOS user to add it.",
+        "data": {
+          "username": "Username",
           "password": "Password"
         }
       },
@@ -117,6 +126,7 @@
       "gps_heading": { "name": "GPS heading" },
       "gps_fix": { "name": "GPS fix status" },
       "last_action": { "name": "Last Wi-Fi action" },
+      "sms_messages": { "name": "SMS messages" },
       "router_time": { "name": "Router time" },
       "vpn_latency": { "name": "VPN latency" },
       "uptime": { "name": "Uptime" },
@@ -181,6 +191,9 @@
     },
     "text": {
       "wifi_password": { "name": "Wi-Fi password" }
+    },
+    "update": {
+      "firmware": { "name": "Firmware" }
     },
     "switch": {
       "access_point": { "name": "Access point {name}" },
@@ -266,6 +279,24 @@
         "ssid": {
           "name": "Network name",
           "description": "SSID of a Multi AP list entry."
+        }
+      }
+    },
+    "send_sms": {
+      "name": "Send SMS",
+      "description": "Sends an SMS through a modem of the router. This costs what an SMS costs on your SIM. Returns how many SMS parts the message used.",
+      "fields": {
+        "number": {
+          "name": "Phone number",
+          "description": "The number in digits, with a leading + for a country code, for example +491701234567."
+        },
+        "message": {
+          "name": "Message",
+          "description": "The text. Long texts are sent as several SMS."
+        },
+        "modem": {
+          "name": "Modem",
+          "description": "The modem to send with, for example 2-1.1. Not needed when the router has one modem."
         }
       }
     }

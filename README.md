@@ -98,6 +98,14 @@ respective owners and are used here only to say which routers are supported.
   [WireGuard tunnels](#wireguard-tunnels).
 - **Router health**: uptime, CPU load, memory usage and the number of DHCP
   clients (connected devices).
+- **SMS**: send an SMS through the router from an automation or script, see how
+  many messages the router holds, and react to every new SMS with an event, for
+  example to forward it as a notification. See [SMS](#sms).
+- **Firmware**: an update entity that tells you when the router has found a
+  newer stable firmware. It only informs; the router installs firmware itself.
+- **Found on your network**: a Teltonika router shows up under **Discovered**,
+  and the router is linked to its other entries in Home Assistant by its MAC
+  addresses. Setup tries HTTPS and then plain HTTP.
 - **Firewall control**: a switch for every port forward and traffic rule of
   the router, counters of what is open to the internet, and a separate
   [firewall dashboard](docs/firewall-dashboard.md). See [Firewall](#firewall).
@@ -131,11 +139,13 @@ respective owners and are used here only to say which routers are supported.
 
 Home Assistant ships its own
 [Teltonika integration](https://www.home-assistant.io/integrations/teltonika/)
-(domain `teltonika`). It reads the modem sensors and has no controls. Teltonika
-Control uses the same local RutOS REST API and adds the controls and the
-camper features on top: uplink priority, hotspot login handling, Wi-Fi
-management, WireGuard, roaming and SIM control, GPS, firewall, data volume and
-the dashboards.
+(domain `teltonika`). It reads the modem sensors, is discovered on the network
+and has no controls. Teltonika Control covers all of that (the same modem
+sensors, discovery by the router's MAC address, HTTPS and HTTP, re-authentication)
+and adds the controls and the camper features on top: uplink priority, hotspot
+login handling, Wi-Fi management, WireGuard, roaming and SIM control, GPS,
+firewall, data volume, SMS, firmware information and the dashboards. So you can
+use it instead of the core integration without losing anything.
 
 - Both can be installed side by side. The domains differ, so entities do not
   collide. Each polls the router on its own; on a weak router, use only one or
@@ -259,6 +269,9 @@ to:
 | Data limit usage | Network, Mobile, Data limit | Read |
 | Port forward switches | Network, Firewall, Port forwards | Read and write |
 | Traffic rule switches | Network, Firewall, Traffic rules | Read and write |
+| SMS messages (count and new-message event) | Services, Mobile Utilities, SMS Utilities | Read |
+| Send SMS | Services, Mobile Utilities, SMS Utilities | Write |
+| Firmware update information | System, Firmware | Read |
 | Reboot router | System, Administration, General | Write |
 
 Teltonika's API description does not list the exact permission entry for each
@@ -268,7 +281,8 @@ error message; grant read or write on that page to the group and try again.
 
 Read-only extras are optional. If the user may not read the system usage, the
 DHCP leases, the WireGuard configuration, the failover state, the data limits,
-the port forwards or the traffic rules, the router answers with an error
+the port forwards, the traffic rules, the SMS messages or the firmware
+information, the router answers with an error
 and the integration simply does not create those entities. Nothing else is
 affected. A tunnel whose configuration cannot be read is shown (interface
 state and counters) but gets no switch and no reconnect button.
@@ -288,6 +302,8 @@ Knowing this helps you decide how much to allow:
 - The on/off flag of port forwarding rules and of traffic rules (only this
   field; a rule that is on lets traffic from the internet reach the router or a
   device in your network).
+- It sends an SMS only when you call the `send_sms` service. Reading the SMS
+  messages changes nothing: they stay on the router.
 
 It never creates, edits or deletes a firewall rule, and never changes
 passwords, users, other firewall settings or firmware.
@@ -328,7 +344,15 @@ the router user to your first dashboard card. The short version:
 3. Enter the router address, user and password. Leave **Verify SSL
    certificate** off if the router uses its self-signed certificate.
 
-Use `http://` in front of the address to talk plain HTTP.
+Use `http://` in front of the address to talk plain HTTP. Without it, the
+integration tries HTTPS first and then plain HTTP, so a router that serves only
+HTTP works without any extra step.
+
+If a Teltonika router on your network asks for an address, Home Assistant lists
+it under **Discovered** on the integrations page (found by its MAC address
+range). Choose **Add**, enter the login of your router user and you are done. A
+router that is already set up is not offered again. If its address changes and
+the old address no longer answers, the new one is taken over automatically.
 
 If the router address, user or password changes later, use **Reconfigure**
 on the integration. A rejected password starts the re-authentication flow
@@ -367,6 +391,8 @@ automatically.
 | Reconnect WireGuard *name* | button | Switches the instance off and on |
 | WireGuard *name* received, sent | sensors | Traffic counters of the tunnel interface. Diagnostic |
 | Reboot router | button | Add a confirmation in your dashboard |
+| SMS messages | sensor | How many messages the router holds. Only on routers that have the SMS page. The texts are not shown here; a new message fires the event `teltonika_control_sms_received`, see [SMS](#sms) |
+| Firmware | update | The installed firmware and, when the router has found one, the newest stable release. Informs only. Only on routers that offer firmware update information |
 | Failover *interface* | sensor | The router's failover state of an uplink: `online`, `offline`, `standby`, `starting` or `notracking`. Attributes: health `score`, `seconds_since_change`, `seconds_online`, `seconds_offline`, `tracking_lost`. One per interface in the failover configuration |
 | Failover *interface* online | binary sensor | On while the failover check says the uplink is online |
 | Failover mobile, Wi-Fi, Ethernet online | binary sensors | On while any interface of that kind is online. Same name on every router, one per kind that exists in the failover configuration |
@@ -702,6 +728,42 @@ status endpoints. Combine the interface state with the VPN check instead.
 To restart the tunnel automatically when the VPN check keeps failing, use the
 [ready automation](docs/automation-examples.md#restart-the-wireguard-tunnel).
 
+## SMS
+
+If the router has an SMS page, the integration creates the sensor **SMS
+messages** (how many messages the router holds) and offers the service
+`send_sms`.
+
+**Sending.** The service `teltonika_control.send_sms` takes the router as target
+(any entity of the router) and the fields `number` and `message`. Give the number
+in digits, with a leading `+` for the country code; spaces and dashes are
+removed. With one modem the router uses it; with two, name the one to send with
+in `modem` (for example `2-1.1`). The response says how many SMS the text used
+(`sms_used`; a long text is sent as several). Sending costs what an SMS costs on
+the SIM. Neither the number nor the text is written to the log.
+
+```yaml
+action: teltonika_control.send_sms
+target:
+  entity_id: sensor.my_router_sms_messages
+data:
+  number: "+491701234567"
+  message: "The camper is parked, data volume at 95 percent."
+```
+
+**Receiving.** The router keeps incoming messages. Every new one fires the event
+`teltonika_control_sms_received` with the fields `sender`, `message`, `date`,
+`modem`, `status` and `router` (the serial number). Use it as an automation
+trigger, for example to forward the SMS of your provider as a notification, see
+the [automation examples](docs/automation-examples.md#forward-a-new-sms). Messages
+that were already on the router when Home Assistant started are not announced.
+The router is asked every two minutes, so an SMS can take up to that long to
+show up. The integration never deletes messages; the router does that itself
+when its storage is full.
+
+The message texts are not stored in sensors, so they do not end up in the
+history. Only the event carries them, and events are not recorded either.
+
 ## Services
 
 | Service | Purpose |
@@ -711,6 +773,7 @@ To restart the tunnel automatically when the VPN check keeps failing, use the
 | `scan_wifi` | Return nearby networks (response data) |
 | `join_wifi` | Save a network as Wi-Fi client, or into the Multi AP list on a Multi AP radio; mobile stays preferred |
 | `forget_wifi` | Remove a saved client network (`station_id`) or a Multi AP list entry (`ssid`) |
+| `send_sms` | Send an SMS through a modem of the router (response data: how many SMS parts it used), see [SMS](#sms) |
 
 Each service takes the router as a service target: choose any entity of the
 router, including a modem entity. A router device as target and `device_id`
@@ -739,7 +802,8 @@ it is one of the router's default interfaces (`lan`, `wan*`, `mob*`, `vpn*`).
 Ready-to-paste automations are collected on one page:
 [Automation examples](docs/automation-examples.md). It has the mobile data
 warning, hotspot login and Wi-Fi lost notices, uplink change, the way back to
-mobile data, VPN and WireGuard recovery, and the camper home zone. Services
+mobile data, VPN and WireGuard recovery, forwarding a new SMS, an SMS when the
+data volume runs low, and the camper home zone. Services
 take any entity of the router as target.
 
 ## Options
@@ -845,6 +909,14 @@ same page status and answer structures.
   because the router offers no status endpoint for it.
 - The WireGuard entities cover WireGuard only. OpenVPN, IPsec and other
   tunnels are not listed yet; use the VPN check for them.
+- The **Firmware** entity appears only when the router has update information
+  from its update server (FOTA), which needs internet access and the update
+  service switched on in the router. It cannot start an update: install
+  firmware in the router web interface. The versions are compared by their
+  numbers; if the router names them in a way that cannot be compared, the entity
+  says "up to date" instead of guessing.
+- The SMS texts and sender names the router reports are passed on as they are.
+  The format of the `date` field is the router's own.
 - Field names in the modem, Wi-Fi and interface answers differ slightly
   between RutOS releases. Open an issue with the diagnostics download if an
   entity stays empty.

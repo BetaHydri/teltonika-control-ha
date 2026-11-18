@@ -72,3 +72,23 @@ forget_wifi:
       required: false
       selector:
         text:
+send_sms:
+  target:
+    entity:
+      integration: teltonika_control
+  fields:
+    number:
+      required: true
+      example: "+491701234567"
+      selector:
+        text:
+    message:
+      required: true
+      selector:
+        text:
+          multiline: true
+    modem:
+      required: false
+      example: "2-1.1"
+      selector:
+        text:

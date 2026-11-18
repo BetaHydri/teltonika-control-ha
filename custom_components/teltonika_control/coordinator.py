@@ -16,7 +16,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import (
+    CONNECTION_NETWORK_MAC,
+    DeviceInfo,
+    format_mac,
+)
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -43,6 +47,7 @@ from .const import (
     DHCP_INTERVAL,
     DOMAIN,
     EVENT_PORTAL_RESULT,
+    EVENT_SMS_RECEIVED,
     GPS_GLITCH_POLLS,
     METRIC_MOBILE_FIRST,
     METRIC_WIFI_FIRST,
@@ -102,6 +107,8 @@ PAGES: dict[str, tuple[str, str]] = {
     "failover": ("async_failover_status", "medium"),
     "failover_config": ("async_failover_config", "config"),
     "data_limit": ("async_data_limit_status", "medium"),
+    "sms": ("async_sms_messages", "medium"),
+    "firmware_updates": ("async_firmware_updates", "config"),
 }
 
 
@@ -168,6 +175,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         # Short text per page for the debug log and the diagnostics download.
         self._page_notes: dict[str, str] = {}
         self._reported = False
+        # Keys of the SMS in the inbox at the last reading; None until the
+        # first reading, which announces nothing.
+        self._sms_seen: set[str] | None = None
         # Last GPS reading with satellites, and how many empty ones came since.
         self._last_fix: dict[str, Any] | None = None
         self._gps_misses = 0
@@ -191,9 +201,18 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
     @property
     def router_device_info(self) -> DeviceInfo:
-        """Return the device registry entry of the router."""
+        """Return the device registry entry of the router.
+
+        The MAC addresses link the router to the same device in other
+        integrations and let Home Assistant match a discovered router to it.
+        """
         return DeviceInfo(
             identifiers={(DOMAIN, self.router.unique_id)},
+            connections={
+                (CONNECTION_NETWORK_MAC, format_mac(mac))
+                for mac in (self.router.mac, self.router.mac_eth)
+                if mac
+            },
             name=self.router.name,
             manufacturer="Teltonika",
             model=self.router.model,
@@ -278,6 +297,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 "failover",
                 "failover_config",
                 "data_limit",
+                "sms",
+                "firmware_updates",
             ]
         )
         interface_config = parts["interface_config"] or []
@@ -319,9 +340,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             port_forwards=port_forwards,
             traffic_rules=traffic_rules,
             data_plan_bytes=self._data_plan_bytes,
+            sms=parts["sms"] if isinstance(parts["sms"], list) else None,
+            firmware_updates=parts["firmware_updates"],
+            firmware_installed=self.router.firmware,
         )
         data.portal_waiting = self.portal_waiting
         self._remember_position(data)
+        self._announce_new_sms(data)
         probe_internet = bool(self._probe_url) and data.uplink is not None
         internet, vpn = await asyncio.gather(
             self._async_probe_internet() if probe_internet else _nothing(),
@@ -553,6 +578,34 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         except (aiohttp.ClientError, TimeoutError):
             return False
 
+    def _announce_new_sms(self, data: TeltonikaData) -> None:
+        """Fire an event for every SMS that arrived since the last reading.
+
+        The first reading only remembers what is in the inbox, so a restart of
+        Home Assistant does not announce old messages again.
+        """
+        if data.sms is None:
+            return
+        keys = {message.key for message in data.sms}
+        previous = self._sms_seen
+        self._sms_seen = keys
+        if previous is None:
+            return
+        for message in data.sms:
+            if message.key in previous:
+                continue
+            self.hass.bus.async_fire(
+                EVENT_SMS_RECEIVED,
+                {
+                    "router": self.router.unique_id,
+                    "sender": message.sender,
+                    "message": message.message,
+                    "date": message.date,
+                    "modem": message.modem_id,
+                    "status": message.status,
+                },
+            )
+
     def modem_ids(self) -> list[str]:
         """Return the ids of all modems with a full status."""
         return [
@@ -560,6 +613,27 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             for m in self.data.modems
             if m.get("id") and is_modem_online(m)
         ]
+
+    async def async_send_sms(
+        self, number: str, message: str, modem: str | None = None
+    ) -> int | None:
+        """Send an SMS and return how many SMS parts it used.
+
+        Without a modem, the only modem with a full status is used. Neither the
+        number nor the text is written to the log.
+        """
+        modem_id = modem
+        if modem_id is None:
+            modems = self.modem_ids()
+            if len(modems) != 1:
+                raise HomeAssistantError(
+                    "Choose the modem to send with: "
+                    + (", ".join(modems) if modems else "no modem is online")
+                )
+            modem_id = modems[0]
+        _LOGGER.debug("Action: send an SMS through modem %s", modem_id)
+        async with translate_errors():
+            return await self.client.async_send_sms(modem_id, number, message)
 
     async def async_restart_mobile(self, modem_id: str) -> None:
         """Re-establish the mobile data connection."""

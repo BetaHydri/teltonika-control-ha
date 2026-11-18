@@ -350,6 +350,26 @@ class TeltonikaClient:
         """Return the traffic rules of the firewall."""
         return await self._async_list("/firewall/traffic_rules/config")
 
+    async def async_sms_messages(self) -> list[dict[str, Any]]:
+        """Return the SMS messages stored on the router (the inbox)."""
+        return await self._async_list("/messages/status")
+
+    async def async_firmware_updates(self) -> dict[str, Any]:
+        """Return the firmware the router found at its update server (FOTA)."""
+        data = await self.async_request("GET", "/firmware/device/updates/status")
+        return data if isinstance(data, dict) else {}
+
+    async def async_send_sms(self, modem_id: str, number: str, message: str) -> int | None:
+        """Send an SMS through a modem; return how many SMS parts it used."""
+        data = await self.async_request(
+            "POST",
+            "/messages/actions/send",
+            json={"data": {"modem": modem_id, "number": number, "message": message}},
+            timeout=ACTION_TIMEOUT,
+        )
+        used = data.get("sms_used") if isinstance(data, dict) else None
+        return used if isinstance(used, int) and not isinstance(used, bool) else None
+
     async def async_set_traffic_rule_enabled(self, rule_id: str, enabled: bool) -> None:
         """Turn one traffic rule on or off; only this field is sent."""
         await self.async_request(

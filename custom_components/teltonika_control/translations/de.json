@@ -1,5 +1,6 @@
 {
   "config": {
+    "flow_title": "{name} ({host})",
     "step": {
       "user": {
         "title": "Teltonika-Router verbinden",
@@ -19,6 +20,14 @@
         "title": "Erneut anmelden",
         "description": "Der Router {host} hat das gespeicherte Passwort abgelehnt.",
         "data": {
+          "password": "Passwort"
+        }
+      },
+      "dhcp_confirm": {
+        "title": "Teltonika-Router gefunden",
+        "description": "Unter {host} wurde ein Teltonika-Router gefunden. Gib die Anmeldedaten eines RutOS-Benutzers ein, um ihn hinzuzufügen.",
+        "data": {
+          "username": "Benutzername",
           "password": "Passwort"
         }
       },
@@ -117,6 +126,7 @@
       "gps_heading": { "name": "GPS-Kurs" },
       "gps_fix": { "name": "GPS-Fix-Status" },
       "last_action": { "name": "Letzte WLAN-Aktion" },
+      "sms_messages": { "name": "SMS-Nachrichten" },
       "router_time": { "name": "Routerzeit" },
       "vpn_latency": { "name": "VPN-Latenz" },
       "uptime": { "name": "Betriebszeit" },
@@ -181,6 +191,9 @@
     },
     "text": {
       "wifi_password": { "name": "WLAN-Passwort" }
+    },
+    "update": {
+      "firmware": { "name": "Firmware" }
     },
     "switch": {
       "access_point": { "name": "Access Point {name}" },
@@ -266,6 +279,24 @@
         "ssid": {
           "name": "Netzwerkname",
           "description": "SSID eines Eintrags der Multi-AP-Liste."
+        }
+      }
+    },
+    "send_sms": {
+      "name": "SMS senden",
+      "description": "Sendet eine SMS über ein Modem des Routers. Das kostet, was eine SMS auf deiner SIM kostet. Gibt zurück, wie viele SMS-Teile die Nachricht belegt hat.",
+      "fields": {
+        "number": {
+          "name": "Telefonnummer",
+          "description": "Die Nummer in Ziffern, mit vorangestelltem + für die Landesvorwahl, z. B. +491701234567."
+        },
+        "message": {
+          "name": "Nachricht",
+          "description": "Der Text. Lange Texte werden als mehrere SMS gesendet."
+        },
+        "modem": {
+          "name": "Modem",
+          "description": "Das Modem zum Senden, z. B. 2-1.1. Nicht nötig, wenn der Router ein Modem hat."
         }
       }
     }

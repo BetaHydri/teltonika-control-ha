@@ -14,6 +14,8 @@ The rules behind them are on the [best practices](best-practices.md) page.
 - [Back to mobile data when the Wi-Fi has no internet](#back-to-mobile-data-when-the-wi-fi-has-no-internet)
 - [VPN to home is down](#vpn-to-home-is-down)
 - [Restart the WireGuard tunnel](#restart-the-wireguard-tunnel)
+- [Forward a new SMS](#forward-a-new-sms)
+- [Send an SMS when the data volume runs low](#send-an-sms-when-the-data-volume-runs-low)
 - [Move the home zone with the camper](#move-the-home-zone-with-the-camper)
 
 ## Mobile data volume warning
@@ -201,6 +203,60 @@ automation:
 
 The delay keeps the automation from restarting the tunnel again right away,
 because the default mode `single` ignores new triggers while it runs.
+
+## Forward a new SMS
+
+Every new SMS on the router fires the event `teltonika_control_sms_received`, see
+[SMS](../README.md#sms). This forwards it to your phone with the sender in the
+title. Messages that were already on the router at startup are not announced.
+
+```yaml
+automation:
+  - alias: "Router: forward a new SMS"
+    mode: queued
+    triggers:
+      - trigger: event
+        event_type: teltonika_control_sms_received
+    actions:
+      - action: notify.mobile_app_my_phone
+        data:
+          title: "SMS from {{ trigger.event.data.sender }}"
+          message: "{{ trigger.event.data.message }}"
+```
+
+To react only to one sender, add `event_data: {sender: "+491701111111"}` to the
+trigger.
+
+## Send an SMS when the data volume runs low
+
+Sends an SMS to a number of your choice when the volume of your plan reaches 90
+percent, for example to a second phone, when nobody sees the notification in
+the app. Needs the option **Mobile data plan (GB)**, see
+[Mobile data limit](../README.md#mobile-data-limit). Sending costs what an SMS
+costs on the SIM.
+
+```yaml
+automation:
+  - alias: "Router: SMS at 90 percent of the data volume"
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.my_router_data_limit_used_sim_1
+        above: 90
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.from_state is not none
+             and trigger.from_state.state not in ['unknown', 'unavailable'] }}
+    actions:
+      - action: teltonika_control.send_sms
+        target:
+          entity_id: sensor.my_router_sms_messages
+        data:
+          number: "+491701234567"
+          message: >-
+            Mobile data: {{ states('sensor.my_router_data_limit_used_sim_1') }} percent
+            of the plan used.
+```
 
 ## Move the home zone with the camper
 

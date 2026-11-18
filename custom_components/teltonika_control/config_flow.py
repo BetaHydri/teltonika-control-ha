@@ -9,6 +9,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import (
+    ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
     OptionsFlow,
@@ -20,7 +21,10 @@ from homeassistant.const import (
     CONF_VERIFY_SSL,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, format_mac
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from .api import (
     TeltonikaAuthError,
@@ -109,11 +113,106 @@ class TeltonikaConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Remember the address of a router found on the network."""
+        self._discovered_host: str | None = None
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: Any) -> TeltonikaOptionsFlow:
         """Return the options flow."""
         return TeltonikaOptionsFlow()
+
+    def _entry_for_mac(self, mac: str) -> ConfigEntry | None:
+        """Return the router entry whose device has this MAC address."""
+        device = dr.async_get(self.hass).async_get_device(
+            connections={(CONNECTION_NETWORK_MAC, mac)}
+        )
+        if device is None:
+            return None
+        for domain, identifier in device.identifiers:
+            if domain != DOMAIN:
+                continue
+            for entry in self._async_current_entries():
+                if entry.unique_id == identifier:
+                    return entry
+        return None
+
+    async def _async_address_is_gone(self, entry: ConfigEntry, host: str) -> bool:
+        """Tell whether a known router moved: the old address is silent, the new one answers.
+
+        An address that still answers is never replaced, because the router
+        can be seen on more than one address (LAN, WAN, VPN).
+        """
+        if parse_host(entry.data[CONF_HOST])[0] == host:
+            return False
+        try:
+            await async_validate(self.hass, entry.data)
+        except TeltonikaConnectionError:
+            pass
+        except TeltonikaError:
+            return False
+        else:
+            return False
+        try:
+            info = await async_validate(self.hass, {**entry.data, CONF_HOST: host})
+        except TeltonikaError:
+            return False
+        return info.unique_id == entry.unique_id
+
+    async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
+        """A Teltonika router asked for an address on the network."""
+        mac = format_mac(discovery_info.macaddress)
+        host = discovery_info.ip
+        entry = self._entry_for_mac(mac)
+        if entry is not None:
+            await self.async_set_unique_id(entry.unique_id)
+            if await self._async_address_is_gone(entry, host):
+                self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+            return self.async_abort(reason="already_configured")
+
+        await self.async_set_unique_id(mac)
+        self._abort_if_unique_id_configured()
+        self._discovered_host = host
+        self.context["title_placeholders"] = {
+            "name": discovery_info.hostname or "Teltonika",
+            "host": host,
+        }
+        return await self.async_step_dhcp_confirm()
+
+    async def async_step_dhcp_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for the login of the router that was found."""
+        host = self._discovered_host or ""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            data = {
+                CONF_HOST: host,
+                CONF_USERNAME: user_input[CONF_USERNAME],
+                CONF_PASSWORD: user_input[CONF_PASSWORD],
+                CONF_VERIFY_SSL: False,
+            }
+            info, data, errors = await self._async_try_both(data)
+            if info is not None:
+                await self.async_set_unique_id(info.unique_id)
+                self._abort_if_unique_id_configured(updates={CONF_HOST: data[CONF_HOST]})
+                return self.async_create_entry(title=info.name, data=data)
+
+        defaults = user_input or {}
+        return self.async_show_form(
+            step_id="dhcp_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USERNAME, default=defaults.get(CONF_USERNAME, DEFAULT_USERNAME)
+                    ): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            description_placeholders={"host": host},
+            errors=errors,
+        )
 
     async def _async_try(
         self, data: Mapping[str, Any]
@@ -128,19 +227,41 @@ class TeltonikaConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected router answer")
             return None, {"base": "unknown"}
 
+    async def _async_try_both(
+        self, data: Mapping[str, Any]
+    ) -> tuple[RouterInfo | None, dict[str, Any], dict[str, str]]:
+        """Connect, and fall back to plain HTTP when HTTPS cannot be reached.
+
+        Only an address without ``http://`` or ``https://`` is tried twice. The
+        data that worked is returned, so that the entry keeps the right scheme.
+        """
+        info, errors = await self._async_try(data)
+        host = str(data[CONF_HOST]).strip()
+        if (
+            info is not None
+            or errors != {"base": "cannot_connect"}
+            or host.lower().startswith(("http://", "https://"))
+        ):
+            return info, dict(data), errors
+        plain = {**data, CONF_HOST: f"http://{host}"}
+        plain_info, plain_errors = await self._async_try(plain)
+        if plain_info is not None or plain_errors != {"base": "cannot_connect"}:
+            return plain_info, plain, plain_errors
+        return None, dict(data), errors
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Ask for host and credentials."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            info, errors = await self._async_try(user_input)
+            info, data, errors = await self._async_try_both(user_input)
             if info is not None:
                 await self.async_set_unique_id(info.unique_id)
                 self._abort_if_unique_id_configured(
-                    updates={CONF_HOST: user_input[CONF_HOST]}
+                    updates={CONF_HOST: data[CONF_HOST]}
                 )
-                return self.async_create_entry(title=info.name, data=user_input)
+                return self.async_create_entry(title=info.name, data=data)
 
         defaults = user_input or {}
         return self.async_show_form(
@@ -194,11 +315,11 @@ class TeltonikaConfigFlow(ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
         if user_input is not None:
-            info, errors = await self._async_try(user_input)
+            info, data, errors = await self._async_try_both(user_input)
             if info is not None:
                 await self.async_set_unique_id(info.unique_id)
                 self._abort_if_unique_id_mismatch()
-                return self.async_update_reload_and_abort(entry, data=user_input)
+                return self.async_update_reload_and_abort(entry, data=data)
 
         current = user_input or entry.data
         return self.async_show_form(

@@ -461,6 +461,15 @@ async def async_setup_entry(
         entry,
         async_add_entities,
         lambda c: (
+            (("sms_messages", lambda: TeltonikaSmsSensor(c)),)
+            if c.data.sms is not None
+            else ()
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
             (
                 description.key,
                 lambda desc=description: TeltonikaRouterSensor(c, desc),
@@ -740,6 +749,26 @@ class TeltonikaTunnelSensor(TeltonikaTunnelEntity, SensorEntity):
         """Return the counter."""
         tunnel = self.tunnel
         return self.entity_description.value_fn(tunnel) if tunnel else None
+
+
+class TeltonikaSmsSensor(TeltonikaEntity, SensorEntity):
+    """The number of SMS stored on the router.
+
+    The texts are not shown here: a new message is announced by an event.
+    """
+
+    _attr_translation_key = "sms_messages"
+    _attr_icon = "mdi:message-text"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "sms_messages")
+
+    @property
+    def native_value(self) -> int | None:
+        """Return how many messages the inbox holds."""
+        sms = self.coordinator.data.sms
+        return len(sms) if sms is not None else None
 
 
 class TeltonikaLastActionSensor(TeltonikaEntity, SensorEntity):

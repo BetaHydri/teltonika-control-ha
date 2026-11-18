@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -103,6 +104,7 @@ class RouterInfo:
     model: str | None = None
     serial: str | None = None
     mac: str | None = None
+    mac_eth: str | None = None
     firmware: str | None = None
     hostname: str | None = None
 
@@ -113,6 +115,7 @@ class RouterInfo:
         static = data.get("static") or {}
         serial = _first_text(mnf.get("serial"))
         mac = _first_text(mnf.get("mac"))
+        mac_eth = _first_text(mnf.get("macEth")) or _first_text(mnf.get("mac_eth"))
         model = _first_text(static.get("device_name")) or _first_text(mnf.get("name"))
         hostname = _first_text(static.get("hostname"))
         return cls(
@@ -122,6 +125,7 @@ class RouterInfo:
             model=model,
             serial=serial,
             mac=mac,
+            mac_eth=mac_eth,
             firmware=_first_text(static.get("fw_version")),
             hostname=hostname,
         )
@@ -1104,6 +1108,105 @@ def derive_traffic_rules(raw: Iterable[dict[str, Any]] | None) -> list[TrafficRu
     return sorted(rules, key=lambda rule: (to_int(rule.rule_id, 10**6) or 0, rule.rule_id))
 
 
+@dataclass(frozen=True, slots=True)
+class SmsMessage:
+    """One SMS stored on the router."""
+
+    key: str
+    message_id: str
+    modem_id: str
+    sender: str
+    status: str | None
+    date: str | None
+    message: str
+
+
+def derive_sms(raw: Iterable[dict[str, Any]] | None) -> list[SmsMessage] | None:
+    """Read ``/messages/status``; None means the router has no SMS page.
+
+    The message ids can repeat after messages were deleted, so the key also
+    contains the sender and the date.
+    """
+    if raw is None:
+        return None
+    messages: list[SmsMessage] = []
+    for item in raw:
+        message_id = str(item.get("id") or "").strip()
+        if not message_id:
+            continue
+        modem_id = str(item.get("modem_id") or "").strip()
+        sender = str(item.get("sender") or "").strip()
+        date = _first_text(item.get("date"))
+        messages.append(
+            SmsMessage(
+                key=f"{modem_id}|{message_id}|{sender}|{date}",
+                message_id=message_id,
+                modem_id=modem_id,
+                sender=sender,
+                status=_first_text(item.get("status")),
+                date=date,
+                message=str(item.get("message") or ""),
+            )
+        )
+    return messages
+
+
+@dataclass(frozen=True, slots=True)
+class FirmwareInfo:
+    """The installed firmware and the newest one the router found."""
+
+    installed: str | None
+    latest: str
+    # The newest version, stable or not, as the update server lists them.
+    newest: str | None
+    update_available: bool | None
+
+
+_VERSION_PART = re.compile(r"\d+(?:\.\d+)+")
+
+
+def firmware_version_tuple(text: str | None) -> tuple[int, ...] | None:
+    """Turn ``RUTC50_R_00.07.25.2`` or ``7.25.2`` into ``(7, 25, 2)``.
+
+    The router names a release with a leading ``00`` major, and the update
+    server may use either form, so both are reduced to the same numbers.
+    """
+    if not text:
+        return None
+    parts = _VERSION_PART.findall(text)
+    if not parts:
+        return None
+    numbers = tuple(int(part) for part in parts[-1].split("."))
+    if len(numbers) > 2 and numbers[0] == 0:
+        numbers = numbers[1:]
+    return numbers
+
+
+def derive_firmware(installed: str | None, raw: Any) -> FirmwareInfo | None:
+    """Read ``/firmware/device/updates/status``; None without update information.
+
+    The stable release is preferred over the newest one. Whether an update is
+    available is only said when both versions can be compared.
+    """
+    device = raw.get("device") if isinstance(raw, dict) else None
+    if not isinstance(device, dict):
+        return None
+    stable = _first_text(device.get("stable_version"))
+    newest = _first_text(device.get("version"))
+    latest = stable or newest
+    if latest is None:
+        return None
+    have = firmware_version_tuple(installed)
+    offered = firmware_version_tuple(latest)
+    available = offered > have if have is not None and offered is not None else None
+    return FirmwareInfo(
+        installed=installed,
+        latest=latest,
+        newest=newest,
+        update_available=available,
+    )
+
+
 @dataclass(slots=True)
 class TeltonikaData:
     """One snapshot of the router state."""
@@ -1141,6 +1244,9 @@ class TeltonikaData:
     data_limits: list[DataLimit] = field(default_factory=list)
     port_forwards: list[PortForward] = field(default_factory=list)
     traffic_rules: list[TrafficRule] = field(default_factory=list)
+    # None means the router has no such page; an empty list is an empty inbox.
+    sms: list[SmsMessage] | None = None
+    firmware: FirmwareInfo | None = None
 
     @classmethod
     def build(
@@ -1165,6 +1271,9 @@ class TeltonikaData:
         port_forwards: list[dict[str, Any]] | None = None,
         traffic_rules: list[dict[str, Any]] | None = None,
         data_plan_bytes: float | None = None,
+        sms: list[dict[str, Any]] | None = None,
+        firmware_updates: dict[str, Any] | None = None,
+        firmware_installed: str | None = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
@@ -1213,6 +1322,8 @@ class TeltonikaData:
             data_limits=derive_data_limits(data_limits, interface_config, data_plan_bytes),
             port_forwards=derive_port_forwards(port_forwards),
             traffic_rules=derive_traffic_rules(traffic_rules),
+            sms=derive_sms(sms),
+            firmware=derive_firmware(firmware_installed, firmware_updates),
         )
 
     @property

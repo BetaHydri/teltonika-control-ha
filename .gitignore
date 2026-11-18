@@ -15,6 +15,10 @@ htmlcov/
 # Local project notes, not published
 .memory-bank/
 
+# Local output of the probe tool and working files (drafts, backups, screenshots)
+logs/
+files/
+
 # Editor and OS files
 .vscode/
 .DS_Store

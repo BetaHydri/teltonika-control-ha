@@ -132,6 +132,7 @@ differ. These are the entities the dashboard uses:
 | Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
 | Failover mobile online (optional) | `binary_sensor.my_router_failover_mobile_online` |
 | Open port forwards, firewall rules open to the internet (optional) | `sensor.my_router_open_port_forwards`, `sensor.my_router_firewall_rules_open_to_the_internet` |
+| SMS messages, Firmware (optional) | `sensor.my_router_sms_messages`, `update.my_router_firmware` |
 | Restart mobile connection | `button.my_modem_restart_mobile_connection` |
 | SIM slot | `select.my_modem_sim_slot` |
 | Scan for Wi-Fi networks | `button.my_router_scan_for_wi_fi_networks` |
@@ -192,7 +193,11 @@ list. Fix that entity and save again.
   is on it turns orange and shows two small counters, the port forwards that
   are on and the rules open to the internet. It only appears while the router
   has such rules. Below the reboot pill, **Router health** shows uptime, DHCP
-  clients, CPU load and memory usage. The hotspot button changes with the
+  clients, CPU load and memory usage. Below them, two optional pills (each hides
+  itself while the router does not offer the data): **SMS on the router**, the
+  number of stored messages (version 0.13.0 or newer), and **Firmware**, which
+  is orange with "Update available" while the router has found a newer stable
+  release. The hotspot button changes with the
   state: it starts
   `teltonika_control.portal_mode`, shows that it waits, and reports when
   the Wi-Fi has internet. See

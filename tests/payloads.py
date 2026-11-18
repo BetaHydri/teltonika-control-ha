@@ -11,7 +11,12 @@ PROBE_URL = "http://connectivitycheck.gstatic.com/generate_204"
 SERIAL = "1234567890"
 
 DEVICE_STATUS = {
-    "mnfinfo": {"serial": SERIAL, "mac": "001E42000001", "name": "RUTC5000XXXX"},
+    "mnfinfo": {
+        "serial": SERIAL,
+        "mac": "001E42000001",
+        "macEth": "001E42000002",
+        "name": "RUTC5000XXXX",
+    },
     "static": {
         "fw_version": "RUTC_R_00.07.26.2",
         "device_name": "RUTC50",
@@ -338,6 +343,38 @@ FAILOVER_STATUS = {
     "lan": {"enabled": False, "status": "notracking"},
 }
 
+# Two messages in the inbox; the texts are made up.
+SMS_MESSAGES = [
+    {
+        "id": "1",
+        "modem_id": "2-1.1",
+        "sender": "+491701111111",
+        "status": "read",
+        "date": "2026-11-17 10:00:00",
+        "message": "Data volume used up",
+    },
+    {
+        "id": "2",
+        "modem_id": "2-1.1",
+        "sender": "Provider",
+        "status": "unread",
+        "date": "2026-11-18 08:30:00",
+        "message": "Welcome",
+    },
+]
+
+# The firmware the router found at its update server.
+FIRMWARE_UPDATES = {
+    "device": {
+        "version": "RUTC_R_00.07.28.1",
+        "size": "11000000",
+        "date": "2026-11-10",
+        "stable_version": "RUTC_R_00.07.27.1",
+        "stable_size": "11000000",
+        "stable_date": "2026-11-01",
+    }
+}
+
 # 2 GB used of a 10 GB limit; the router reports used bytes as a string.
 DATA_LIMIT_STATUS = [
     {
@@ -373,6 +410,8 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
         "failover": deepcopy(FAILOVER_STATUS),
         "failover_config": deepcopy(FAILOVER_CONFIG),
         "data_limit": deepcopy(DATA_LIMIT_STATUS),
+        "sms": deepcopy(SMS_MESSAGES),
+        "firmware_updates": deepcopy(FIRMWARE_UPDATES),
     }
     if wireguard:
         data["interfaces"].append(deepcopy(WIREGUARD_INTERFACE))

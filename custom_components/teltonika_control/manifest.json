@@ -4,11 +4,12 @@
   "codeowners": ["@BetaHydri"],
   "config_flow": true,
   "dependencies": [],
+  "dhcp": [{ "macaddress": "209727*" }, { "macaddress": "001E42*" }],
   "documentation": "https://github.com/BetaHydri/teltonika-control-ha",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/BetaHydri/teltonika-control-ha/issues",
   "loggers": ["custom_components.teltonika_control"],
   "requirements": [],
-  "version": "0.12.4"
+  "version": "0.13.0"
 }

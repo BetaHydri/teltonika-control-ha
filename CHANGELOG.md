@@ -8,6 +8,40 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-18
+
+### Added
+
+- **Found on the network.** A Teltonika router that asks for an address shows
+  up under *Discovered* (MAC address ranges `20:97:27` and `00:1E:42`, the same
+  as the core integration). Enter the login and the router is set up. A router
+  that is already set up is not offered again; if its address changes and the
+  old address no longer answers, the new one is taken over. An address that
+  still answers is never replaced, because a router can be seen on several
+  addresses.
+- **MAC addresses in the device registry.** The router device carries its two
+  MAC addresses, so Home Assistant can link it to the same device in other
+  integrations.
+- **HTTPS, then HTTP.** An address without `http://` or `https://` is tried with
+  HTTPS first and then with plain HTTP, so a router that serves only HTTP can be
+  set up (also through *Reconfigure* and discovery) without typing the scheme.
+- **SMS.** The service `teltonika_control.send_sms` sends an SMS through a
+  modem of the router and returns how many SMS parts it used. The sensor **SMS
+  messages** counts the messages on the router, and every new message fires the
+  event `teltonika_control_sms_received` with sender, text, date, modem and
+  status. Messages already on the router at startup are not announced. The
+  number and the text are never written to the log, and the texts are not
+  stored in a sensor. New permission rows are in the README.
+- **Firmware.** An update entity shows the installed firmware and the newest
+  stable release the router found at its update server. It only informs. The
+  versions are compared by their numbers; if they cannot be compared, it says
+  "up to date". It appears only when the router has update information.
+- **Sample dashboard:** two optional pills under *Router health*, **SMS on the
+  router** and **Firmware**, which hide themselves while the data is missing.
+- **Probe tool:** also asks for the firmware update information, the speed test
+  state, VRRP, DDNS and the hotspot state, and shows firmware versions, message
+  dates and speed test values (no names, numbers or message texts).
+
 ## [0.12.4] - 2026-11-18
 
 ### Added

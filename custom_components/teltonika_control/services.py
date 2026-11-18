@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -29,6 +30,19 @@ SERVICE_SET_PRIORITY = "set_priority"
 SERVICE_SCAN_WIFI = "scan_wifi"
 SERVICE_JOIN_WIFI = "join_wifi"
 SERVICE_FORGET_WIFI = "forget_wifi"
+SERVICE_SEND_SMS = "send_sms"
+
+# Digits with an optional leading plus; spaces, dashes and brackets are dropped.
+_PHONE_NUMBER = re.compile(r"^\+?\d{3,20}$")
+MAX_SMS_LENGTH = 1224
+
+
+def _phone_number(value: Any) -> str:
+    """Accept a phone number with the separators people type."""
+    text = re.sub(r"[\s\-()./]", "", cv.string(value))
+    if not _PHONE_NUMBER.match(text):
+        raise vol.Invalid("Enter the phone number in digits, with a leading + for a country code")
+    return text
 
 # The router is named by device or by any of its entities (a service target).
 BASE_SCHEMA = {
@@ -118,6 +132,13 @@ def async_register_services(hass: HomeAssistant) -> None:
             call.data.get("station_id"), call.data.get("ssid")
         )
 
+    async def send_sms(call: ServiceCall) -> ServiceResponse:
+        coordinator = _coordinator(hass, call)
+        used = await coordinator.async_send_sms(
+            call.data["number"], call.data["message"], call.data.get("modem")
+        )
+        return {"sms_used": used}
+
     schemas: dict[str, Any] = {
         SERVICE_PORTAL_MODE: vol.Schema(
             {
@@ -156,6 +177,16 @@ def async_register_services(hass: HomeAssistant) -> None:
                 cv.has_at_least_one_key("station_id", "ssid"),
             )
         ),
+        SERVICE_SEND_SMS: vol.Schema(
+            {
+                **BASE_SCHEMA,
+                vol.Required("number"): _phone_number,
+                vol.Required("message"): vol.All(
+                    cv.string, vol.Length(min=1, max=MAX_SMS_LENGTH)
+                ),
+                vol.Optional("modem"): cv.string,
+            }
+        ),
     }
     schemas = {
         name: vol.All(schema, cv.has_at_least_one_key(ATTR_DEVICE_ID, ATTR_ENTITY_ID))
@@ -184,4 +215,11 @@ def async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_FORGET_WIFI, forget_wifi, schemas[SERVICE_FORGET_WIFI]
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEND_SMS,
+        send_sms,
+        schemas[SERVICE_SEND_SMS],
+        supports_response=SupportsResponse.OPTIONAL,
     )

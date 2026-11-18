@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import aiohttp
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_PASSWORD
@@ -24,7 +25,7 @@ from custom_components.teltonika_control.const import (
 )
 
 from .conftest import ENTRY_DATA, mock_login_failure, mock_router, mock_unreachable
-from .payloads import SERIAL
+from .payloads import HOST, SERIAL
 
 
 async def start_user_flow(hass: HomeAssistant) -> dict[str, Any]:
@@ -64,6 +65,8 @@ async def test_user_flow_cannot_connect_then_recovers(
     hass: HomeAssistant, aioclient_mock: Any
 ) -> None:
     mock_unreachable(aioclient_mock)
+    # The router is silent on plain HTTP as well, so there is nothing to fall back to.
+    aioclient_mock.post(f"http://{HOST}/api/login", exc=aiohttp.ClientError("unreachable"))
     flow = await start_user_flow(hass)
     result = await hass.config_entries.flow.async_configure(flow["flow_id"], ENTRY_DATA)
     assert result["errors"] == {"base": "cannot_connect"}

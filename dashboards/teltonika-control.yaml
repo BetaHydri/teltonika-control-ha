@@ -861,6 +861,58 @@ views:
                 icon: mdi:memory
                 show_name: true
                 show_state: true
+          # Messages and firmware (both optional). The SMS counter shows how many
+          # messages the router holds; a new one fires the event
+          # teltonika_control_sms_received. The firmware pill is orange while the
+          # router has found a newer stable release. Each hides itself while the
+          # router does not offer the data, so delete it if you do not want it.
+          - type: horizontal-stack
+            cards:
+              - type: conditional
+                conditions:
+                  - condition: numeric_state
+                    entity: sensor.my_router_sms_messages
+                    above: -1
+                card:
+                  type: custom:bubble-card
+                  card_type: button
+                  button_type: state
+                  entity: sensor.my_router_sms_messages
+                  name: SMS on the router
+                  icon: mdi:message-text
+                  show_name: true
+                  show_state: true
+              - type: vertical-stack
+                cards:
+                  - type: conditional
+                    conditions:
+                      - condition: state
+                        entity: update.my_router_firmware
+                        state: "on"
+                    card:
+                      type: custom:bubble-card
+                      card_type: button
+                      button_type: state
+                      entity: update.my_router_firmware
+                      name: Firmware
+                      icon: mdi:package-up
+                      show_name: true
+                      show_state: true
+                      styles: *style_orange
+                  - type: conditional
+                    conditions:
+                      - condition: state
+                        entity: update.my_router_firmware
+                        state: "off"
+                    card:
+                      type: custom:bubble-card
+                      card_type: button
+                      button_type: state
+                      entity: update.my_router_firmware
+                      name: Firmware
+                      icon: mdi:chip
+                      show_name: true
+                      show_state: true
       - type: grid
         cards:
           - type: heading
