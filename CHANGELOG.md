@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-11-18
+
+### Fixed
+
+- **Firmware status during a download.** When the router stopped answering the
+  update page while it downloaded, the update entity and the **Firmware
+  status** sensor went `unknown` and the download button unavailable, exactly
+  when the progress mattered. The last known update information is kept while a
+  download or installation is followed, and the download progress alone is
+  enough to report `downloading`.
+
 ## [0.17.0] - 2026-11-18
 
 ### Added

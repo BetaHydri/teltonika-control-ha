@@ -956,6 +956,12 @@ views:
                     name: Firmware
                   - entity: sensor.my_router_firmware_status
                     name: Status
+              - type: markdown
+                content: >-
+                  Install firmware works only when the status says "Ready to
+                  install". The entity "Install firmware" is disabled by
+                  default: enable it under Settings, Devices & services,
+                  Entities. Until then pressing the button does nothing.
               - type: custom:bubble-card
                 card_type: button
                 button_type: name

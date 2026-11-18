@@ -74,6 +74,7 @@ from .debug import shape_text
 from .models import (
     PHONE_NUMBER_HINT,
     SAVED_MULTI_AP,
+    FirmwareDownload,
     GpsPosition,
     RouterInfo,
     ScanNetwork,
@@ -224,6 +225,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self.last_sms: str | None = None
         # While a firmware download runs, its progress is read on every update.
         self._watch_download_until = 0.0
+        self._firmware_updates_seen: dict[str, Any] | None = None
         # An installation we started: when, from which version, and whether it failed.
         self.installing_since: float | None = None
         self._install_from: str | None = None
@@ -354,6 +356,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         if any(item.get("mode") == "multi_ap" for item in wireless_config):
             multi_ap = (await self._async_read_pages(["multi_ap"]))["multi_ap"] or []
 
+        updates = parts["firmware_updates"]
+        if updates:
+            self._firmware_updates_seen = updates
+        elif self._firmware_busy():
+            # The router may stop answering the update page while it downloads
+            # or installs; the status keeps what it knew instead of going blank.
+            updates = self._firmware_updates_seen
         installed = derive_installed_firmware(parts["firmware_device"]) or self.router.firmware
         data = TeltonikaData.build(
             interfaces=interfaces,
@@ -376,7 +385,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             traffic_rules=traffic_rules,
             data_plan_bytes=self._data_plan_bytes,
             sms=parts["sms"] if isinstance(parts["sms"], list) else None,
-            firmware_updates=parts["firmware_updates"],
+            firmware_updates=updates,
             firmware_installed=installed,
             firmware_progress=parts["firmware_progress"],
             vpn_config={
@@ -426,6 +435,10 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             self.installing_since = None
             self.install_failed = True
 
+    def _firmware_busy(self) -> bool:
+        """Return whether a firmware download or installation is being followed."""
+        return self.installing_since is not None or time.monotonic() < self._watch_download_until
+
     @property
     def firmware_state(self) -> str | None:
         """Return where the firmware update stands, None without update information."""
@@ -436,11 +449,14 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         if self.install_failed:
             return "failed"
         firmware = self.data.firmware if self.data else None
+        download = self.data.firmware_download if self.data else None
         if firmware is None:
+            # Without update information the download progress still counts.
+            if download is not None and self._download_running(download):
+                return "downloading"
             return None
         if firmware.update_available is False:
             return "up_to_date"
-        download = self.data.firmware_download
         if download is not None:
             if download.ready:
                 return "ready"
@@ -448,10 +464,14 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             if "fail" in process or "error" in process:
                 return "failed"
             watching = time.monotonic() < self._watch_download_until
-            running = any(word in process for word in ("download", "progress", "running"))
-            if running or (watching and (download.percent or 0) < 100):
+            if self._download_running(download) or (watching and (download.percent or 0) < 100):
                 return "downloading"
         return "update_available" if firmware.update_available else None
+
+    @staticmethod
+    def _download_running(download: FirmwareDownload) -> bool:
+        process = (download.process or "").lower()
+        return any(word in process for word in ("download", "progress", "running"))
 
     def _log_state(self, data: TeltonikaData) -> None:
         """Write what was found and decided to the debug log.

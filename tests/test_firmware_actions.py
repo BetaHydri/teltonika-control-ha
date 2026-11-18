@@ -221,6 +221,62 @@ async def test_lost_connection_while_the_router_restarts_is_not_an_error(
     await entry.runtime_data.async_install_firmware()
 
 
+async def test_status_keeps_going_when_the_update_page_fails_during_a_download(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_router(aioclient_mock, firmware_progress={"percents": "0", "process": "idle"})
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+    status = entity_id(hass, "sensor", "firmware_state")
+    assert hass.states.get(status).state == "update_available"
+
+    await coordinator.async_download_firmware()
+
+    async def failing() -> dict[str, Any]:
+        raise TeltonikaApiError("busy", status=500)
+
+    async def running() -> dict[str, Any]:
+        return {"percents": "35", "process": "downloading"}
+
+    monkeypatch.setattr(coordinator.client, "async_firmware_updates", failing)
+    monkeypatch.setattr(coordinator.client, "async_firmware_progress", running)
+    coordinator._invalidate_config_pages()
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    state = hass.states.get(status)
+    assert state.state == "downloading"
+    assert state.attributes["percent"] == 35
+    assert hass.states.get(entity_id(hass, "update", "firmware")).state != "unknown"
+
+
+async def test_download_progress_alone_is_enough_for_the_status(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+
+    async def failing() -> dict[str, Any]:
+        raise TeltonikaApiError("busy", status=500)
+
+    async def running() -> dict[str, Any]:
+        return {"percents": "10", "process": "downloading"}
+
+    monkeypatch.setattr(coordinator.client, "async_firmware_updates", failing)
+    monkeypatch.setattr(coordinator.client, "async_firmware_progress", running)
+    coordinator._invalidate_config_pages()
+    await coordinator.async_refresh()
+
+    assert coordinator.firmware_state == "downloading"
+
+
 async def test_router_without_a_progress_page_has_no_firmware_actions(
     hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
 ) -> None:
