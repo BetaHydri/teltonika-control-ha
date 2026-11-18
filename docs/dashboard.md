@@ -133,6 +133,7 @@ differ. These are the entities the dashboard uses:
 | Failover mobile online (optional) | `binary_sensor.my_router_failover_mobile_online` |
 | Open port forwards, firewall rules open to the internet (optional) | `sensor.my_router_open_port_forwards`, `sensor.my_router_firewall_rules_open_to_the_internet` |
 | SMS messages, Firmware (optional) | `sensor.my_router_sms_messages`, `update.my_router_firmware` |
+| SMS number, SMS text, Send SMS, SMS send result (optional, for the pop-up) | `text.my_router_sms_number`, `text.my_router_sms_text`, `button.my_router_send_sms`, `sensor.my_router_sms_send_result` |
 | Restart mobile connection | `button.my_modem_restart_mobile_connection` |
 | SIM slot | `select.my_modem_sim_slot` |
 | Scan for Wi-Fi networks | `button.my_router_scan_for_wi_fi_networks` |
@@ -197,7 +198,13 @@ list. Fix that entity and save again.
   itself while the router does not offer the data): **SMS on the router**, the
   number of stored messages (version 0.13.0 or newer), and **Firmware**, which
   is orange with "Update available" while the router has found a newer stable
-  release. The hotspot button changes with the
+  release. Tapping the SMS pill (or its small send icon) opens the **Send SMS**
+  pop-up with the number and text fields and a Send button that asks for
+  confirmation (version 0.15.0 or newer). The pop-up is a Bubble Card
+  pop-up (`hash: "#sms"`) in a vertical stack at the end of the section; it
+  takes no room until it is opened. If you prefer a page of its own, use
+  [dashboards/teltonika-sms.yaml](../dashboards/teltonika-sms.yaml) and let the
+  pill navigate to it as the firewall pill does. The hotspot button changes with the
   state: it starts
   `teltonika_control.portal_mode`, shows that it waits, and reports when
   the Wi-Fi has internet. See

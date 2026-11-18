@@ -882,6 +882,22 @@ views:
                   icon: mdi:message-text
                   show_name: true
                   show_state: true
+                  # Tap to open the "Send SMS" pop-up at the end of this section.
+                  tap_action: &open_sms
+                    action: navigate
+                    navigation_path: "#sms"
+                  button_action:
+                    tap_action: *open_sms
+                  sub_button:
+                    bottom: []
+                    main:
+                      - entity: sensor.my_router_sms_messages
+                        icon: mdi:send
+                        show_icon: true
+                        show_name: false
+                        show_state: false
+                        state_background: false
+                        tap_action: *open_sms
               - type: vertical-stack
                 cards:
                   - type: conditional
@@ -913,6 +929,45 @@ views:
                       icon: mdi:chip
                       show_name: true
                       show_state: true
+          # Pop-up "Send SMS" (optional, opens from the "SMS on the router" pill).
+          # A Bubble Card pop-up must sit in a vertical stack together with the
+          # cards that are shown inside it. It takes no room on the page. Type
+          # the number and the text, press Send (asks for confirmation). Delete
+          # this block together with the sub button of the SMS pill if you do not
+          # send SMS from the dashboard. Needs version 0.15.0 or newer.
+          - type: vertical-stack
+            cards:
+              - type: custom:bubble-card
+                card_type: pop-up
+                hash: "#sms"
+                name: Send SMS
+                icon: mdi:message-text
+              - type: entities
+                show_header_toggle: false
+                entities:
+                  - entity: text.my_router_sms_number
+                    name: Number
+                    icon: mdi:phone
+                  - entity: text.my_router_sms_text
+                    name: Text
+                    icon: mdi:message-text
+                  - entity: sensor.my_router_sms_send_result
+                    name: Result
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
+                name: Send SMS
+                icon: mdi:send
+                styles: *style_blue
+                tap_action: &send_sms
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.my_router_send_sms
+                  confirmation:
+                    text: Send this SMS? It costs what an SMS costs on the SIM.
+                button_action:
+                  tap_action: *send_sms
       - type: grid
         cards:
           - type: heading

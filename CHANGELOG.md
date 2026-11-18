@@ -8,6 +8,12 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Sample dashboard.** The **SMS on the router** pill opens a **Send SMS**
+  pop-up (Bubble Card) with the number and text fields and a Send button that
+  asks for confirmation, so SMS can be sent without leaving the main dashboard.
+
 ## [0.15.0] - 2026-11-18
 
 ### Added

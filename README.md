@@ -789,6 +789,8 @@ in the [recorder](https://www.home-assistant.io/integrations/recorder/#exclude).
 A ready dashboard with the two fields, the button (with confirmation) and the
 result is [dashboards/teltonika-sms.yaml](dashboards/teltonika-sms.yaml); paste
 it into **Raw configuration editor** of a new dashboard and replace `my_router`.
+The [sample dashboard](docs/dashboard.md) has the same as a **pop-up**: tap the
+SMS pill and the fields open on top of the page.
 On a router with two modems the dashboard cannot choose one: the button refuses
 and says which modems are online. Use the service with `modem` there.
 
