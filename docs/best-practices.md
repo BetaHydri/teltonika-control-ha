@@ -73,8 +73,8 @@ Each rule links to the place in the documentation that explains it.
 
 ## Performance
 
-- **Keep the default intervals** (30 s status, 300 s configuration). A RUTC50
-  has a weak CPU. If the router feels slow, raise both and watch the
+- **Keep the default intervals** (30 s status, 300 s configuration). Some RUT(x)
+  models have weak CPU. If the router feels slow, raise both and watch the
   **CPU load** sensor. See [Options](../README.md#options).
 - **Do not run other tools that poll the router at the same time**, such as a
   second integration or a script with its own login, if you see sign-in errors.
