@@ -381,9 +381,8 @@ automation:
           entity_id: button.my_router_download_firmware
       - wait_for_trigger:
           - trigger: state
-            entity_id: sensor.my_router_firmware_download
-            attribute: ready_to_install
-            to: true
+            entity_id: sensor.my_router_firmware_status
+            to: ready
         timeout: "00:30:00"
         continue_on_timeout: false
       - action: notify.mobile_app_my_phone

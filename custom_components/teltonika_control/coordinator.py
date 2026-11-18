@@ -8,6 +8,7 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -15,6 +16,7 @@ import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import (
     CONNECTION_NETWORK_MAC,
@@ -48,6 +50,8 @@ from .const import (
     DOMAIN,
     EVENT_PORTAL_RESULT,
     EVENT_SMS_RECEIVED,
+    FIRMWARE_INSTALL_GRACE,
+    FIRMWARE_INSTALL_TIMEOUT,
     FIRMWARE_WATCH_SECONDS,
     GPS_GLITCH_POLLS,
     METRIC_MOBILE_FIRST,
@@ -79,6 +83,7 @@ from .models import (
     WifiStation,
     build_scan_networks,
     clean_phone_number,
+    derive_installed_firmware,
     is_modem_online,
     is_protected_interface,
     next_multi_ap_priority,
@@ -115,6 +120,7 @@ PAGES: dict[str, tuple[Any, ...]] = {
     "sms": ("async_sms_messages", "medium"),
     "firmware_updates": ("async_firmware_updates", "config"),
     "firmware_progress": ("async_firmware_progress", "medium"),
+    "firmware_device": ("async_firmware_device", "config"),
     **{
         f"vpn_{kind.key}_config": ("async_vpn_config", "config", kind.key)
         for kind in VPN_FAMILIES
@@ -218,6 +224,10 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self.last_sms: str | None = None
         # While a firmware download runs, its progress is read on every update.
         self._watch_download_until = 0.0
+        # An installation we started: when, from which version, and whether it failed.
+        self.installing_since: float | None = None
+        self._install_from: str | None = None
+        self.install_failed = False
 
     @property
     def router_device_info(self) -> DeviceInfo:
@@ -320,6 +330,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 "sms",
                 "firmware_updates",
                 "firmware_progress",
+                "firmware_device",
                 *(f"vpn_{kind.key}_config" for kind in VPN_FAMILIES),
                 *(f"vpn_{kind.key}_status" for kind in VPN_FAMILIES),
             ]
@@ -343,6 +354,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         if any(item.get("mode") == "multi_ap" for item in wireless_config):
             multi_ap = (await self._async_read_pages(["multi_ap"]))["multi_ap"] or []
 
+        installed = derive_installed_firmware(parts["firmware_device"]) or self.router.firmware
         data = TeltonikaData.build(
             interfaces=interfaces,
             interface_config=interface_config,
@@ -365,7 +377,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data_plan_bytes=self._data_plan_bytes,
             sms=parts["sms"] if isinstance(parts["sms"], list) else None,
             firmware_updates=parts["firmware_updates"],
-            firmware_installed=self.router.firmware,
+            firmware_installed=installed,
             firmware_progress=parts["firmware_progress"],
             vpn_config={
                 kind.key: parts[f"vpn_{kind.key}_config"]
@@ -376,6 +388,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             vpn_status={kind.key: parts[f"vpn_{kind.key}_status"] for kind in VPN_FAMILIES},
         )
         data.portal_waiting = self.portal_waiting
+        self._track_firmware(installed)
         self._remember_position(data)
         self._announce_new_sms(data)
         probe_internet = bool(self._probe_url) and data.uplink is not None
@@ -389,6 +402,56 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data.vpn_reachable, data.vpn_latency = vpn
         self._log_state(data)
         return data
+
+    def _track_firmware(self, installed: str | None) -> None:
+        """Follow the running firmware version and an installation in progress.
+
+        A new version updates the stored router facts and the device entry,
+        and ends the installation we started. An answer with the old version
+        long after the start means the router did not restart.
+        """
+        if installed and installed != self.router.firmware:
+            _LOGGER.info("The router runs a new firmware: %s", installed)
+            self.router = replace(self.router, firmware=installed)
+            registry = dr.async_get(self.hass)
+            device = registry.async_get_device(identifiers={(DOMAIN, self.router.unique_id)})
+            if device is not None:
+                registry.async_update_device(device.id, sw_version=installed)
+        if self.installing_since is None:
+            return
+        if installed and installed != self._install_from:
+            self.installing_since = None
+        elif time.monotonic() - self.installing_since > FIRMWARE_INSTALL_GRACE:
+            _LOGGER.warning("The router answers with the old firmware: the installation failed")
+            self.installing_since = None
+            self.install_failed = True
+
+    @property
+    def firmware_state(self) -> str | None:
+        """Return where the firmware update stands, None without update information."""
+        if self.installing_since is not None:
+            if time.monotonic() - self.installing_since > FIRMWARE_INSTALL_TIMEOUT:
+                return "failed"
+            return "installing"
+        if self.install_failed:
+            return "failed"
+        firmware = self.data.firmware if self.data else None
+        if firmware is None:
+            return None
+        if firmware.update_available is False:
+            return "up_to_date"
+        download = self.data.firmware_download
+        if download is not None:
+            if download.ready:
+                return "ready"
+            process = (download.process or "").lower()
+            if "fail" in process or "error" in process:
+                return "failed"
+            watching = time.monotonic() < self._watch_download_until
+            running = any(word in process for word in ("download", "progress", "running"))
+            if running or (watching and (download.percent or 0) < 100):
+                return "downloading"
+        return "update_available" if firmware.update_available else None
 
     def _log_state(self, data: TeltonikaData) -> None:
         """Write what was found and decided to the debug log.
@@ -710,6 +773,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         if firmware is None or firmware.update_available is False:
             raise HomeAssistantError("The router has found no newer firmware")
         _LOGGER.debug("Action: download firmware %s", firmware.latest)
+        self.install_failed = False
         async with translate_errors():
             await self.client.async_firmware_download()
         self._watch_download_until = time.monotonic() + FIRMWARE_WATCH_SECONDS
@@ -727,16 +791,26 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             raise HomeAssistantError("The router has found no newer firmware")
         if download is None or not download.ready:
             raise HomeAssistantError("Download the firmware first and wait until it is complete")
+        if self.installing_since is not None:
+            raise HomeAssistantError("The firmware installation is already running")
         _LOGGER.warning(
             "Installing firmware %s: the router restarts and is offline for a few minutes",
             firmware.latest,
         )
+        self._install_from = firmware.installed
+        self.install_failed = False
+        self.installing_since = time.monotonic()
+        self.async_update_listeners()
         try:
             async with translate_errors():
                 try:
                     await self.client.async_firmware_upgrade(keep_settings=True)
                 except TeltonikaConnectionError:
                     _LOGGER.debug("Connection lost while the router starts the firmware upgrade")
+        except HomeAssistantError:
+            self.installing_since = None
+            self.async_update_listeners()
+            raise
         finally:
             await self.async_request_refresh()
 

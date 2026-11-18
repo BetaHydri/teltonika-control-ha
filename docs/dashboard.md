@@ -134,7 +134,7 @@ differ. These are the entities the dashboard uses:
 | Open port forwards, firewall rules open to the internet (optional) | `sensor.my_router_open_port_forwards`, `sensor.my_router_firewall_rules_open_to_the_internet` |
 | SMS messages, Firmware (optional) | `sensor.my_router_sms_messages`, `update.my_router_firmware` |
 | SMS number, SMS text, Send SMS, SMS send result (optional, for the pop-up) | `text.my_router_sms_number`, `text.my_router_sms_text`, `button.my_router_send_sms`, `sensor.my_router_sms_send_result` |
-| Firmware download sensor, Download firmware, Install firmware (optional, for the pop-up) | `sensor.my_router_firmware_download`, `button.my_router_download_firmware`, `button.my_router_install_firmware` |
+| Firmware status sensor, Download firmware, Install firmware (optional, for the pop-up) | `sensor.my_router_firmware_status`, `button.my_router_download_firmware`, `button.my_router_install_firmware` |
 | Restart mobile connection | `button.my_modem_restart_mobile_connection` |
 | SIM slot | `select.my_modem_sim_slot` |
 | Scan for Wi-Fi networks | `button.my_router_scan_for_wi_fi_networks` |

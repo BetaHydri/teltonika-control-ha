@@ -127,7 +127,17 @@
       "gps_fix": { "name": "GPS fix status" },
       "last_action": { "name": "Last Wi-Fi action" },
       "last_sms": { "name": "SMS send result" },
-      "firmware_download": { "name": "Firmware download" },
+      "firmware_state": {
+        "name": "Firmware status",
+        "state": {
+          "up_to_date": "Up to date",
+          "update_available": "Update available",
+          "downloading": "Downloading",
+          "ready": "Ready to install",
+          "installing": "Installing, router restarts",
+          "failed": "Failed"
+        }
+      },
       "sms_messages": { "name": "SMS messages" },
       "router_time": { "name": "Router time" },
       "vpn_latency": { "name": "VPN latency" },

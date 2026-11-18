@@ -942,7 +942,7 @@ views:
           # download the firmware, then install it. Both buttons ask for
           # confirmation. "Install firmware" is disabled by default in the
           # integration: enable that entity first, see README, section Firmware
-          # update. Needs version 0.16.0 or newer of the integration.
+          # update. Needs version 0.17.0 or newer of the integration.
           - type: custom:bubble-card
             card_type: pop-up
             hash: "#firmware"
@@ -954,8 +954,8 @@ views:
                 entities:
                   - entity: update.my_router_firmware
                     name: Firmware
-                  - entity: sensor.my_router_firmware_download
-                    name: Download
+                  - entity: sensor.my_router_firmware_status
+                    name: Status
               - type: custom:bubble-card
                 card_type: button
                 button_type: name

@@ -409,7 +409,7 @@ automatically.
 | SMS messages | sensor | How many messages the router holds. Only on routers that have the SMS page. The texts are not shown here; a new message fires the event `teltonika_control_sms_received`, see [SMS](#sms) |
 | Firmware | update | The installed firmware and, when the router has found one, the newest stable release. Informs only. Only on routers that offer firmware update information |
 | Download firmware, Install firmware | buttons | See [Firmware update](#firmware-update). **Install firmware** is disabled by default |
-| Firmware download | sensor | State of the download (`succeeded`, ...), with the attributes `percent` and `ready_to_install`. Diagnostic |
+| Firmware status | sensor | Where the update stands: `up_to_date`, `update_available`, `downloading`, `ready`, `installing` or `failed`. The attribute `percent` shows the download progress. See [Firmware update](#firmware-update) |
 | SMS number, SMS text | text | The number and the text of the next SMS; see [SMS](#sms). Only on routers that have the SMS page |
 | Send SMS | button | Sends the typed SMS. Add a confirmation in your dashboard |
 | SMS send result | sensor | `Sent` or `Not sent: ...` with the reason |
@@ -851,7 +851,7 @@ the Home Assistant update list. Two buttons do the work, in two steps:
 | Entity | What it does |
 |---|---|
 | Download firmware (button) | The router downloads the firmware from its update server. Nothing is installed and the router does not restart. Only available while a newer firmware exists |
-| Firmware download (sensor) | State of the download as the router reports it (`succeeded` when done); the attributes show `percent` and `ready_to_install`. While a download runs, the progress is read on every update |
+| Firmware status (sensor) | Where the update stands: `up_to_date`, `update_available`, `downloading` (the attribute `percent` shows the progress, read on every update while a download runs), `ready`, `installing` or `failed`. It also shows `installed_version` and `latest_version` |
 | Install firmware (button) | Installs the downloaded firmware and **keeps the settings**. Only available when a complete download waits on the router. **Disabled by default**: enable it in **Settings, Devices & services, Entities** |
 
 **What happens when you install:** the router writes the firmware and restarts.
@@ -871,8 +871,7 @@ message. To only watch, leave **Install firmware** disabled and install in the
 router web interface.
 
 An automation can press **Download firmware** at night, for example, and send
-you a notification when `sensor.my_router_firmware_download` reports that the
-file is ready, see the
+you a notification when `sensor.my_router_firmware_status` reports `ready`, see the
 [automation examples](docs/automation-examples.md#download-new-firmware-at-night).
 
 ## Services

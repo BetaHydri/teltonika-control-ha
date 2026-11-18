@@ -81,6 +81,20 @@ VPN_RECONNECT_DELAY = 3
 VPN_REFRESH_DELAY = 4
 # How long the firmware download is followed closely after it was started.
 FIRMWARE_WATCH_SECONDS = 900
+# After "Install firmware": how long the router may take to come back with a
+# new version before the installation counts as failed, and how long an answer
+# with the same version is accepted as the router not having restarted yet.
+FIRMWARE_INSTALL_TIMEOUT = 1800
+FIRMWARE_INSTALL_GRACE = 600
+# States of the firmware update sensor, in the order of the process.
+FIRMWARE_STATES = [
+    "up_to_date",
+    "update_available",
+    "downloading",
+    "ready",
+    "installing",
+    "failed",
+]
 
 # RutOS wants metrics as strings. The mobile interface usually uses 4, so 0
 # makes Wi-Fi win and 10 keeps mobile data in front.

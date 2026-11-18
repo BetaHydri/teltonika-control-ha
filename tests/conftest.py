@@ -126,6 +126,7 @@ def mock_router(
             if isinstance(firmware_progress, dict)
             else data["firmware_progress"],
         ),
+        (True, "/firmware/device/status", data["firmware_device"]),
     ):
         if enabled:
             aioclient_mock.get(f"{BASE}{path}", json={"success": True, "data": body})

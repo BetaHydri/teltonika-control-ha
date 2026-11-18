@@ -30,7 +30,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .const import BANDS, PORTAL_STATES, UPLINK_KINDS
+from .const import BANDS, FIRMWARE_STATES, PORTAL_STATES, UPLINK_KINDS
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
 from .entity import (
     TeltonikaEntity,
@@ -452,8 +452,8 @@ async def async_setup_entry(
         entry,
         async_add_entities,
         lambda c: (
-            (("firmware_download", lambda: TeltonikaFirmwareDownloadSensor(c)),)
-            if c.data.firmware_download is not None
+            (("firmware_state", lambda: TeltonikaFirmwareStateSensor(c)),)
+            if c.data.firmware is not None
             else ()
         ),
     )
@@ -804,28 +804,43 @@ class TeltonikaLastActionSensor(TeltonikaEntity, SensorEntity):
         return message[:255] if message else None
 
 
-class TeltonikaFirmwareDownloadSensor(TeltonikaEntity, SensorEntity):
-    """The state of the firmware download on the router."""
+class TeltonikaFirmwareStateSensor(TeltonikaEntity, SensorEntity):
+    """Where the firmware update stands, from download to installation.
 
-    _attr_translation_key = "firmware_download"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    The sensor stays available while the router restarts for an installation,
+    so it can say so instead of turning unavailable with everything else.
+    """
+
+    _attr_translation_key = "firmware_state"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = FIRMWARE_STATES
 
     def __init__(self, coordinator: TeltonikaCoordinator) -> None:
-        super().__init__(coordinator, "firmware_download")
+        super().__init__(coordinator, "firmware_state")
+
+    @property
+    def available(self) -> bool:
+        """Return True also while an installation we started is running."""
+        return super().available or self.coordinator.installing_since is not None
 
     @property
     def native_value(self) -> str | None:
-        """Return the process the router reports, for example ``succeeded``."""
-        download = self.coordinator.data.firmware_download
-        return download.process if download else None
+        """Return the state, for example ``downloading`` or ``installing``."""
+        return self.coordinator.firmware_state
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the percent and whether the file is ready to install."""
-        download = self.coordinator.data.firmware_download
-        if download is None:
+        """Return the download percent and the versions."""
+        data = self.coordinator.data
+        if data is None or data.firmware is None:
             return None
-        return {"percent": download.percent, "ready_to_install": download.ready}
+        attributes: dict[str, Any] = {
+            "installed_version": data.firmware.installed,
+            "latest_version": data.firmware.latest,
+        }
+        if data.firmware_download is not None:
+            attributes["percent"] = data.firmware_download.percent
+        return attributes
 
 
 class TeltonikaLastSmsSensor(TeltonikaEntity, SensorEntity):

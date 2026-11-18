@@ -1325,6 +1325,11 @@ class FirmwareDownload:
 _DOWNLOAD_DONE = frozenset({"succeeded", "success", "done", "finished", "completed", "ready"})
 
 
+def derive_installed_firmware(raw: Any) -> str | None:
+    """Read the running firmware version from ``/firmware/device/status``."""
+    return _first_text(raw.get("version")) if isinstance(raw, dict) else None
+
+
 def derive_firmware_download(raw: Any) -> FirmwareDownload | None:
     """Read the download progress; None when the router gives no such page."""
     if not isinstance(raw, dict):

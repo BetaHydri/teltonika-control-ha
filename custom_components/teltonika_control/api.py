@@ -381,6 +381,11 @@ class TeltonikaClient:
         data = await self.async_request("GET", "/firmware/device/updates/status")
         return data if isinstance(data, dict) else {}
 
+    async def async_firmware_device(self) -> dict[str, Any]:
+        """Return the firmware that runs on the router now (version, build date)."""
+        data = await self.async_request("GET", "/firmware/device/status")
+        return data if isinstance(data, dict) else {}
+
     async def async_firmware_progress(self) -> dict[str, Any]:
         """Return the state of the firmware download (process and percent)."""
         data = await self.async_request("GET", "/firmware/device/progress/status")

@@ -137,7 +137,10 @@ class TeltonikaDownloadFirmwareButton(TeltonikaEntity, ButtonEntity):
         """Return True while the router has found a newer firmware."""
         firmware = self.coordinator.data.firmware
         return (
-            super().available and firmware is not None and firmware.update_available is not False
+            super().available
+            and firmware is not None
+            and firmware.update_available is not False
+            and self.coordinator.installing_since is None
         )
 
     async def async_press(self) -> None:
@@ -168,6 +171,7 @@ class TeltonikaInstallFirmwareButton(TeltonikaEntity, ButtonEntity):
             and data.firmware.update_available is not False
             and data.firmware_download is not None
             and data.firmware_download.ready
+            and self.coordinator.installing_since is None
         )
 
     async def async_press(self) -> None:

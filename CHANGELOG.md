@@ -8,6 +8,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-18
+
+### Added
+
+- **Firmware status.** The sensor **Firmware status** follows the whole update:
+  `up_to_date`, `update_available`, `downloading` (with the attribute `percent`),
+  `ready`, `installing` and `failed`. It replaces the sensor *Firmware download*
+  of 0.16.0. It stays available while the router restarts for an installation
+  and says `installing`; it turns `failed` when the router still reports the old
+  version ten minutes after the start.
+- **New version is picked up.** The router reads the running firmware from its
+  firmware page, so after an update the device shows the new version without
+  reloading the integration.
+
+### Fixed
+
+- The download and install buttons are not available while an installation
+  runs, and a refused installation no longer stays in `installing`.
+
 ## [0.16.0] - 2026-11-18
 
 ### Added

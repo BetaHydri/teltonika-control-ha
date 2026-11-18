@@ -415,6 +415,11 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
         "sms": deepcopy(SMS_MESSAGES),
         "firmware_updates": deepcopy(FIRMWARE_UPDATES),
         "firmware_progress": deepcopy(FIRMWARE_PROGRESS),
+        "firmware_device": {
+            "build_date": "2026-11-06 08:19:47",
+            "kernel_version": "6.6.126",
+            "version": "RUTC_R_00.07.26.2",
+        },
     }
     if wireguard:
         data["interfaces"].append(deepcopy(WIREGUARD_INTERFACE))
