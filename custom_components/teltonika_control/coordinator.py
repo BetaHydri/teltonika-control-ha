@@ -67,6 +67,7 @@ from .const import (
 )
 from .debug import shape_text
 from .models import (
+    PHONE_NUMBER_HINT,
     SAVED_MULTI_AP,
     GpsPosition,
     RouterInfo,
@@ -76,6 +77,7 @@ from .models import (
     VpnTunnel,
     WifiStation,
     build_scan_networks,
+    clean_phone_number,
     is_modem_online,
     is_protected_interface,
     next_multi_ap_priority,
@@ -208,6 +210,10 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self.wifi_password = ""
         self.last_action: str | None = None
         self.scanning = False
+        # The SMS being composed in the text entities, and the result of the last send.
+        self.sms_number = ""
+        self.sms_text = ""
+        self.last_sms: str | None = None
 
     @property
     def router_device_info(self) -> DeviceInfo:
@@ -662,6 +668,33 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         _LOGGER.debug("Action: send an SMS through modem %s", modem_id)
         async with translate_errors():
             return await self.client.async_send_sms(modem_id, number, message)
+
+    async def async_send_composed_sms(self) -> None:
+        """Send the SMS typed into the text entities and report the result.
+
+        The text is cleared after a successful send so it is not sent twice;
+        the number stays for the next message.
+        """
+        number = clean_phone_number(self.sms_number)
+        if number is None:
+            self._report_sms("Not sent: enter a phone number")
+            raise HomeAssistantError(PHONE_NUMBER_HINT)
+        if not self.sms_text.strip():
+            self._report_sms("Not sent: enter a text")
+            raise HomeAssistantError("Enter the text of the SMS first")
+        try:
+            used = await self.async_send_sms(number, self.sms_text)
+        except HomeAssistantError as err:
+            self._report_sms(f"Not sent: {err}")
+            raise
+        self.sms_text = ""
+        parts = f" ({used} parts)" if used and used > 1 else ""
+        self._report_sms(f"Sent{parts}")
+
+    def _report_sms(self, text: str) -> None:
+        """Remember the result of the last SMS for the sensor."""
+        self.last_sms = text
+        self.async_update_listeners()
 
     async def async_restart_mobile(self, modem_id: str) -> None:
         """Re-establish the mobile data connection."""

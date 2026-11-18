@@ -126,6 +126,7 @@
       "gps_heading": { "name": "GPS-Kurs" },
       "gps_fix": { "name": "GPS-Fix-Status" },
       "last_action": { "name": "Letzte WLAN-Aktion" },
+      "last_sms": { "name": "SMS-Sendeergebnis" },
       "sms_messages": { "name": "SMS-Nachrichten" },
       "router_time": { "name": "Routerzeit" },
       "vpn_latency": { "name": "VPN-Latenz" },
@@ -171,7 +172,8 @@
       "add_network": { "name": "Ausgewähltes WLAN hinzufügen" },
       "remove_network": { "name": "Ausgewähltes WLAN entfernen" },
       "reconnect_vpn": { "name": "WireGuard {name} neu verbinden" },
-      "reconnect_vpn_instance": { "name": "{name} neu verbinden" }
+      "reconnect_vpn_instance": { "name": "{name} neu verbinden" },
+      "send_sms": { "name": "SMS senden" }
     },
     "select": {
       "priority": {
@@ -192,7 +194,9 @@
       "saved_networks": { "name": "Gespeicherte WLANs" }
     },
     "text": {
-      "wifi_password": { "name": "WLAN-Passwort" }
+      "wifi_password": { "name": "WLAN-Passwort" },
+      "sms_number": { "name": "SMS-Nummer" },
+      "sms_text": { "name": "SMS-Text" }
     },
     "update": {
       "firmware": { "name": "Firmware" }

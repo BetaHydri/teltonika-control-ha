@@ -1255,6 +1255,16 @@ def derive_traffic_rules(raw: Iterable[dict[str, Any]] | None) -> list[TrafficRu
     return sorted(rules, key=lambda rule: (to_int(rule.rule_id, 10**6) or 0, rule.rule_id))
 
 
+PHONE_NUMBER_HINT = "Enter the phone number in digits, with a leading + for a country code"
+_PHONE_NUMBER = re.compile(r"^\+?\d{3,20}$")
+
+
+def clean_phone_number(value: str) -> str | None:
+    """Drop the separators people type; None when digits are left that are no number."""
+    text = re.sub(r"[\s\-()./]", "", value)
+    return text if _PHONE_NUMBER.match(text) else None
+
+
 @dataclass(frozen=True, slots=True)
 class SmsMessage:
     """One SMS stored on the router."""

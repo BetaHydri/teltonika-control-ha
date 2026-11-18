@@ -310,7 +310,7 @@ Knowing this helps you decide how much to allow:
 - The on/off flag of port forwarding rules and of traffic rules (only this
   field; a rule that is on lets traffic from the internet reach the router or a
   device in your network).
-- It sends an SMS only when you call the `send_sms` service. Reading the SMS
+- It sends an SMS only when you call the `send_sms` service or press **Send SMS**. Reading the SMS
   messages changes nothing: they stay on the router.
 
 It never creates, edits or deletes a firewall rule, and never changes
@@ -402,6 +402,9 @@ automatically.
 | Reboot router | button | Add a confirmation in your dashboard |
 | SMS messages | sensor | How many messages the router holds. Only on routers that have the SMS page. The texts are not shown here; a new message fires the event `teltonika_control_sms_received`, see [SMS](#sms) |
 | Firmware | update | The installed firmware and, when the router has found one, the newest stable release. Informs only. Only on routers that offer firmware update information |
+| SMS number, SMS text | text | The number and the text of the next SMS; see [SMS](#sms). Only on routers that have the SMS page |
+| Send SMS | button | Sends the typed SMS. Add a confirmation in your dashboard |
+| SMS send result | sensor | `Sent` or `Not sent: ...` with the reason |
 | Failover *interface* | sensor | The router's failover state of an uplink: `online`, `offline`, `standby`, `starting` or `notracking`. Attributes: health `score`, `seconds_since_change`, `seconds_online`, `seconds_offline`, `tracking_lost`. One per interface in the failover configuration |
 | Failover *interface* online | binary sensor | On while the failover check says the uplink is online |
 | Failover mobile, Wi-Fi, Ethernet online | binary sensors | On while any interface of that kind is online. Same name on every router, one per kind that exists in the failover configuration |
@@ -766,16 +769,39 @@ The Tailscale login URL, addresses and keys are never shown.
 ## SMS
 
 If the router has an SMS page, the integration creates the sensor **SMS
-messages** (how many messages the router holds) and offers the service
-`send_sms`.
+messages** (how many messages the router holds), the entities to send an SMS
+from the dashboard and the service `send_sms`.
 
-**Sending.** The service `teltonika_control.send_sms` takes the router as target
+**Sending from the dashboard.** Four entities work together, like the Wi-Fi
+management fields:
+
+| Entity | What it does |
+|---|---|
+| SMS number (text) | The phone number, in digits, with a leading `+` for the country code. Spaces and dashes are removed. It stays for the next message |
+| SMS text (text) | The text, up to 255 characters. It is cleared after a successful send, so the same text is not sent twice |
+| Send SMS (button) | Sends the typed text. Add a confirmation in your dashboard, sending costs what an SMS costs on the SIM |
+| SMS send result (sensor) | `Sent`, `Sent (2 parts)` or `Not sent: ...` with the reason, for example a missing number |
+
+The fields live in memory only: after a restart of Home Assistant they are empty.
+Their states are recorded like those of any other entity; if you do not want
+numbers and texts in the history, exclude `text.*_sms_number`, `text.*_sms_text`
+in the [recorder](https://www.home-assistant.io/integrations/recorder/#exclude).
+A ready dashboard with the two fields, the button (with confirmation) and the
+result is [dashboards/teltonika-sms.yaml](dashboards/teltonika-sms.yaml); paste
+it into **Raw configuration editor** of a new dashboard and replace `my_router`.
+On a router with two modems the dashboard cannot choose one: the button refuses
+and says which modems are online. Use the service with `modem` there.
+
+**Sending from an automation, script or the Developer tools.** The service
+`teltonika_control.send_sms` takes the router as target
 (any entity of the router) and the fields `number` and `message`. Give the number
 in digits, with a leading `+` for the country code; spaces and dashes are
 removed. With one modem the router uses it; with two, name the one to send with
 in `modem` (for example `2-1.1`). The response says how many SMS the text used
 (`sms_used`; a long text is sent as several). Sending costs what an SMS costs on
-the SIM. Neither the number nor the text is written to the log.
+the SIM. Neither the number nor the text is written to the log. You can try it
+without writing anything: **Developer tools, Actions**, pick `Teltonika Control:
+Send SMS`, choose an entity of the router as target and fill in the two fields.
 
 ```yaml
 action: teltonika_control.send_sms
@@ -785,6 +811,12 @@ data:
   number: "+491701234567"
   message: "The camper is parked, data volume at 95 percent."
 ```
+
+Ready automations: [send an SMS from a dashboard button with a fixed
+text](docs/automation-examples.md#send-an-sms-from-a-button), [send the typed
+SMS from a script](docs/automation-examples.md#send-the-typed-sms-from-a-script),
+[an SMS when the data volume runs low](docs/automation-examples.md#send-an-sms-when-the-data-volume-runs-low)
+and [commands by SMS](docs/automation-examples.md#commands-by-sms).
 
 **Receiving.** The router keeps incoming messages. Every new one fires the event
 `teltonika_control_sms_received` with the fields `sender`, `message`, `date`,

@@ -15,6 +15,9 @@ The rules behind them are on the [best practices](best-practices.md) page.
 - [VPN to home is down](#vpn-to-home-is-down)
 - [Restart the WireGuard tunnel](#restart-the-wireguard-tunnel)
 - [Forward a new SMS](#forward-a-new-sms)
+- [Send an SMS from a button](#send-an-sms-from-a-button)
+- [Send the typed SMS from a script](#send-the-typed-sms-from-a-script)
+- [Commands by SMS](#commands-by-sms)
 - [Send an SMS when the data volume runs low](#send-an-sms-when-the-data-volume-runs-low)
 - [Move the home zone with the camper](#move-the-home-zone-with-the-camper)
 
@@ -226,6 +229,97 @@ automation:
 
 To react only to one sender, add `event_data: {sender: "+491701111111"}` to the
 trigger.
+
+## Send an SMS from a button
+
+For a message you send often, such as "I arrived", a script with a fixed number
+and text is easier than typing it. Run it from a dashboard button, a widget or
+voice. Sending costs what an SMS costs on the SIM.
+
+```yaml
+script:
+  sms_arrived:
+    alias: "SMS: arrived"
+    sequence:
+      - action: teltonika_control.send_sms
+        target:
+          entity_id: sensor.my_router_sms_messages
+        data:
+          number: "+491701234567"
+          message: "We arrived. The camper is parked."
+```
+
+In the dashboard, add a button card that runs `script.sms_arrived` and ask for a
+confirmation (`tap_action` with `confirmation`).
+
+## Send the typed SMS from a script
+
+The entities **SMS number**, **SMS text** and **Send SMS** (see
+[SMS](../README.md#sms)) can be used from a script too, for example to fill the
+fields from a Companion app notification action or a helper, and send in one
+step:
+
+```yaml
+script:
+  sms_from_helpers:
+    alias: "SMS: send the helper text"
+    sequence:
+      - action: text.set_value
+        target:
+          entity_id: text.my_router_sms_number
+        data:
+          value: "{{ states('input_text.sms_to') }}"
+      - action: text.set_value
+        target:
+          entity_id: text.my_router_sms_text
+        data:
+          value: "{{ states('input_text.sms_body') }}"
+      - action: button.press
+        target:
+          entity_id: button.my_router_send_sms
+```
+
+If the sending fails (no number, no text, the router refuses), the script stops
+with the reason and the sensor **SMS send result** shows it as well. To send a
+text that depends on a template, the service `send_sms` is shorter: it takes
+number and message in one call and returns how many SMS parts it used.
+
+## Commands by SMS
+
+An SMS can trigger something at the camper when there is no internet, for
+example "heating on". Because anybody who knows the number could send such an
+SMS, **always check the sender** and keep the command harmless. This turns the
+heating on and answers with an SMS to the sender:
+
+```yaml
+automation:
+  - alias: "Router: SMS command heating on"
+    mode: queued
+    triggers:
+      - trigger: event
+        event_type: teltonika_control_sms_received
+        event_data:
+          sender: "+491701111111"
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.event.data.message | trim | lower == 'heating on' }}"
+    actions:
+      - action: climate.turn_on
+        target:
+          entity_id: climate.camper_heating
+      - action: teltonika_control.send_sms
+        target:
+          entity_id: sensor.my_router_sms_messages
+        data:
+          number: "{{ trigger.event.data.sender }}"
+          message: "Heating is on."
+```
+
+The router is asked every two minutes, so the command can take up to that long
+to arrive. The sender is the number as the network reports it, usually with
+the country code; check how it shows up in the event (Developer tools, Events,
+listen to `teltonika_control_sms_received`) before you rely on the match.
+Do not use commands that open locks or switch off alarms.
 
 ## Send an SMS when the data volume runs low
 

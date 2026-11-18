@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-18
+
+### Added
+
+- **Send an SMS from the dashboard.** The text fields **SMS number** and
+  **SMS text**, the button **Send SMS** and the sensor **SMS send result** let
+  you write and send an SMS without an automation. The text is cleared after a
+  successful send, the result says `Sent` or why it was not sent. Only on routers
+  with the SMS page. A ready dashboard is `dashboards/teltonika-sms.yaml`.
+- **Docs.** New automation examples: SMS from a button, sending the typed SMS
+  from a script, and commands by SMS with a sender check.
+
 ## [0.14.0] - 2026-11-18
 
 ### Added

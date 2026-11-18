@@ -452,6 +452,15 @@ async def async_setup_entry(
         entry,
         async_add_entities,
         lambda c: (
+            (("last_sms", lambda: TeltonikaLastSmsSensor(c)),)
+            if c.data.sms is not None
+            else ()
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
             (("last_action", lambda: TeltonikaLastActionSensor(c)),)
             if c.data.wireless_devices
             else ()
@@ -783,6 +792,21 @@ class TeltonikaLastActionSensor(TeltonikaEntity, SensorEntity):
     def native_value(self) -> str | None:
         """Return the message, cut to the length Home Assistant allows."""
         message = self.coordinator.last_action
+        return message[:255] if message else None
+
+
+class TeltonikaLastSmsSensor(TeltonikaEntity, SensorEntity):
+    """The result of the last SMS sent with the SMS entities."""
+
+    _attr_translation_key = "last_sms"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "last_sms")
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the result, cut to the length Home Assistant allows."""
+        message = self.coordinator.last_sms
         return message[:255] if message else None
 
 

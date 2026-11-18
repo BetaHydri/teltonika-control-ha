@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import voluptuous as vol
@@ -22,6 +21,7 @@ from homeassistant.helpers import entity_registry as er
 
 from .const import DEFAULT_PORTAL_MINUTES, DOMAIN
 from .coordinator import TeltonikaCoordinator
+from .models import PHONE_NUMBER_HINT, clean_phone_number
 
 ATTR_DEVICE_ID = "device_id"
 
@@ -32,17 +32,15 @@ SERVICE_JOIN_WIFI = "join_wifi"
 SERVICE_FORGET_WIFI = "forget_wifi"
 SERVICE_SEND_SMS = "send_sms"
 
-# Digits with an optional leading plus; spaces, dashes and brackets are dropped.
-_PHONE_NUMBER = re.compile(r"^\+?\d{3,20}$")
 MAX_SMS_LENGTH = 1224
 
 
 def _phone_number(value: Any) -> str:
     """Accept a phone number with the separators people type."""
-    text = re.sub(r"[\s\-()./]", "", cv.string(value))
-    if not _PHONE_NUMBER.match(text):
-        raise vol.Invalid("Enter the phone number in digits, with a leading + for a country code")
-    return text
+    number = clean_phone_number(cv.string(value))
+    if number is None:
+        raise vol.Invalid(PHONE_NUMBER_HINT)
+    return number
 
 # The router is named by device or by any of its entities (a service target).
 BASE_SCHEMA = {

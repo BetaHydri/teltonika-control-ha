@@ -35,6 +35,15 @@ async def async_setup_entry(
         entry,
         async_add_entities,
         lambda c: (
+            (("sms_send", lambda: TeltonikaSendSmsButton(c)),)
+            if c.data.sms is not None
+            else ()
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
             (
                 f"vpnx_{instance.family}_{instance.instance_id}",
                 lambda i=instance: TeltonikaReconnectVpnInstanceButton(c, i),
@@ -101,6 +110,19 @@ class TeltonikaReconnectVpnInstanceButton(TeltonikaVpnEntity, ButtonEntity):
     async def async_press(self) -> None:
         """Restart the instance."""
         await self.coordinator.async_reconnect_vpn_instance(self._family, self._instance_id)
+
+
+class TeltonikaSendSmsButton(TeltonikaEntity, ButtonEntity):
+    """Sends the SMS typed into the number and text fields. Costs what an SMS costs."""
+
+    _attr_translation_key = "send_sms"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "sms_send")
+
+    async def async_press(self) -> None:
+        """Send the SMS."""
+        await self.coordinator.async_send_composed_sms()
 
 
 class TeltonikaRebootButton(TeltonikaEntity, ButtonEntity):

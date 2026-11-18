@@ -1,0 +1,57 @@
+# Teltonika Control SMS dashboard
+#
+# A small separate dashboard to send an SMS from the Home Assistant app or the
+# browser: type the number and the text, press "Send SMS". It uses only
+# built-in cards, so it needs no custom card. See README, section SMS.
+#
+# Replace the placeholder once:
+#   my_router  ->  entity ID prefix of the router device
+#
+# Sending costs what an SMS costs on the SIM, so the button asks for
+# confirmation. The text field is cleared after a successful send and the
+# result shows under it. A text longer than 255 characters does not fit the
+# field; use the service teltonika_control.send_sms for that.
+title: Teltonika SMS
+views:
+  - title: SMS
+    path: teltonika-sms
+    icon: mdi:message-text
+    type: sections
+    max_columns: 1
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Send an SMS
+            heading_style: title
+            icon: mdi:message-arrow-right
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: text.my_router_sms_number
+                name: Number
+                icon: mdi:phone
+              - entity: text.my_router_sms_text
+                name: Text
+                icon: mdi:message-text
+              - entity: sensor.my_router_sms_send_result
+                name: Result
+          - type: button
+            entity: button.my_router_send_sms
+            name: Send SMS
+            icon: mdi:send
+            show_state: false
+            tap_action:
+              action: perform-action
+              perform_action: button.press
+              target:
+                entity_id: button.my_router_send_sms
+              confirmation:
+                text: Send this SMS? It costs what an SMS costs on the SIM.
+          - type: heading
+            heading: Router inbox
+            heading_style: subtitle
+            icon: mdi:inbox
+          - type: entity
+            entity: sensor.my_router_sms_messages
+            name: Messages on the router
