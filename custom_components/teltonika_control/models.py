@@ -1350,6 +1350,9 @@ class FirmwareInfo:
     # The newest version, stable or not, as the update server lists them.
     newest: str | None
     update_available: bool | None
+    # Which release the download has to ask for: "stable", or "latest" when the
+    # update server has no stable release for this router.
+    channel: str = "stable"
 
 
 _VERSION_PART = re.compile(r"\d+(?:\.\d+)+")
@@ -1385,7 +1388,8 @@ def derive_firmware(installed: str | None, raw: Any) -> FirmwareInfo | None:
     stable = _first_text(device.get("stable_version"))
     newest = _first_text(device.get("version"))
     # A router without a stable channel reports a placeholder such as "newest".
-    latest = stable if firmware_version_tuple(stable) is not None else (newest or stable)
+    stable_is_real = firmware_version_tuple(stable) is not None
+    latest = stable if stable_is_real else (newest or stable)
     if latest is None:
         return None
     have = firmware_version_tuple(installed)
@@ -1396,6 +1400,7 @@ def derive_firmware(installed: str | None, raw: Any) -> FirmwareInfo | None:
         latest=latest,
         newest=newest,
         update_available=available,
+        channel="stable" if stable_is_real else "latest",
     )
 
 

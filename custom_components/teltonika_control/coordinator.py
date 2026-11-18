@@ -50,6 +50,7 @@ from .const import (
     DOMAIN,
     EVENT_PORTAL_RESULT,
     EVENT_SMS_RECEIVED,
+    FIRMWARE_DOWNLOAD_SETTLE,
     FIRMWARE_INSTALL_GRACE,
     FIRMWARE_INSTALL_TIMEOUT,
     FIRMWARE_WATCH_SECONDS,
@@ -226,6 +227,10 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         # While a firmware download runs, its progress is read on every update.
         self._watch_download_until = 0.0
         self._firmware_updates_seen: dict[str, Any] | None = None
+        # When the last download was asked for, and whether the router's
+        # "succeeded" turned out to belong to a file that is gone.
+        self.download_requested_at: float | None = None
+        self.stale_download = False
         # An installation we started: when, from which version, and whether it failed.
         self.installing_since: float | None = None
         self._install_from: str | None = None
@@ -457,8 +462,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             return None
         if firmware.update_available is False:
             return "up_to_date"
+        if (
+            self.download_requested_at is not None
+            and time.monotonic() - self.download_requested_at < FIRMWARE_DOWNLOAD_SETTLE
+        ):
+            return "downloading"
         if download is not None:
-            if download.ready:
+            if download.ready and not self.stale_download:
                 return "ready"
             process = (download.process or "").lower()
             if "fail" in process or "error" in process:
@@ -792,11 +802,15 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         firmware = self.data.firmware
         if firmware is None or firmware.update_available is False:
             raise HomeAssistantError("The router has found no newer firmware")
-        _LOGGER.debug("Action: download firmware %s", firmware.latest)
+        _LOGGER.debug("Action: download firmware %s (%s)", firmware.latest, firmware.channel)
         self.install_failed = False
         async with translate_errors():
-            await self.client.async_firmware_download()
-        self._watch_download_until = time.monotonic() + FIRMWARE_WATCH_SECONDS
+            await self.client.async_firmware_download(firmware.channel)
+        # The progress page still shows the last result for a moment: until it
+        # has caught up, the old "succeeded" must not count as this download.
+        self.download_requested_at = time.monotonic()
+        self.stale_download = False
+        self._watch_download_until = self.download_requested_at + FIRMWARE_WATCH_SECONDS
         await self.async_request_refresh()
 
     async def async_install_firmware(self) -> None:
@@ -806,10 +820,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         expected end of this request, so a lost connection is not an error.
         """
         firmware = self.data.firmware
-        download = self.data.firmware_download
         if firmware is None or firmware.update_available is False:
             raise HomeAssistantError("The router has found no newer firmware")
-        if download is None or not download.ready:
+        if self.firmware_state != "ready":
             raise HomeAssistantError("Download the firmware first and wait until it is complete")
         if self.installing_since is not None:
             raise HomeAssistantError("The firmware installation is already running")
@@ -827,8 +840,11 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                     await self.client.async_firmware_upgrade(keep_settings=True)
                 except TeltonikaConnectionError:
                     _LOGGER.debug("Connection lost while the router starts the firmware upgrade")
-        except HomeAssistantError:
+        except HomeAssistantError as err:
             self.installing_since = None
+            # The router says it has no file: its "succeeded" was an old result.
+            if "not found" in str(err).lower():
+                self.stale_download = True
             self.async_update_listeners()
             raise
         finally:

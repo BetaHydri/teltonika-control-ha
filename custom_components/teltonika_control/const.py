@@ -86,6 +86,8 @@ FIRMWARE_WATCH_SECONDS = 900
 # with the same version is accepted as the router not having restarted yet.
 FIRMWARE_INSTALL_TIMEOUT = 1800
 FIRMWARE_INSTALL_GRACE = 600
+# After "Download firmware": seconds until the router's progress page is trusted.
+FIRMWARE_DOWNLOAD_SETTLE = 20
 # States of the firmware update sensor, in the order of the process.
 FIRMWARE_STATES = [
     "up_to_date",

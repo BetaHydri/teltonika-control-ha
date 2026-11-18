@@ -870,9 +870,13 @@ minutes, and ideally with somebody at the router. A power loss during the
 installation can leave the router unusable. Put a confirmation in front of the
 button in your dashboard (the sample dashboard does).
 
-**Notes.** The router's progress page does not say which version it holds, so a
-download that finished earlier counts as ready; press **Download firmware** first
-if you want to be sure that the newest release is the one that is installed. The
+**Notes.** The router's progress page does not say which version it holds and
+keeps showing the result of an old download. The status therefore shows
+`downloading` for the first seconds after you press **Download firmware**, and
+a failed installation with "Firmware file not found" puts it back to
+`update_available`: download again. If the update server has no stable release
+for your router (it reports the version `newest`), the download asks for the
+latest release instead; the router's own default would download nothing. The
 installation is not tried on real hardware by the author: do it first on a
 router you can reach. If something fails, Home Assistant shows the router's
 message. To only watch, leave **Install firmware** disabled and install in the

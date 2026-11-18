@@ -391,13 +391,18 @@ class TeltonikaClient:
         data = await self.async_request("GET", "/firmware/device/progress/status")
         return data if isinstance(data, dict) else {}
 
-    async def async_firmware_download(self) -> None:
+    async def async_firmware_download(self, channel: str | None = None) -> None:
         """Ask the router to download the firmware from its update server.
 
-        Nothing is installed and the router does not restart.
+        ``channel`` is "stable" or "latest"; without it the router uses the
+        type from its own FOTA settings. Nothing is installed and the router
+        does not restart.
         """
         await self.async_request(
-            "POST", "/firmware/actions/fota_download", timeout=ACTION_TIMEOUT
+            "POST",
+            "/firmware/actions/fota_download",
+            json={"data": {"type": channel}} if channel else None,
+            timeout=ACTION_TIMEOUT,
         )
 
     async def async_firmware_upgrade(self, keep_settings: bool = True) -> None:

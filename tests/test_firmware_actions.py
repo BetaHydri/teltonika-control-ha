@@ -15,7 +15,11 @@ from custom_components.teltonika_control.api import (
     TeltonikaApiError,
     TeltonikaConnectionError,
 )
-from custom_components.teltonika_control.const import DOMAIN, FIRMWARE_INSTALL_GRACE
+from custom_components.teltonika_control.const import (
+    DOMAIN,
+    FIRMWARE_DOWNLOAD_SETTLE,
+    FIRMWARE_INSTALL_GRACE,
+)
 from custom_components.teltonika_control.models import derive_firmware_download
 
 from .conftest import entity_id, find_device, mock_router
@@ -275,6 +279,70 @@ async def test_download_progress_alone_is_enough_for_the_status(
     await coordinator.async_refresh()
 
     assert coordinator.firmware_state == "downloading"
+
+
+async def test_download_asks_for_the_release_the_server_actually_has(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    await entry.runtime_data.async_download_firmware()
+    posts = requests(aioclient_mock, "POST", "/firmware/actions/fota_download")
+    assert [call[2] for call in posts] == [{"data": {"type": "stable"}}]
+
+
+async def test_download_asks_for_the_latest_when_there_is_no_stable_release(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    # The router's own default type is "stable", which would download nothing.
+    mock_router(
+        aioclient_mock,
+        firmware={"device": {"version": "RUTC_R_00.07.28.1", "stable_version": "newest"}},
+    )
+    await setup_entry(hass, entry)
+    await entry.runtime_data.async_download_firmware()
+    posts = requests(aioclient_mock, "POST", "/firmware/actions/fota_download")
+    assert [call[2] for call in posts] == [{"data": {"type": "latest"}}]
+
+
+async def test_an_old_succeeded_does_not_count_until_the_progress_page_caught_up(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+    assert coordinator.firmware_state == "ready"
+
+    await coordinator.async_download_firmware()
+    assert coordinator.firmware_state == "downloading"
+    assert hass.states.get(entity_id(hass, "button", "firmware_install")) is None or (
+        hass.states.get(entity_id(hass, "button", "firmware_install")).state == "unavailable"
+    )
+
+    coordinator.download_requested_at = time.monotonic() - FIRMWARE_DOWNLOAD_SETTLE - 1
+    assert coordinator.firmware_state == "ready"
+
+
+async def test_missing_firmware_file_makes_the_old_result_stale(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+
+    async def refused(keep_settings: bool = True) -> None:
+        raise TeltonikaApiError("Firmware file not found in the device.", status=400)
+
+    monkeypatch.setattr(coordinator.client, "async_firmware_upgrade", refused)
+    with pytest.raises(HomeAssistantError, match="not found"):
+        await coordinator.async_install_firmware()
+
+    assert coordinator.firmware_state == "update_available"
+    with pytest.raises(HomeAssistantError, match="Download the firmware first"):
+        await coordinator.async_install_firmware()
 
 
 async def test_router_without_a_progress_page_has_no_firmware_actions(

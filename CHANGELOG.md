@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-11-18
+
+### Fixed
+
+- **Firmware download got nothing.** A router whose update server has no stable
+  release (it reports the version `newest`) downloaded nothing when the
+  integration pressed **Download firmware**, because the router's default type
+  is "stable". The download now asks for the type it needs, `stable` or
+  `latest`.
+- **Old "succeeded" counted as a finished download.** The router's progress page
+  keeps the result of an old download, so the status said `ready` although no
+  file was there and **Install firmware** failed with "Firmware file not found".
+  After pressing **Download firmware** the status says `downloading` until the
+  progress page has caught up, and a missing file puts the status back to
+  `update_available`.
+
 ## [0.17.1] - 2026-11-18
 
 ### Fixed

@@ -164,15 +164,7 @@ class TeltonikaInstallFirmwareButton(TeltonikaEntity, ButtonEntity):
     @property
     def available(self) -> bool:
         """Return True once a complete firmware file waits on the router."""
-        data = self.coordinator.data
-        return (
-            super().available
-            and data.firmware is not None
-            and data.firmware.update_available is not False
-            and data.firmware_download is not None
-            and data.firmware_download.ready
-            and self.coordinator.installing_since is None
-        )
+        return super().available and self.coordinator.firmware_state == "ready"
 
     async def async_press(self) -> None:
         """Install the firmware."""
