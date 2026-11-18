@@ -36,6 +36,11 @@ triggers:
     entity_id: sensor.my_router_data_limit_used_sim_1
     above: 95
     id: "95"
+conditions:
+  - condition: template
+    value_template: >-
+      {{ trigger.from_state is not none
+         and trigger.from_state.state not in ['unknown', 'unavailable'] }}
 actions:
   - action: notify.notify
     data:
@@ -44,14 +49,17 @@ actions:
         {{ states('sensor.my_router_data_used_sim_1') | float(0) | round(1) }} GB
         of {{ states('sensor.my_router_data_limit_sim_1') | float(0) | round(1) }} GB
         used. The counter resets on
-        {{ as_timestamp(states('sensor.my_router_data_limit_reset_sim_1'))
+        {{ as_timestamp(states('sensor.my_router_data_limit_reset_sim_1'), 0)
            | timestamp_custom('%d.%m.', true) }}.
 ```
 
 A numeric state trigger fires once when the value crosses the threshold, and
 fires again in the next month after the router has reset its counter. The
-router's data limit only has to be enabled so that it keeps the count; the
-warning does not depend on its SMS warning or on its cut-off.
+condition keeps it quiet after a restart of Home Assistant: the sensor then
+changes from `unknown` to its real value, which would otherwise count as a
+crossing and send the warning again. The router's data limit only has to be
+enabled so that it keeps the count; the warning does not depend on its SMS
+warning or on its cut-off.
 
 ## Hotspot needs a login
 
