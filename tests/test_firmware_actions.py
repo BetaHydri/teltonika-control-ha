@@ -345,6 +345,17 @@ async def test_missing_firmware_file_makes_the_old_result_stale(
         await coordinator.async_install_firmware()
 
 
+async def test_status_is_up_to_date_when_the_versions_cannot_be_compared(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    # After an update the router lists no newer release; its old "succeeded"
+    # must not make the status say "ready".
+    mock_router(aioclient_mock, firmware={"device": {"stable_version": "newest"}})
+    await setup_entry(hass, entry)
+
+    assert hass.states.get(entity_id(hass, "sensor", "firmware_state")).state == "up_to_date"
+
+
 async def test_router_without_a_progress_page_has_no_firmware_actions(
     hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
 ) -> None:

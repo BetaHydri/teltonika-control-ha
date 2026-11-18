@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.17.3] - 2026-11-18
+
+### Fixed
+
+- **Firmware status after an update.** Once the router runs the newest firmware
+  and lists no newer release, the status said `ready` because of the router's
+  old "succeeded". It now says `up_to_date`, also when the versions cannot be
+  compared, like the update entity.
+- **Deprecation warning.** Home Assistant logged that the integration looks up
+  devices with `async_get_device`, which stops working in Home Assistant
+  2027.8. The lookups (discovery by MAC address, the new firmware version on
+  the device) now go through the devices of the config entry.
+
 ## [0.17.2] - 2026-11-18
 
 ### Fixed

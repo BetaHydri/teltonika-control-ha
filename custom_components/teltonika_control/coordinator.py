@@ -428,7 +428,16 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             _LOGGER.info("The router runs a new firmware: %s", installed)
             self.router = replace(self.router, firmware=installed)
             registry = dr.async_get(self.hass)
-            device = registry.async_get_device(identifiers={(DOMAIN, self.router.unique_id)})
+            device = next(
+                (
+                    item
+                    for item in dr.async_entries_for_config_entry(
+                        registry, self.config_entry.entry_id
+                    )
+                    if (DOMAIN, self.router.unique_id) in item.identifiers
+                ),
+                None,
+            )
             if device is not None:
                 registry.async_update_device(device.id, sw_version=installed)
         if self.installing_since is None:
@@ -460,7 +469,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             if download is not None and self._download_running(download):
                 return "downloading"
             return None
-        if firmware.update_available is False:
+        if firmware.update_available is not True:
+            # Also when the versions cannot be compared: say "up to date"
+            # instead of guessing, like the update entity does.
             return "up_to_date"
         if (
             self.download_requested_at is not None

@@ -125,16 +125,11 @@ class TeltonikaConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def _entry_for_mac(self, mac: str) -> ConfigEntry | None:
         """Return the router entry whose device has this MAC address."""
-        device = dr.async_get(self.hass).async_get_device(
-            connections={(CONNECTION_NETWORK_MAC, mac)}
-        )
-        if device is None:
-            return None
-        for domain, identifier in device.identifiers:
-            if domain != DOMAIN:
-                continue
-            for entry in self._async_current_entries():
-                if entry.unique_id == identifier:
+        registry = dr.async_get(self.hass)
+        wanted = (CONNECTION_NETWORK_MAC, mac)
+        for entry in self._async_current_entries():
+            for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
+                if wanted in device.connections:
                     return entry
         return None
 
