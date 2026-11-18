@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-11-18
+
+### Changed
+
+- Documentation only, no change to the integration code. The data volume
+  warning in the automation examples no longer sends a message after a restart
+  of Home Assistant (the sensor changes from `unknown` to its value, which
+  counted as crossing the threshold) and no longer fails while the reset time
+  is not known yet. The README describes the detection of an expired hotspot
+  login and has a one-click button that opens the repository in HACS.
+- The release is made from a repository history without the Co-authored-by
+  lines of earlier commits. The tags `v0.12.1` and `v0.12.2` are protected by
+  GitHub and still point to the old commits; the code is the same.
+
 ## [0.12.2] - 2026-11-17
 
 ### Fixed
