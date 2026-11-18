@@ -829,6 +829,9 @@ data:
 Ready automations: [send an SMS from a dashboard button with a fixed
 text](docs/automation-examples.md#send-an-sms-from-a-button), [send the typed
 SMS from a script](docs/automation-examples.md#send-the-typed-sms-from-a-script),
+[the position as a Google Maps link](docs/automation-examples.md#send-the-position-by-sms),
+[an alarm when the camper moves](docs/automation-examples.md#alarm-by-sms-when-the-camper-moves),
+[a daily status](docs/automation-examples.md#daily-status-by-sms),
 [an SMS when the data volume runs low](docs/automation-examples.md#send-an-sms-when-the-data-volume-runs-low)
 and [commands by SMS](docs/automation-examples.md#commands-by-sms).
 

@@ -19,6 +19,9 @@ The rules behind them are on the [best practices](best-practices.md) page.
 - [Send the typed SMS from a script](#send-the-typed-sms-from-a-script)
 - [Commands by SMS](#commands-by-sms)
 - [Send an SMS when the data volume runs low](#send-an-sms-when-the-data-volume-runs-low)
+- [Send the position by SMS](#send-the-position-by-sms)
+- [Alarm by SMS when the camper moves](#alarm-by-sms-when-the-camper-moves)
+- [Daily status by SMS](#daily-status-by-sms)
 - [Download new firmware at night](#download-new-firmware-at-night)
 - [Move the home zone with the camper](#move-the-home-zone-with-the-camper)
 
@@ -395,6 +398,113 @@ automation:
 
 The automation presses only the download button. Do not press **Install
 firmware** from an automation unless you are sure the router can be offline.
+
+## Send the position by SMS
+
+A script that sends the position of the router as a Google Maps link, for a
+button, a voice command or another automation. The link opens in the map app
+of the receiving phone. The position comes from the **Position** tracker of the
+router (see [GPS](../README.md#gps)); without a fix the router keeps the last
+known position, and the script says so.
+
+```yaml
+script:
+  sms_position:
+    alias: "SMS: send the position"
+    fields:
+      number:
+        description: Phone number of the receiver
+        example: "+491701234567"
+    sequence:
+      - condition: template
+        value_template: >-
+          {{ state_attr('device_tracker.my_router_position', 'latitude') is number }}
+      - action: teltonika_control.send_sms
+        target:
+          entity_id: sensor.my_router_sms_messages
+        data:
+          number: "{{ number }}"
+          message: >-
+            Camper position: https://www.google.com/maps?q={{
+              state_attr('device_tracker.my_router_position', 'latitude') | round(6) }},{{
+              state_attr('device_tracker.my_router_position', 'longitude') | round(6) }}
+            (accuracy {{ state_attr('device_tracker.my_router_position', 'gps_accuracy') | float(0) | round(0) }} m){{
+              '' if state_attr('device_tracker.my_router_position', 'fix') else ', no current GPS fix, last known position' }}
+```
+
+Call it with `action: script.sms_position` and `data: {number: "+49..."}`.
+An SMS counts a part per 160 characters, and a text with umlauts or emoji only
+70, so keep the texts plain. The service answers with `sms_used`, how many
+parts it took.
+
+## Alarm by SMS when the camper moves
+
+Sends the position by SMS as soon as the router leaves the home zone, for
+example as a theft warning at a parking spot. It works without internet at the
+camper, because the SMS goes out through the router's own SIM; Home Assistant
+only has to run. Replace `zone.hymer_home` with your zone, and switch the
+automation off while you drive.
+
+```yaml
+automation:
+  - alias: "Router: SMS alarm when the camper moves"
+    triggers:
+      - trigger: state
+        entity_id: device_tracker.my_router_position
+        from: home
+        to: not_home
+        for: "00:02:00"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.camper_parked
+        state: "on"
+    actions:
+      - action: teltonika_control.send_sms
+        target:
+          entity_id: sensor.my_router_sms_messages
+        data:
+          number: "+491701234567"
+          message: >-
+            ALARM: camper moved. https://www.google.com/maps?q={{
+              state_attr('device_tracker.my_router_position', 'latitude') | round(6) }},{{
+              state_attr('device_tracker.my_router_position', 'longitude') | round(6) }}
+```
+
+The helper `input_boolean.camper_parked` is a switch you create yourself
+(Settings, Devices & services, Helpers) and turn on when you park. The two
+minutes avoid an alarm from a single wrong GPS reading.
+
+## Daily status by SMS
+
+A short status of the camper every morning, for the days without internet: how
+the router is connected, how much of the mobile data volume is used, and where
+the camper is. Needs the option **Mobile data plan (GB)** for the percentage,
+see [Mobile data limit](../README.md#mobile-data-limit). Keep the text under
+160 characters, so it stays one SMS.
+
+```yaml
+automation:
+  - alias: "Router: daily status by SMS"
+    triggers:
+      - trigger: time
+        at: "08:00:00"
+    actions:
+      - action: teltonika_control.send_sms
+        target:
+          entity_id: sensor.my_router_sms_messages
+        data:
+          number: "+491701234567"
+          message: >-
+            Camper: {{ states('sensor.my_router_uplink') }},
+            data {{ states('sensor.my_router_data_limit_used_sim_1') | float(0) | round(0) }}%,
+            https://www.google.com/maps?q={{
+              state_attr('device_tracker.my_router_position', 'latitude') | round(5) }},{{
+              state_attr('device_tracker.my_router_position', 'longitude') | round(5) }}
+```
+
+The sensors are the ones of the router; use any other entity of Home Assistant
+in the same way, for example the battery of the camper or the temperature
+inside, to build your own status message.
 
 ## Move the home zone with the camper
 
