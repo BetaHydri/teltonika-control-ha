@@ -346,6 +346,16 @@ views:
                             router goes back to mobile data automatically.
                       button_action:
                         tap_action: *wifi_first
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: select.my_router_uplink_priority
+                            icon: mdi:radiobox-marked
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *wifi_first
                     - type: custom:bubble-card
                       card_type: button
                       button_type: name
@@ -363,6 +373,16 @@ views:
                           verify: false
                       button_action:
                         tap_action: *mobile_first
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: select.my_router_uplink_priority
+                            icon: mdi:radiobox-blank
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *mobile_first
               - type: conditional
                 conditions:
                   - condition: state
@@ -380,6 +400,16 @@ views:
                       tap_action: *wifi_first
                       button_action:
                         tap_action: *wifi_first
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: select.my_router_uplink_priority
+                            icon: mdi:radiobox-blank
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *wifi_first
                     - type: custom:bubble-card
                       card_type: button
                       button_type: name
@@ -389,6 +419,16 @@ views:
                       tap_action: *mobile_first
                       button_action:
                         tap_action: *mobile_first
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: select.my_router_uplink_priority
+                            icon: mdi:radiobox-marked
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *mobile_first
               - type: conditional
                 conditions:
                   - condition: state_not
@@ -409,6 +449,16 @@ views:
                       tap_action: *wifi_first
                       button_action:
                         tap_action: *wifi_first
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: select.my_router_uplink_priority
+                            icon: mdi:radiobox-blank
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *wifi_first
                     - type: custom:bubble-card
                       card_type: button
                       button_type: name
@@ -418,6 +468,16 @@ views:
                       tap_action: *mobile_first
                       button_action:
                         tap_action: *mobile_first
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: select.my_router_uplink_priority
+                            icon: mdi:radiobox-blank
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *mobile_first
       - type: grid
         cards:
           - type: heading
@@ -441,6 +501,16 @@ views:
                     text: Restart the mobile connection? Mobile data is briefly interrupted.
                 button_action:
                   tap_action: *restart_mobile
+                sub_button:
+                  bottom: []
+                  main:
+                    - entity: button.my_modem_restart_mobile_connection
+                      icon: mdi:gesture-tap
+                      show_icon: true
+                      show_name: false
+                      show_state: false
+                      state_background: false
+                      tap_action: *restart_mobile
               - type: custom:bubble-card
                 card_type: button
                 button_type: name
@@ -456,6 +526,16 @@ views:
                     text: Reconnect the router's Wi-Fi client? Wi-Fi is briefly interrupted.
                 button_action:
                   tap_action: *reconnect_wifi
+                sub_button:
+                  bottom: []
+                  main:
+                    - entity: button.my_router_reconnect_wi_fi
+                      icon: mdi:gesture-tap
+                      show_icon: true
+                      show_name: false
+                      show_state: false
+                      state_background: false
+                      tap_action: *reconnect_wifi
           # WireGuard tunnel (optional). Appears only while the instance is
           # switched on. Replace "homebase" with the name of your instance.
           - type: conditional
@@ -479,6 +559,16 @@ views:
                   text: Restart the WireGuard tunnel? The VPN is down for a few seconds.
               button_action:
                 tap_action: *reconnect_vpn
+              sub_button:
+                bottom: []
+                main:
+                  - entity: button.my_router_reconnect_wireguard_homebase
+                    icon: mdi:gesture-tap
+                    show_icon: true
+                    show_name: false
+                    show_state: false
+                    state_background: false
+                    tap_action: *reconnect_vpn
           # Firewall (optional): opens the separate firewall dashboard with the
           # port forwards and traffic rules. The pill only appears while the
           # router has port forwards or traffic rules. Green while nothing is
@@ -597,6 +687,16 @@ views:
                         mobile data.
                   button_action:
                     tap_action: *portal_idle
+                  sub_button:
+                    bottom: []
+                    main:
+                      - entity: sensor.my_router_hotspot_login
+                        icon: mdi:gesture-tap
+                        show_icon: true
+                        show_name: false
+                        show_state: false
+                        state_background: false
+                        tap_action: *portal_idle
               - type: conditional
                 conditions:
                   - condition: state
@@ -634,6 +734,16 @@ views:
                         confirmed? Then open http://neverssl.com in a browser.
                   button_action:
                     tap_action: *portal_login
+                  sub_button:
+                    bottom: []
+                    main:
+                      - entity: sensor.my_router_hotspot_login
+                        icon: mdi:gesture-tap
+                        show_icon: true
+                        show_name: false
+                        show_state: false
+                        state_background: false
+                        tap_action: *portal_login
               - type: conditional
                 conditions:
                   - condition: state
@@ -659,6 +769,16 @@ views:
                         10 minutes anyway?
                   button_action:
                     tap_action: *portal_online
+                  sub_button:
+                    bottom: []
+                    main:
+                      - entity: sensor.my_router_hotspot_login
+                        icon: mdi:gesture-tap
+                        show_icon: true
+                        show_name: false
+                        show_state: false
+                        state_background: false
+                        tap_action: *portal_online
               - type: conditional
                 conditions:
                   - condition: state
@@ -688,6 +808,16 @@ views:
                   data, Home Assistant) are down for about 2 to 3 minutes.
             button_action:
               tap_action: *reboot
+            sub_button:
+              bottom: []
+              main:
+                - entity: button.my_router_reboot_router
+                  icon: mdi:gesture-tap
+                  show_icon: true
+                  show_name: false
+                  show_state: false
+                  state_background: false
+                  tap_action: *reboot
           - type: heading
             heading: Router health
             heading_style: subtitle
@@ -804,7 +934,7 @@ views:
                       type: custom:bubble-card
                       card_type: button
                       button_type: name
-                      name: "SIM 1: roaming allowed"
+                      name: "SIM 1: roaming on"
                       icon: mdi:earth
                       styles: *style_green
                       tap_action: &roaming_deny_1
@@ -814,6 +944,16 @@ views:
                           entity_id: switch.my_modem_allow_data_roaming_sim_1
                       button_action:
                         tap_action: *roaming_deny_1
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: switch.my_modem_allow_data_roaming_sim_1
+                            icon: mdi:toggle-switch
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *roaming_deny_1
                   - type: conditional
                     conditions:
                       - condition: state
@@ -823,7 +963,7 @@ views:
                       type: custom:bubble-card
                       card_type: button
                       button_type: name
-                      name: "SIM 1: roaming denied"
+                      name: "SIM 1: roaming off"
                       icon: mdi:earth-off
                       styles: *style_grey
                       tap_action: &roaming_allow_1
@@ -835,6 +975,16 @@ views:
                           text: Allow data roaming for SIM 1? Outside the EU this can be expensive.
                       button_action:
                         tap_action: *roaming_allow_1
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: switch.my_modem_allow_data_roaming_sim_1
+                            icon: mdi:toggle-switch-off-outline
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *roaming_allow_1
               - type: vertical-stack
                 cards:
                   - type: conditional
@@ -846,7 +996,7 @@ views:
                       type: custom:bubble-card
                       card_type: button
                       button_type: name
-                      name: "SIM 2: roaming allowed"
+                      name: "SIM 2: roaming on"
                       icon: mdi:earth
                       styles: *style_green
                       tap_action: &roaming_deny_2
@@ -856,6 +1006,16 @@ views:
                           entity_id: switch.my_modem_allow_data_roaming_sim_2
                       button_action:
                         tap_action: *roaming_deny_2
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: switch.my_modem_allow_data_roaming_sim_2
+                            icon: mdi:toggle-switch
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *roaming_deny_2
                   - type: conditional
                     conditions:
                       - condition: state
@@ -865,7 +1025,7 @@ views:
                       type: custom:bubble-card
                       card_type: button
                       button_type: name
-                      name: "SIM 2: roaming denied"
+                      name: "SIM 2: roaming off"
                       icon: mdi:earth-off
                       styles: *style_grey
                       tap_action: &roaming_allow_2
@@ -877,6 +1037,16 @@ views:
                           text: Allow data roaming for SIM 2? Outside the EU this can be expensive.
                       button_action:
                         tap_action: *roaming_allow_2
+                      sub_button:
+                        bottom: []
+                        main:
+                          - entity: switch.my_modem_allow_data_roaming_sim_2
+                            icon: mdi:toggle-switch-off-outline
+                            show_icon: true
+                            show_name: false
+                            show_state: false
+                            state_background: false
+                            tap_action: *roaming_allow_2
           - type: horizontal-stack
             cards:
               - type: custom:bubble-card
@@ -925,6 +1095,16 @@ views:
                       minute. Nothing happens if SIM 1 is already active.
                 button_action:
                   tap_action: *sim_1
+                sub_button:
+                  bottom: []
+                  main:
+                    - entity: select.my_modem_sim_slot
+                      icon: mdi:gesture-tap
+                      show_icon: true
+                      show_name: false
+                      show_state: false
+                      state_background: false
+                      tap_action: *sim_1
               - type: custom:bubble-card
                 card_type: button
                 button_type: name
@@ -945,6 +1125,16 @@ views:
                       if SIM 2 is already active.
                 button_action:
                   tap_action: *sim_2
+                sub_button:
+                  bottom: []
+                  main:
+                    - entity: select.my_modem_sim_slot
+                      icon: mdi:gesture-tap
+                      show_icon: true
+                      show_name: false
+                      show_state: false
+                      state_background: false
+                      tap_action: *sim_2
           - type: horizontal-stack
             cards:
               - type: custom:bubble-card
@@ -1226,7 +1416,7 @@ views:
                   name: 2.4 GHz
                   show_icon: true
                   show_name: true
-                  show_state: false
+                  show_state: true
                   state_background: true
                   tap_action:
                     action: toggle
@@ -1239,7 +1429,7 @@ views:
                   name: 5 GHz
                   show_icon: true
                   show_name: true
-                  show_state: false
+                  show_state: true
                   state_background: true
                   tap_action:
                     action: toggle

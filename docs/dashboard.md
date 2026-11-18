@@ -199,8 +199,9 @@ list. Fix that entity and save again.
   [hotspots with a login page](../README.md#hotspots-with-a-login-page).
 - **Mobile data**: operator, network type, a **Network registration** pill
   (plain at home, orange while roaming), two pills for the data roaming of SIM
-  1 and SIM 2 (green when allowed, grey when denied; tap to change, and
-  allowing asks for confirmation), signal values, the active SIM with
+  1 and SIM 2 (green when on, grey when off, with a switch on the right; tap
+  to change, and allowing asks for confirmation), signal values, the active
+  SIM with
   SIM 1 and SIM 2 buttons, modem temperature and the data counters. A
   **Data limit** pill (version 0.10.0 or newer, only with a limit set on the
   router) shows the used part of the limit in percent, orange from 80 percent
@@ -228,6 +229,25 @@ list. Fix that entity and save again.
   and accuracy, on routers with GPS.
 
 Every action that interrupts the connection asks for confirmation first.
+
+### What the small buttons on the right mean
+
+The colour of a pill tells you its state, but not that you can tap it. Every
+pill that does something therefore has a small button on its right side, and a
+pill without one only shows a value:
+
+| Small button | Meaning | Where |
+|---|---|---|
+| Hand tapping (`mdi:gesture-tap`) | A one-time action: tap to run it | Restart mobile, Reconnect Wi-Fi, Restart WireGuard, the hotspot login pill, SIM 1 and SIM 2, Reboot router |
+| Switch, on or off | A switch with two states, shown as it is now | Data roaming of SIM 1 and SIM 2 |
+| Filled or empty circle | A choice of two: the filled one is active | Wi-Fi first and Mobile first |
+| Text "On" or "Off" | The state of the router's own Wi-Fi per band | Router's own Wi-Fi (2.4 GHz and 5 GHz) |
+
+The small button does the same as the pill, including the confirmation. Pills
+for values (uplink, internet, signal, counters) have no control button; small
+pills with a value (IP address, latency, used data) are only labels.
+
+If you do not like them, delete the `sub_button` block of the pill.
 
 If a pill looks plain or shows an error, Bubble Card is not installed or not
 loaded yet. Reload the browser page (Ctrl+F5) after installing it.

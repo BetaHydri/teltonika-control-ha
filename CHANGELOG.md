@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Sample dashboard: controls are recognisable without the colour.** Every
+  pill that does something has a small button on its right: a hand for a
+  one-time action, a switch for data roaming (on or off), a filled or empty
+  circle for Wi-Fi first and Mobile first, and the text On or Off for the
+  router's own Wi-Fi. The small button does the same as the pill, including the
+  confirmation. The roaming pills are now called "SIM 1: roaming on" and "off"
+  so that the text fits beside the switch. See
+  [docs/dashboard.md](docs/dashboard.md).
+
 ## [0.12.3] - 2026-11-18
 
 ### Changed
