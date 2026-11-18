@@ -122,6 +122,10 @@ CANDIDATES = (
     "/logs/kernel",
     "/logs",
     "/messages/status",
+    "/messages/storage/status",
+    "/messages/storage/config",
+    "/sms_utilities/rules/config",
+    "/sms_gateway/auto_reply/config",
     "/sms_utils/messages/status",
     "/data_limit/config",
     "/data_limit/status",
@@ -485,6 +489,7 @@ async def main() -> int:
                     f"/data_usage/month/modem/{safe_id}/status",
                     f"/data_usage/month/modem/{safe_id}/sim/1/status",
                     f"/data_usage/month/modem/{safe_id}/sim/2/status",
+                    f"/messages/modem/{safe_id}/status",
                 ):
                     await probe.get(path)
 
