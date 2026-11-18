@@ -204,7 +204,10 @@ list. Fix that entity and save again.
   confirmation (version 0.15.0 or newer). The pop-up is a standalone Bubble Card
   pop-up (`hash: "#sms"`, Bubble Card 3.2.0 or newer, the cards inside it are
   listed under `cards`) at the end of the section; it
-  takes no room until it is opened. If you prefer a page of its own, use
+  takes no room until it is opened. The big pop-up header is hidden
+  (`show_header: false`) and a **separator** card is the heading; close a
+  pop-up by tapping outside of it, or remove that line to get the header with
+  the close button back. If you prefer a page of its own, use
   [dashboards/teltonika-sms.yaml](../dashboards/teltonika-sms.yaml) and let the
   pill navigate to it as the firewall pill does. Tapping the **Firmware** pill
   opens a **Firmware** pop-up with the update state, the status and the

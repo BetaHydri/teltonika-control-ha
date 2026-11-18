@@ -942,13 +942,19 @@ views:
           # download the firmware, then install it. Both buttons ask for
           # confirmation. "Install firmware" is disabled by default in the
           # integration: enable that entity first, see README, section Firmware
-          # update. Needs version 0.17.0 or newer of the integration.
+          # update. Needs version 0.17.0 or newer of the integration. The big
+          # pop-up header is hidden and a separator is the heading; close the
+          # pop-up by tapping outside of it, or remove "show_header: false" to
+          # get the header with the close button back.
           - type: custom:bubble-card
             card_type: pop-up
             hash: "#firmware"
-            name: Firmware
-            icon: mdi:package-up
+            show_header: false
             cards:
+              - type: custom:bubble-card
+                card_type: separator
+                name: Firmware
+                icon: mdi:package-up
               - type: entities
                 show_header_toggle: false
                 entities:
@@ -1001,13 +1007,19 @@ views:
           # confirmation). Delete this block together with the sub button of the
           # SMS pill if you do not send SMS from the dashboard. With an older
           # Bubble Card, update it through HACS first. Needs version 0.15.0 or
-          # newer of the integration.
+          # newer of the integration. The big pop-up header is hidden and a
+          # separator is the heading; close the pop-up by tapping outside of
+          # it, or remove "show_header: false" to get the header with the close
+          # button back.
           - type: custom:bubble-card
             card_type: pop-up
             hash: "#sms"
-            name: Send SMS
-            icon: mdi:message-text
+            show_header: false
             cards:
+              - type: custom:bubble-card
+                card_type: separator
+                name: Send SMS
+                icon: mdi:message-text
               - type: entities
                 show_header_toggle: false
                 entities:
