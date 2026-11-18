@@ -375,7 +375,9 @@ FIRMWARE_UPDATES = {
     }
 }
 
-# 2 GB used of a 10 GB limit; the router reports used bytes as a string.
+# The firmware download state; the router keeps the last result.
+FIRMWARE_PROGRESS = {"percents": "100", "process": "succeeded"}
+
 DATA_LIMIT_STATUS = [
     {
         "id": "mob1s1a1",
@@ -412,6 +414,7 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
         "data_limit": deepcopy(DATA_LIMIT_STATUS),
         "sms": deepcopy(SMS_MESSAGES),
         "firmware_updates": deepcopy(FIRMWARE_UPDATES),
+        "firmware_progress": deepcopy(FIRMWARE_PROGRESS),
     }
     if wireguard:
         data["interfaces"].append(deepcopy(WIREGUARD_INTERFACE))

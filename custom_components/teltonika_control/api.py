@@ -381,6 +381,29 @@ class TeltonikaClient:
         data = await self.async_request("GET", "/firmware/device/updates/status")
         return data if isinstance(data, dict) else {}
 
+    async def async_firmware_progress(self) -> dict[str, Any]:
+        """Return the state of the firmware download (process and percent)."""
+        data = await self.async_request("GET", "/firmware/device/progress/status")
+        return data if isinstance(data, dict) else {}
+
+    async def async_firmware_download(self) -> None:
+        """Ask the router to download the firmware from its update server.
+
+        Nothing is installed and the router does not restart.
+        """
+        await self.async_request(
+            "POST", "/firmware/actions/fota_download", timeout=ACTION_TIMEOUT
+        )
+
+    async def async_firmware_upgrade(self, keep_settings: bool = True) -> None:
+        """Install the downloaded firmware; the router restarts."""
+        await self.async_request(
+            "POST",
+            "/firmware/actions/upgrade",
+            json={"data": {"keep_settings": "1"}} if keep_settings else None,
+            timeout=ACTION_TIMEOUT,
+        )
+
     async def async_send_sms(self, modem_id: str, number: str, message: str) -> int | None:
         """Send an SMS through a modem; return how many SMS parts it used."""
         data = await self.async_request(

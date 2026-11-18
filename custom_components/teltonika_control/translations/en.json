@@ -127,6 +127,7 @@
       "gps_fix": { "name": "GPS fix status" },
       "last_action": { "name": "Last Wi-Fi action" },
       "last_sms": { "name": "SMS send result" },
+      "firmware_download": { "name": "Firmware download" },
       "sms_messages": { "name": "SMS messages" },
       "router_time": { "name": "Router time" },
       "vpn_latency": { "name": "VPN latency" },
@@ -173,7 +174,9 @@
       "remove_network": { "name": "Remove selected network" },
       "reconnect_vpn": { "name": "Reconnect WireGuard {name}" },
       "reconnect_vpn_instance": { "name": "Reconnect {name}" },
-      "send_sms": { "name": "Send SMS" }
+      "send_sms": { "name": "Send SMS" },
+      "download_firmware": { "name": "Download firmware" },
+      "install_firmware": { "name": "Install firmware" }
     },
     "select": {
       "priority": {

@@ -48,6 +48,7 @@ from .const import (
     DOMAIN,
     EVENT_PORTAL_RESULT,
     EVENT_SMS_RECEIVED,
+    FIRMWARE_WATCH_SECONDS,
     GPS_GLITCH_POLLS,
     METRIC_MOBILE_FIRST,
     METRIC_WIFI_FIRST,
@@ -113,6 +114,7 @@ PAGES: dict[str, tuple[Any, ...]] = {
     "data_limit": ("async_data_limit_status", "medium"),
     "sms": ("async_sms_messages", "medium"),
     "firmware_updates": ("async_firmware_updates", "config"),
+    "firmware_progress": ("async_firmware_progress", "medium"),
     **{
         f"vpn_{kind.key}_config": ("async_vpn_config", "config", kind.key)
         for kind in VPN_FAMILIES
@@ -214,6 +216,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self.sms_number = ""
         self.sms_text = ""
         self.last_sms: str | None = None
+        # While a firmware download runs, its progress is read on every update.
+        self._watch_download_until = 0.0
 
     @property
     def router_device_info(self) -> DeviceInfo:
@@ -315,6 +319,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 "data_limit",
                 "sms",
                 "firmware_updates",
+                "firmware_progress",
                 *(f"vpn_{kind.key}_config" for kind in VPN_FAMILIES),
                 *(f"vpn_{kind.key}_status" for kind in VPN_FAMILIES),
             ]
@@ -361,6 +366,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             sms=parts["sms"] if isinstance(parts["sms"], list) else None,
             firmware_updates=parts["firmware_updates"],
             firmware_installed=self.router.firmware,
+            firmware_progress=parts["firmware_progress"],
             vpn_config={
                 kind.key: parts[f"vpn_{kind.key}_config"]
                 if isinstance(parts[f"vpn_{kind.key}_config"], list)
@@ -472,6 +478,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             ttl = {"status": 0.0, "medium": min(DHCP_INTERVAL, self._config_interval)}.get(
                 kind, self._config_interval
             )
+            if name == "firmware_progress" and now < self._watch_download_until:
+                ttl = 0.0
             fetched = self._fetched_at.get(name)
             fresh = fetched is not None and now - fetched < ttl
             paused = now < self._slow_until.get(name, 0.0) or now < self._missing_until.get(
@@ -695,6 +703,42 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         """Remember the result of the last SMS for the sensor."""
         self.last_sms = text
         self.async_update_listeners()
+
+    async def async_download_firmware(self) -> None:
+        """Let the router download the firmware it found. Nothing is installed."""
+        firmware = self.data.firmware
+        if firmware is None or firmware.update_available is False:
+            raise HomeAssistantError("The router has found no newer firmware")
+        _LOGGER.debug("Action: download firmware %s", firmware.latest)
+        async with translate_errors():
+            await self.client.async_firmware_download()
+        self._watch_download_until = time.monotonic() + FIRMWARE_WATCH_SECONDS
+        await self.async_request_refresh()
+
+    async def async_install_firmware(self) -> None:
+        """Install the downloaded firmware. The router restarts.
+
+        The router drops the connection while it restarts, which is the
+        expected end of this request, so a lost connection is not an error.
+        """
+        firmware = self.data.firmware
+        download = self.data.firmware_download
+        if firmware is None or firmware.update_available is False:
+            raise HomeAssistantError("The router has found no newer firmware")
+        if download is None or not download.ready:
+            raise HomeAssistantError("Download the firmware first and wait until it is complete")
+        _LOGGER.warning(
+            "Installing firmware %s: the router restarts and is offline for a few minutes",
+            firmware.latest,
+        )
+        try:
+            async with translate_errors():
+                try:
+                    await self.client.async_firmware_upgrade(keep_settings=True)
+                except TeltonikaConnectionError:
+                    _LOGGER.debug("Connection lost while the router starts the firmware upgrade")
+        finally:
+            await self.async_request_refresh()
 
     async def async_restart_mobile(self, modem_id: str) -> None:
         """Re-establish the mobile data connection."""

@@ -79,6 +79,8 @@ VPN_TIMEOUT = 4
 # router to bring the interface up before the state is read again.
 VPN_RECONNECT_DELAY = 3
 VPN_REFRESH_DELAY = 4
+# How long the firmware download is followed closely after it was started.
+FIRMWARE_WATCH_SECONDS = 900
 
 # RutOS wants metrics as strings. The mobile interface usually uses 4, so 0
 # makes Wi-Fi win and 10 keeps mobile data in front.

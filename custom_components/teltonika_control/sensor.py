@@ -452,6 +452,15 @@ async def async_setup_entry(
         entry,
         async_add_entities,
         lambda c: (
+            (("firmware_download", lambda: TeltonikaFirmwareDownloadSensor(c)),)
+            if c.data.firmware_download is not None
+            else ()
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
             (("last_sms", lambda: TeltonikaLastSmsSensor(c)),)
             if c.data.sms is not None
             else ()
@@ -793,6 +802,30 @@ class TeltonikaLastActionSensor(TeltonikaEntity, SensorEntity):
         """Return the message, cut to the length Home Assistant allows."""
         message = self.coordinator.last_action
         return message[:255] if message else None
+
+
+class TeltonikaFirmwareDownloadSensor(TeltonikaEntity, SensorEntity):
+    """The state of the firmware download on the router."""
+
+    _attr_translation_key = "firmware_download"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "firmware_download")
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the process the router reports, for example ``succeeded``."""
+        download = self.coordinator.data.firmware_download
+        return download.process if download else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the percent and whether the file is ready to install."""
+        download = self.coordinator.data.firmware_download
+        if download is None:
+            return None
+        return {"percent": download.percent, "ready_to_install": download.ready}
 
 
 class TeltonikaLastSmsSensor(TeltonikaEntity, SensorEntity):

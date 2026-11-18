@@ -106,7 +106,8 @@ respective owners and are used here only to say which routers are supported.
   many messages the router holds, and react to every new SMS with an event, for
   example to forward it as a notification. See [SMS](#sms).
 - **Firmware**: an update entity that tells you when the router has found a
-  newer stable firmware. It only informs; the router installs firmware itself.
+  newer stable firmware, plus buttons to download it and, when you decide so,
+  to install it. See [Firmware update](#firmware-update).
 - **Found on your network**: a Teltonika router shows up under **Discovered**,
   and the router is linked to its other entries in Home Assistant by its MAC
   addresses. Setup tries HTTPS and then plain HTTP.
@@ -277,6 +278,7 @@ to:
 | SMS messages (count and new-message event) | Services, Mobile Utilities, SMS Utilities | Read |
 | Send SMS | Services, Mobile Utilities, SMS Utilities | Write |
 | Firmware update information | System, Firmware | Read |
+| Firmware download and install | System, Firmware | Write |
 | Reboot router | System, Administration, General | Write |
 
 Teltonika's API description does not list the exact permission entry for each
@@ -312,9 +314,13 @@ Knowing this helps you decide how much to allow:
   device in your network).
 - It sends an SMS only when you call the `send_sms` service or press **Send SMS**. Reading the SMS
   messages changes nothing: they stay on the router.
+- The firmware: **Download firmware** has the router download the update (nothing
+  is installed, no restart). **Install firmware** (off until you enable it)
+  starts the installation of the downloaded firmware with the settings kept;
+  the router restarts and is offline for several minutes.
 
 It never creates, edits or deletes a firewall rule, and never changes
-passwords, users, other firewall settings or firmware.
+passwords, users or other firewall settings.
 
 #### Security Notes
 
@@ -402,6 +408,8 @@ automatically.
 | Reboot router | button | Add a confirmation in your dashboard |
 | SMS messages | sensor | How many messages the router holds. Only on routers that have the SMS page. The texts are not shown here; a new message fires the event `teltonika_control_sms_received`, see [SMS](#sms) |
 | Firmware | update | The installed firmware and, when the router has found one, the newest stable release. Informs only. Only on routers that offer firmware update information |
+| Download firmware, Install firmware | buttons | See [Firmware update](#firmware-update). **Install firmware** is disabled by default |
+| Firmware download | sensor | State of the download (`succeeded`, ...), with the attributes `percent` and `ready_to_install`. Diagnostic |
 | SMS number, SMS text | text | The number and the text of the next SMS; see [SMS](#sms). Only on routers that have the SMS page |
 | Send SMS | button | Sends the typed SMS. Add a confirmation in your dashboard |
 | SMS send result | sensor | `Sent` or `Not sent: ...` with the reason |
@@ -833,6 +841,40 @@ when its storage is full.
 The message texts are not stored in sensors, so they do not end up in the
 history. Only the event carries them, and events are not recorded either.
 
+## Firmware update
+
+The **Firmware** entity (update) tells you when the router has found a newer
+stable firmware at its update server. It does not install anything and has no
+Install button on purpose, so nobody starts a router restart by accident from
+the Home Assistant update list. Two buttons do the work, in two steps:
+
+| Entity | What it does |
+|---|---|
+| Download firmware (button) | The router downloads the firmware from its update server. Nothing is installed and the router does not restart. Only available while a newer firmware exists |
+| Firmware download (sensor) | State of the download as the router reports it (`succeeded` when done); the attributes show `percent` and `ready_to_install`. While a download runs, the progress is read on every update |
+| Install firmware (button) | Installs the downloaded firmware and **keeps the settings**. Only available when a complete download waits on the router. **Disabled by default**: enable it in **Settings, Devices & services, Entities** |
+
+**What happens when you install:** the router writes the firmware and restarts.
+It is offline for several minutes: no internet, no VPN, no Wi-Fi, no GPS, and
+the integration shows its entities as unavailable until it is back. Do this
+only with a stable power supply and a connection you do not need in the next ten
+minutes, and ideally with somebody at the router. A power loss during the
+installation can leave the router unusable. Put a confirmation in front of the
+button in your dashboard (the sample dashboard does).
+
+**Notes.** The router's progress page does not say which version it holds, so a
+download that finished earlier counts as ready; press **Download firmware** first
+if you want to be sure that the newest release is the one that is installed. The
+installation is not tried on real hardware by the author: do it first on a
+router you can reach. If something fails, Home Assistant shows the router's
+message. To only watch, leave **Install firmware** disabled and install in the
+router web interface.
+
+An automation can press **Download firmware** at night, for example, and send
+you a notification when `sensor.my_router_firmware_download` reports that the
+file is ready, see the
+[automation examples](docs/automation-examples.md#download-new-firmware-at-night).
+
 ## Services
 
 | Service | Purpose |
@@ -982,8 +1024,9 @@ same page status and answer structures.
   them.
 - The **Firmware** entity appears only when the router has update information
   from its update server (FOTA), which needs internet access and the update
-  service switched on in the router. It cannot start an update: install
-  firmware in the router web interface. The versions are compared by their
+  service switched on in the router. The update entity itself only informs;
+  downloading and installing are separate buttons, see
+  [Firmware update](#firmware-update). The versions are compared by their
   numbers; if the router names them in a way that cannot be compared, the entity
   says "up to date" instead of guessing.
 - The SMS texts and sender names the router reports are passed on as they are.

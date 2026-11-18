@@ -85,6 +85,7 @@ def mock_router(
     data_limit: bool = True,
     sms: bool = True,
     firmware: dict[str, Any] | bool = True,
+    firmware_progress: dict[str, Any] | bool = True,
     vpn: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     """Register answers for every endpoint the integration polls.
@@ -117,6 +118,13 @@ def mock_router(
             firmware is not False,
             "/firmware/device/updates/status",
             firmware if isinstance(firmware, dict) else data["firmware_updates"],
+        ),
+        (
+            firmware_progress is not False,
+            "/firmware/device/progress/status",
+            firmware_progress
+            if isinstance(firmware_progress, dict)
+            else data["firmware_progress"],
         ),
     ):
         if enabled:
@@ -178,6 +186,8 @@ def mock_router(
         method(f"{BASE}/firewall/port_forwards/config/cfg_web", json={"success": True})
         method(f"{BASE}/firewall/traffic_rules/config/15", json={"success": True})
         method(f"{BASE}/firewall/traffic_rules/config/21", json={"success": True})
+        method(f"{BASE}/firmware/actions/fota_download", json={"success": True})
+        method(f"{BASE}/firmware/actions/upgrade", json={"success": True})
         method(
             f"{BASE}/messages/actions/send",
             json={"success": True, "data": {"sms_used": 2}},

@@ -19,6 +19,7 @@ The rules behind them are on the [best practices](best-practices.md) page.
 - [Send the typed SMS from a script](#send-the-typed-sms-from-a-script)
 - [Commands by SMS](#commands-by-sms)
 - [Send an SMS when the data volume runs low](#send-an-sms-when-the-data-volume-runs-low)
+- [Download new firmware at night](#download-new-firmware-at-night)
 - [Move the home zone with the camper](#move-the-home-zone-with-the-camper)
 
 ## Mobile data volume warning
@@ -351,6 +352,50 @@ automation:
             Mobile data: {{ states('sensor.my_router_data_limit_used_sim_1') }} percent
             of the plan used.
 ```
+
+## Download new firmware at night
+
+When the router has found a newer firmware, this downloads it at night and tells
+you when it is ready. It **does not install** anything: you decide when the
+router restarts, see [Firmware update](../README.md#firmware-update). The
+download takes some mobile data (the file is about 35 MB), so use it with a
+data plan that allows that, or only while the Wi-Fi is the uplink.
+
+```yaml
+automation:
+  - alias: "Router: download new firmware at night"
+    mode: single
+    triggers:
+      - trigger: time
+        at: "03:00:00"
+    conditions:
+      - condition: state
+        entity_id: update.my_router_firmware
+        state: "on"
+      - condition: state
+        entity_id: sensor.my_router_uplink
+        state: wifi
+    actions:
+      - action: button.press
+        target:
+          entity_id: button.my_router_download_firmware
+      - wait_for_trigger:
+          - trigger: state
+            entity_id: sensor.my_router_firmware_download
+            attribute: ready_to_install
+            to: true
+        timeout: "00:30:00"
+        continue_on_timeout: false
+      - action: notify.mobile_app_my_phone
+        data:
+          title: "Router firmware downloaded"
+          message: >-
+            Version {{ state_attr('update.my_router_firmware', 'latest_version') }}
+            is ready. Install it when you can be offline for ten minutes.
+```
+
+The automation presses only the download button. Do not press **Install
+firmware** from an automation unless you are sure the router can be offline.
 
 ## Move the home zone with the camper
 

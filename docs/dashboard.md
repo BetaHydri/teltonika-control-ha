@@ -134,6 +134,7 @@ differ. These are the entities the dashboard uses:
 | Open port forwards, firewall rules open to the internet (optional) | `sensor.my_router_open_port_forwards`, `sensor.my_router_firewall_rules_open_to_the_internet` |
 | SMS messages, Firmware (optional) | `sensor.my_router_sms_messages`, `update.my_router_firmware` |
 | SMS number, SMS text, Send SMS, SMS send result (optional, for the pop-up) | `text.my_router_sms_number`, `text.my_router_sms_text`, `button.my_router_send_sms`, `sensor.my_router_sms_send_result` |
+| Firmware download sensor, Download firmware, Install firmware (optional, for the pop-up) | `sensor.my_router_firmware_download`, `button.my_router_download_firmware`, `button.my_router_install_firmware` |
 | Restart mobile connection | `button.my_modem_restart_mobile_connection` |
 | SIM slot | `select.my_modem_sim_slot` |
 | Scan for Wi-Fi networks | `button.my_router_scan_for_wi_fi_networks` |
@@ -200,11 +201,16 @@ list. Fix that entity and save again.
   is orange with "Update available" while the router has found a newer stable
   release. Tapping the SMS pill (or its small send icon) opens the **Send SMS**
   pop-up with the number and text fields and a Send button that asks for
-  confirmation (version 0.15.0 or newer). The pop-up is a Bubble Card
-  pop-up (`hash: "#sms"`) in a vertical stack at the end of the section; it
+  confirmation (version 0.15.0 or newer). The pop-up is a standalone Bubble Card
+  pop-up (`hash: "#sms"`, Bubble Card 3.2.0 or newer, the cards inside it are
+  listed under `cards`) at the end of the section; it
   takes no room until it is opened. If you prefer a page of its own, use
   [dashboards/teltonika-sms.yaml](../dashboards/teltonika-sms.yaml) and let the
-  pill navigate to it as the firewall pill does. The hotspot button changes with the
+  pill navigate to it as the firewall pill does. Tapping the **Firmware** pill
+  opens a **Firmware** pop-up with the update state, the download state and the
+  two buttons **Download firmware** and **Install firmware**, both with a
+  confirmation (version 0.16.0 or newer); the install entity is disabled by
+  default, see [Firmware update](../README.md#firmware-update). The hotspot button changes with the
   state: it starts
   `teltonika_control.portal_mode`, shows that it waits, and reports when
   the Wi-Fi has internet. See

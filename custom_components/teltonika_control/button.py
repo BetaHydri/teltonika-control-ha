@@ -35,6 +35,18 @@ async def async_setup_entry(
         entry,
         async_add_entities,
         lambda c: (
+            (
+                ("firmware_download", lambda: TeltonikaDownloadFirmwareButton(c)),
+                ("firmware_install", lambda: TeltonikaInstallFirmwareButton(c)),
+            )
+            if c.data.firmware is not None and c.data.firmware_download is not None
+            else ()
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
             (("sms_send", lambda: TeltonikaSendSmsButton(c)),)
             if c.data.sms is not None
             else ()
@@ -110,6 +122,57 @@ class TeltonikaReconnectVpnInstanceButton(TeltonikaVpnEntity, ButtonEntity):
     async def async_press(self) -> None:
         """Restart the instance."""
         await self.coordinator.async_reconnect_vpn_instance(self._family, self._instance_id)
+
+
+class TeltonikaDownloadFirmwareButton(TeltonikaEntity, ButtonEntity):
+    """Lets the router download the firmware it found. Nothing is installed."""
+
+    _attr_translation_key = "download_firmware"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "firmware_download")
+
+    @property
+    def available(self) -> bool:
+        """Return True while the router has found a newer firmware."""
+        firmware = self.coordinator.data.firmware
+        return (
+            super().available and firmware is not None and firmware.update_available is not False
+        )
+
+    async def async_press(self) -> None:
+        """Start the download."""
+        await self.coordinator.async_download_firmware()
+
+
+class TeltonikaInstallFirmwareButton(TeltonikaEntity, ButtonEntity):
+    """Installs the downloaded firmware. The router restarts and is offline for minutes.
+
+    Disabled by default: enable it on purpose and put a confirmation in front
+    of it in your dashboard.
+    """
+
+    _attr_translation_key = "install_firmware"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "firmware_install")
+
+    @property
+    def available(self) -> bool:
+        """Return True once a complete firmware file waits on the router."""
+        data = self.coordinator.data
+        return (
+            super().available
+            and data.firmware is not None
+            and data.firmware.update_available is not False
+            and data.firmware_download is not None
+            and data.firmware_download.ready
+        )
+
+    async def async_press(self) -> None:
+        """Install the firmware."""
+        await self.coordinator.async_install_firmware()
 
 
 class TeltonikaSendSmsButton(TeltonikaEntity, ButtonEntity):

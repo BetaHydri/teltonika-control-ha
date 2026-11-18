@@ -1309,6 +1309,34 @@ def derive_sms(raw: Iterable[dict[str, Any]] | None) -> list[SmsMessage] | None:
 
 
 @dataclass(frozen=True, slots=True)
+class FirmwareDownload:
+    """The state of the firmware download (``/firmware/device/progress/status``)."""
+
+    process: str | None
+    percent: int | None
+
+    @property
+    def ready(self) -> bool:
+        """Return whether a complete firmware file is waiting to be installed."""
+        text = (self.process or "").lower()
+        return self.percent == 100 and text in _DOWNLOAD_DONE
+
+
+_DOWNLOAD_DONE = frozenset({"succeeded", "success", "done", "finished", "completed", "ready"})
+
+
+def derive_firmware_download(raw: Any) -> FirmwareDownload | None:
+    """Read the download progress; None when the router gives no such page."""
+    if not isinstance(raw, dict):
+        return None
+    process = _first_text(raw.get("process"))
+    percent = to_int(raw.get("percents", raw.get("percent")))
+    if process is None and percent is None:
+        return None
+    return FirmwareDownload(process=process, percent=percent)
+
+
+@dataclass(frozen=True, slots=True)
 class FirmwareInfo:
     """The installed firmware and the newest one the router found."""
 
@@ -1406,6 +1434,7 @@ class TeltonikaData:
     # None means the router has no such page; an empty list is an empty inbox.
     sms: list[SmsMessage] | None = None
     firmware: FirmwareInfo | None = None
+    firmware_download: FirmwareDownload | None = None
     vpn_instances: list[VpnInstance] = field(default_factory=list)
 
     @classmethod
@@ -1434,6 +1463,7 @@ class TeltonikaData:
         sms: list[dict[str, Any]] | None = None,
         firmware_updates: dict[str, Any] | None = None,
         firmware_installed: str | None = None,
+        firmware_progress: dict[str, Any] | None = None,
         vpn_config: dict[str, list[dict[str, Any]] | None] | None = None,
         vpn_status: dict[str, Any] | None = None,
     ) -> TeltonikaData:
@@ -1486,6 +1516,7 @@ class TeltonikaData:
             traffic_rules=derive_traffic_rules(traffic_rules),
             sms=derive_sms(sms),
             firmware=derive_firmware(firmware_installed, firmware_updates),
+            firmware_download=derive_firmware_download(firmware_progress),
             vpn_instances=[
                 instance
                 for kind in VPN_FAMILIES

@@ -8,11 +8,28 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-18
+
+### Added
+
+- **Download and install firmware.** The button **Download firmware** has the
+  router download the update it found (nothing is installed, no restart). The
+  sensor **Firmware download** shows the state and percent, and the progress is
+  read on every update while a download runs. The button **Install firmware**
+  installs the downloaded firmware with the settings kept; the router restarts.
+  It is **disabled by default** and only available once a complete download
+  waits on the router. The update entity itself still only informs. Based on
+  Teltonika's API description; the installation is not tried on real hardware.
+- **Dashboard.** The **Firmware** pill opens a pop-up with both buttons, each
+  with a confirmation. New automation example: download new firmware at night.
+
 ### Changed
 
 - **Sample dashboard.** The **SMS on the router** pill opens a **Send SMS**
   pop-up (Bubble Card) with the number and text fields and a Send button that
   asks for confirmation, so SMS can be sent without leaving the main dashboard.
+  The pop-ups use the standalone format of Bubble Card 3.2.0 (the cards inside
+  are listed under `cards`, no vertical stack needed).
 
 ## [0.15.0] - 2026-11-18
 

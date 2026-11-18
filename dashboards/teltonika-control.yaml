@@ -915,6 +915,12 @@ views:
                       show_name: true
                       show_state: true
                       styles: *style_orange
+                      # Tap to open the "Firmware" pop-up at the end of this section.
+                      tap_action: &open_firmware
+                        action: navigate
+                        navigation_path: "#firmware"
+                      button_action:
+                        tap_action: *open_firmware
                   - type: conditional
                     conditions:
                       - condition: state
@@ -929,19 +935,73 @@ views:
                       icon: mdi:chip
                       show_name: true
                       show_state: true
-          # Pop-up "Send SMS" (optional, opens from the "SMS on the router" pill).
-          # A Bubble Card pop-up must sit in a vertical stack together with the
-          # cards that are shown inside it. It takes no room on the page. Type
-          # the number and the text, press Send (asks for confirmation). Delete
-          # this block together with the sub button of the SMS pill if you do not
-          # send SMS from the dashboard. Needs version 0.15.0 or newer.
-          - type: vertical-stack
+                      tap_action: *open_firmware
+                      button_action:
+                        tap_action: *open_firmware
+          # Pop-up "Firmware" (optional, opens from the "Firmware" pill). First
+          # download the firmware, then install it. Both buttons ask for
+          # confirmation. "Install firmware" is disabled by default in the
+          # integration: enable that entity first, see README, section Firmware
+          # update. Needs version 0.16.0 or newer of the integration.
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: "#firmware"
+            name: Firmware
+            icon: mdi:package-up
             cards:
+              - type: entities
+                show_header_toggle: false
+                entities:
+                  - entity: update.my_router_firmware
+                    name: Firmware
+                  - entity: sensor.my_router_firmware_download
+                    name: Download
               - type: custom:bubble-card
-                card_type: pop-up
-                hash: "#sms"
-                name: Send SMS
-                icon: mdi:message-text
+                card_type: button
+                button_type: name
+                name: Download firmware
+                icon: mdi:download
+                styles: *style_blue
+                tap_action: &download_firmware
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.my_router_download_firmware
+                  confirmation:
+                    text: Download the firmware now? It uses mobile data if the router is on mobile data.
+                button_action:
+                  tap_action: *download_firmware
+              - type: custom:bubble-card
+                card_type: button
+                button_type: name
+                name: Install firmware
+                icon: mdi:cellphone-arrow-down
+                styles: *style_red
+                tap_action: &install_firmware
+                  action: perform-action
+                  perform_action: button.press
+                  target:
+                    entity_id: button.my_router_install_firmware
+                  confirmation:
+                    text: >-
+                      Install the firmware? The router restarts and is offline for several
+                      minutes (no internet, VPN or GPS). Do not cut the power.
+                button_action:
+                  tap_action: *install_firmware
+          # Pop-up "Send SMS" (optional, opens from the "SMS on the router" pill).
+          # A standalone Bubble Card pop-up (Bubble Card 3.2.0 or newer): the
+          # cards shown inside it are listed under "cards". It takes no room on
+          # the page. Type the number and the text, press Send (asks for
+          # confirmation). Delete this block together with the sub button of the
+          # SMS pill if you do not send SMS from the dashboard. With an older
+          # Bubble Card, update it through HACS first. Needs version 0.15.0 or
+          # newer of the integration.
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: "#sms"
+            name: Send SMS
+            icon: mdi:message-text
+            cards:
               - type: entities
                 show_header_toggle: false
                 entities:
