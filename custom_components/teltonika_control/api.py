@@ -12,6 +12,7 @@ from urllib.parse import quote
 
 import aiohttp
 
+from .const import VPN_FAMILY
 from .debug import shape_text
 
 _LOGGER = logging.getLogger(__name__)
@@ -353,6 +354,27 @@ class TeltonikaClient:
     async def async_sms_messages(self) -> list[dict[str, Any]]:
         """Return the SMS messages stored on the router (the inbox)."""
         return await self._async_list("/messages/status")
+
+    async def async_vpn_config(self, family: str) -> list[dict[str, Any]]:
+        """Return the configured instances of a VPN type (OpenVPN, Tailscale ...)."""
+        return await self._async_list(VPN_FAMILY[family].config_path)
+
+    async def async_vpn_status(self, family: str) -> Any:
+        """Return the status of a VPN type: a list, or an object keyed by instance."""
+        data = await self.async_request("GET", VPN_FAMILY[family].status_path)
+        return data if isinstance(data, (dict, list)) else []
+
+    async def async_set_vpn_enabled(
+        self, family: str, instance_id: str, enabled: bool
+    ) -> None:
+        """Switch one instance of a VPN type on or off."""
+        kind = VPN_FAMILY[family]
+        await self.async_request(
+            "PUT",
+            f"{kind.config_path}/{quote(instance_id, safe='')}",
+            json={"data": {kind.enable_key: "1" if enabled else "0"}},
+            timeout=ACTION_TIMEOUT,
+        )
 
     async def async_firmware_updates(self) -> dict[str, Any]:
         """Return the firmware the router found at its update server (FOTA)."""

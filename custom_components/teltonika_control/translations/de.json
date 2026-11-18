@@ -155,6 +155,7 @@
       "roaming": { "name": "Roaming" },
       "vpn_reachable": { "name": "VPN erreichbar" },
       "tunnel_up": { "name": "WireGuard {name}" },
+      "vpn_connected": { "name": "{name} verbunden" },
       "failover_online": { "name": "Failover {name} online" },
       "failover_mobile_online": { "name": "Failover Mobilfunk online" },
       "failover_wifi_online": { "name": "Failover WLAN online" },
@@ -169,7 +170,8 @@
       "scan_wifi": { "name": "WLANs suchen" },
       "add_network": { "name": "Ausgewähltes WLAN hinzufügen" },
       "remove_network": { "name": "Ausgewähltes WLAN entfernen" },
-      "reconnect_vpn": { "name": "WireGuard {name} neu verbinden" }
+      "reconnect_vpn": { "name": "WireGuard {name} neu verbinden" },
+      "reconnect_vpn_instance": { "name": "{name} neu verbinden" }
     },
     "select": {
       "priority": {
@@ -198,6 +200,7 @@
     "switch": {
       "access_point": { "name": "Access Point {name}" },
       "tunnel": { "name": "WireGuard {name} aktiviert" },
+      "vpn_instance": { "name": "{name} aktiviert" },
       "data_roaming": { "name": "Daten-Roaming SIM {slot} erlauben" },
       "port_forward": { "name": "Portweiterleitung {name}" },
       "traffic_rule": { "name": "Firewall-Regel {name}" }

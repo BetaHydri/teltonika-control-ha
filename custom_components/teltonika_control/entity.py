@@ -14,7 +14,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
-from .models import VpnTunnel, is_modem_online
+from .models import VpnInstance, VpnTunnel, is_modem_online
 
 
 def _via_router(coordinator: TeltonikaCoordinator) -> dict[str, Any]:
@@ -102,6 +102,31 @@ class TeltonikaTunnelEntity(TeltonikaEntity):
     def available(self) -> bool:
         """Return False if the tunnel was removed from the router."""
         return super().available and self.tunnel is not None
+
+
+class TeltonikaVpnEntity(TeltonikaEntity):
+    """An entity that belongs to one Tailscale, OpenVPN, IPsec or SSTP instance."""
+
+    def __init__(
+        self, coordinator: TeltonikaCoordinator, instance: VpnInstance, key: str
+    ) -> None:
+        super().__init__(coordinator, f"vpnx_{instance.family}_{instance.instance_id}_{key}")
+        self._family = instance.family
+        self._instance_id = instance.instance_id
+        self._attr_translation_placeholders = {"name": instance.label}
+
+    @property
+    def instance(self) -> VpnInstance | None:
+        """Return the current state of this instance."""
+        for instance in self.coordinator.data.vpn_instances:
+            if instance.family == self._family and instance.instance_id == self._instance_id:
+                return instance
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return False if the instance was removed from the router."""
+        return super().available and self.instance is not None
 
 
 @callback

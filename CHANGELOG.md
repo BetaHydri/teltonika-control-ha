@@ -8,6 +8,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-18
+
+### Added
+
+- **Tailscale, OpenVPN, IPsec and SSTP.** Each instance of these VPN types on
+  the router gets a *connected* binary sensor (with the status text and
+  counters as attributes), an *enabled* switch to connect or disconnect and a
+  *Reconnect* button that switches the instance off and on. Based on Teltonika's
+  API description; not yet tried on real hardware. Tailscale log out is
+  deliberately not offered.
+
+### Fixed
+
+- **Firmware.** A router without a stable channel reports the placeholder
+  `newest` as its stable version. The firmware entity now falls back to the
+  newest release instead of treating the placeholder as a version.
+
 ## [0.13.0] - 2026-11-18
 
 ### Added

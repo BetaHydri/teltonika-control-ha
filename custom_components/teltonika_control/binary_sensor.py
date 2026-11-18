@@ -20,9 +20,16 @@ from .entity import (
     TeltonikaEntity,
     TeltonikaModemEntity,
     TeltonikaTunnelEntity,
+    TeltonikaVpnEntity,
     async_add_discovered,
 )
-from .models import DataLimit, FailoverInterface, TeltonikaData, modem_is_roaming
+from .models import (
+    DataLimit,
+    FailoverInterface,
+    TeltonikaData,
+    VpnInstance,
+    modem_is_roaming,
+)
 
 PARALLEL_UPDATES = 0
 
@@ -78,6 +85,17 @@ async def async_setup_entry(
     async_add_entities(
         TeltonikaRouterBinarySensor(coordinator, description)
         for description in descriptions
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"vpnx_{instance.family}_{instance.instance_id}",
+                lambda i=instance: TeltonikaVpnConnected(c, i),
+            )
+            for instance in c.data.vpn_instances
+        ),
     )
     async_add_discovered(
         entry,
@@ -300,6 +318,37 @@ class TeltonikaModemRoaming(TeltonikaModemEntity, BinarySensorEntity):
         """Return the roaming state."""
         modem: dict[str, Any] | None = self.modem
         return modem_is_roaming(modem) if modem is not None else None
+
+
+class TeltonikaVpnConnected(TeltonikaVpnEntity, BinarySensorEntity):
+    """Whether a Tailscale, OpenVPN, IPsec or SSTP instance is connected.
+
+    The state is read from the status text of the router; the text itself is
+    an attribute.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_translation_key = "vpn_connected"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, instance: VpnInstance) -> None:
+        super().__init__(coordinator, instance, "connected")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the instance is connected."""
+        instance = self.instance
+        return instance.connected if instance else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the status text and the counters the router gave."""
+        instance = self.instance
+        if instance is None:
+            return None
+        attributes: dict[str, Any] = dict(instance.details)
+        if instance.status is not None:
+            attributes["status"] = instance.status
+        return attributes or None
 
 
 class TeltonikaTunnelUp(TeltonikaTunnelEntity, BinarySensorEntity):

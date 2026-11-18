@@ -60,6 +60,7 @@ from .const import (
     ROAMING_REFRESH_DELAY,
     SLOW_PAGE_PAUSE,
     UPLINK_WIFI,
+    VPN_FAMILIES,
     VPN_RECONNECT_DELAY,
     VPN_REFRESH_DELAY,
     VPN_TIMEOUT,
@@ -71,6 +72,7 @@ from .models import (
     RouterInfo,
     ScanNetwork,
     TeltonikaData,
+    VpnInstance,
     VpnTunnel,
     WifiStation,
     build_scan_networks,
@@ -90,7 +92,7 @@ type TeltonikaConfigEntry = ConfigEntry[TeltonikaCoordinator]
 # Router pages: client method and how often the page is read. "status" pages
 # change all the time and are read on every update, "config" pages only change
 # when someone edits the router and are read after the configuration interval.
-PAGES: dict[str, tuple[str, str]] = {
+PAGES: dict[str, tuple[Any, ...]] = {
     "interface_config": ("async_interfaces_config", "config"),
     "wireless_config": ("async_wireless_config", "config"),
     "wireless_devices": ("async_wireless_devices_status", "config"),
@@ -109,6 +111,14 @@ PAGES: dict[str, tuple[str, str]] = {
     "data_limit": ("async_data_limit_status", "medium"),
     "sms": ("async_sms_messages", "medium"),
     "firmware_updates": ("async_firmware_updates", "config"),
+    **{
+        f"vpn_{kind.key}_config": ("async_vpn_config", "config", kind.key)
+        for kind in VPN_FAMILIES
+    },
+    **{
+        f"vpn_{kind.key}_status": ("async_vpn_status", "medium", kind.key)
+        for kind in VPN_FAMILIES
+    },
 }
 
 
@@ -299,6 +309,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 "data_limit",
                 "sms",
                 "firmware_updates",
+                *(f"vpn_{kind.key}_config" for kind in VPN_FAMILIES),
+                *(f"vpn_{kind.key}_status" for kind in VPN_FAMILIES),
             ]
         )
         interface_config = parts["interface_config"] or []
@@ -343,6 +355,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             sms=parts["sms"] if isinstance(parts["sms"], list) else None,
             firmware_updates=parts["firmware_updates"],
             firmware_installed=self.router.firmware,
+            vpn_config={
+                kind.key: parts[f"vpn_{kind.key}_config"]
+                if isinstance(parts[f"vpn_{kind.key}_config"], list)
+                else None
+                for kind in VPN_FAMILIES
+            },
+            vpn_status={kind.key: parts[f"vpn_{kind.key}_status"] for kind in VPN_FAMILIES},
         )
         data.portal_waiting = self.portal_waiting
         self._remember_position(data)
@@ -419,6 +438,15 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             len(data.port_forwards),
             len(data.traffic_rules),
         )
+        for instance in data.vpn_instances:
+            _LOGGER.debug(
+                "VPN %s %s: enabled=%s connected=%s status text=%r",
+                instance.family,
+                instance.instance_id,
+                instance.enabled,
+                instance.connected,
+                instance.status,
+            )
 
     async def _async_read_pages(self, names: list[str]) -> dict[str, Any]:
         """Read router pages one after the other and return their answers.
@@ -433,7 +461,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         """
         parts: dict[str, Any] = {}
         for name in names:
-            method, kind = PAGES[name]
+            method, kind, *args = PAGES[name]
             now = time.monotonic()
             ttl = {"status": 0.0, "medium": min(DHCP_INTERVAL, self._config_interval)}.get(
                 kind, self._config_interval
@@ -447,7 +475,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                 parts[name] = self._last_good[name]
                 continue
             try:
-                result = await getattr(self.client, method)()
+                result = await getattr(self.client, method)(*args)
             except TeltonikaApiError as err:
                 # Router without Wi-Fi, modem or GPS, or a user without the
                 # right to read the page: the endpoint is missing.
@@ -707,6 +735,47 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                     )
                 return tunnel
         raise HomeAssistantError(f"Tunnel {tunnel_id} not found")
+
+    async def async_set_vpn_instance(self, family: str, instance_id: str, enabled: bool) -> None:
+        """Switch an instance of Tailscale, OpenVPN, IPsec or SSTP on or off."""
+        _LOGGER.debug("Action: %s %s -> enabled=%s", family, instance_id, enabled)
+        self._require_vpn_instance(family, instance_id)
+        async with translate_errors():
+            await self.client.async_set_vpn_enabled(family, instance_id, enabled)
+        await asyncio.sleep(VPN_REFRESH_DELAY)
+        await self.async_request_refresh()
+
+    async def async_reconnect_vpn_instance(self, family: str, instance_id: str) -> None:
+        """Restart an instance by switching it off and on again."""
+        _LOGGER.debug("Action: restart %s %s (off, wait, on)", family, instance_id)
+        instance = self._require_vpn_instance(family, instance_id)
+        if instance.enabled is False:
+            raise HomeAssistantError(
+                f"{instance.label} is switched off. Switch it on instead."
+            )
+        async with translate_errors():
+            await self.client.async_set_vpn_enabled(family, instance_id, False)
+        await asyncio.sleep(VPN_RECONNECT_DELAY)
+        try:
+            async with translate_errors():
+                await self.client.async_set_vpn_enabled(family, instance_id, True)
+        except HomeAssistantError as err:
+            raise HomeAssistantError(
+                f"{instance.label} was switched off but could not be switched "
+                f"on again: {err}. Switch it on manually."
+            ) from err
+        await asyncio.sleep(VPN_REFRESH_DELAY)
+        await self.async_request_refresh()
+
+    def _require_vpn_instance(self, family: str, instance_id: str) -> VpnInstance:
+        for instance in self.data.vpn_instances:
+            if instance.family == family and instance.instance_id == instance_id:
+                if instance.enabled is None:
+                    raise HomeAssistantError(
+                        f"The router user may not change the {instance.label} configuration."
+                    )
+                return instance
+        raise HomeAssistantError(f"{family} {instance_id} not found")
 
     async def async_set_roaming(self, card_id: str, allowed: bool) -> None:
         """Allow or deny data roaming of one SIM and check that it took effect."""

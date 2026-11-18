@@ -18,7 +18,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.teltonika_control.const import DOMAIN
+from custom_components.teltonika_control.const import DOMAIN, VPN_FAMILIES
 
 from .payloads import BASE, DEVICE_STATUS, HOST, PROBE_URL, SERIAL, payloads
 
@@ -85,13 +85,16 @@ def mock_router(
     data_limit: bool = True,
     sms: bool = True,
     firmware: dict[str, Any] | bool = True,
+    vpn: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     """Register answers for every endpoint the integration polls.
 
     ``gps`` is True for the default position, a dict for a custom answer and
     False for a router without GPS (the endpoint is missing). ``usage``,
     ``dhcp``, ``wireguard`` and the other page switches False simulate a user
-    without the right to read that page.
+    without the right to read that page. ``vpn`` maps a VPN type such as
+    "tailscale" to its ``config`` and ``status`` answers; the other types
+    are missing on the router.
     """
     data = payloads(wifi_metric=wifi_metric, wireguard=wireguard)
     headers = {"Date": date} if date else None
@@ -120,6 +123,20 @@ def mock_router(
             aioclient_mock.get(f"{BASE}{path}", json={"success": True, "data": body})
         else:
             forbidden(aioclient_mock, path)
+    for kind in VPN_FAMILIES:
+        answers = (vpn or {}).get(kind.key)
+        for page, path in (("config", kind.config_path), ("status", kind.status_path)):
+            if answers is None or page not in answers:
+                aioclient_mock.get(
+                    f"{BASE}{path}",
+                    status=404,
+                    json={"success": False, "errors": [{"code": 404, "error": "Not found"}]},
+                )
+                continue
+            aioclient_mock.get(f"{BASE}{path}", json={"success": True, "data": answers[page]})
+        for item in (answers or {}).get("config", []):
+            for method in (aioclient_mock.post, aioclient_mock.put, aioclient_mock.delete):
+                method(f"{BASE}{kind.config_path}/{item['id']}", json={"success": True})
     if gps is False:
         aioclient_mock.get(
             f"{BASE}/gps/position/status",

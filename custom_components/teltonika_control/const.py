@@ -2,7 +2,34 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 DOMAIN = "teltonika_control"
+
+
+@dataclass(frozen=True, slots=True)
+class VpnFamily:
+    """A VPN type of RutOS that has a configuration and a status page.
+
+    The configuration page says whether an instance is switched on (the field
+    is called ``enable`` for OpenVPN and ``enabled`` for the others); the
+    status page says what it is doing. WireGuard has its own, richer handling.
+    """
+
+    key: str
+    label: str
+    config_path: str
+    status_path: str
+    enable_key: str
+
+
+VPN_FAMILIES: tuple[VpnFamily, ...] = (
+    VpnFamily("tailscale", "Tailscale", "/tailscale/config", "/tailscale/status", "enabled"),
+    VpnFamily("openvpn", "OpenVPN", "/openvpn/config", "/openvpn/status", "enable"),
+    VpnFamily("ipsec", "IPsec", "/ipsec/config", "/ipsec/status", "enabled"),
+    VpnFamily("sstp", "SSTP", "/sstp/config", "/sstp/status", "enabled"),
+)
+VPN_FAMILY = {family.key: family for family in VPN_FAMILIES}
 
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_CONFIG_INTERVAL = "config_interval"

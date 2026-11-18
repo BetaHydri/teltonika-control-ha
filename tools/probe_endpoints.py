@@ -50,6 +50,9 @@ CANDIDATES = (
     "/ipsec/status",
     "/zerotier/config",
     "/tailscale/config",
+    "/tailscale/status",
+    "/sstp/config",
+    "/sstp/status",
     # System
     "/system/device/status",
     "/system/device/usage/status",

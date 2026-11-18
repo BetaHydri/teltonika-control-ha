@@ -21,6 +21,7 @@ from .const import (
     UPLINK_MOBILE,
     UPLINK_OTHER,
     UPLINK_WIFI,
+    VPN_FAMILIES,
 )
 
 WIFI_CLIENT_MODES = ("sta", "multi_ap")
@@ -787,6 +788,152 @@ def derive_vpn_tunnels(
     return sorted(tunnels.values(), key=lambda tunnel: tunnel.tunnel_id)
 
 
+_VPN_UP_WORDS = frozenset(
+    {"connected", "up", "running", "online", "established", "active", "ok", "started"}
+)
+_VPN_DOWN_WORDS = frozenset(
+    {
+        "not",
+        "disconnected",
+        "down",
+        "stopped",
+        "offline",
+        "inactive",
+        "disabled",
+        "failed",
+        "error",
+        "needslogin",
+        "needsmachineauth",
+    }
+)
+_WORD = re.compile(r"[a-z]+")
+
+
+def vpn_status_connected(text: Any) -> bool | None:
+    """Read a VPN status text; None when it is neither clearly up nor down.
+
+    The wording differs per VPN type, so it is matched by words: "Running",
+    "Connected" and "Established" are up, "Stopped", "Disconnected" and
+    "NeedsLogin" are down, "Connecting" says nothing yet.
+    """
+    if isinstance(text, bool):
+        return text
+    if not isinstance(text, str):
+        return None
+    words = set(_WORD.findall(text.lower()))
+    if words & _VPN_DOWN_WORDS:
+        return False
+    if words & _VPN_UP_WORDS:
+        return True
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class VpnInstance:
+    """One instance of Tailscale, OpenVPN, IPsec or SSTP."""
+
+    family: str
+    instance_id: str
+    label: str
+    # None when the router gave no enable flag: the instance cannot be switched.
+    enabled: bool | None
+    # None when the router gave no status or the text is not understood.
+    connected: bool | None
+    status: str | None
+    details: dict[str, Any]
+
+
+def _vpn_status_rows(
+    config_ids: list[str], names: dict[str, str], status: Any
+) -> dict[str, dict[str, Any]]:
+    """Map instance id to its status row from the shapes the router uses."""
+    rows: dict[str, dict[str, Any]] = {}
+    if isinstance(status, dict):
+        if status and all(isinstance(value, dict) for value in status.values()):
+            rows = {str(key): value for key, value in status.items()}
+        elif status and len(config_ids) == 1:
+            rows = {config_ids[0]: status}
+    elif isinstance(status, list):
+        items = [item for item in status if isinstance(item, dict)]
+        if items and all(item.get("id") is not None for item in items):
+            rows = {str(item["id"]): item for item in items}
+        elif len(items) == len(config_ids):
+            # Tailscale reports no id: the rows follow the order of the config.
+            rows = dict(zip(config_ids, items, strict=True))
+    # IPsec keys its status by instance name.
+    for instance_id, name in names.items():
+        if instance_id not in rows and name in rows:
+            rows[instance_id] = rows[name]
+    return rows
+
+
+def _vpn_details(row: dict[str, Any]) -> dict[str, Any]:
+    details: dict[str, Any] = {}
+    for key in ("uptime", "rx", "tx", "clients_connected"):
+        number = to_int(row.get(key))
+        if number is not None:
+            details[key] = number
+    version = _first_text(row.get("version"))
+    if version:
+        details["version"] = version
+    peers = row.get("peers")
+    if isinstance(peers, dict):
+        for source, target in (("online", "peers_online"), ("total", "peers_total")):
+            number = to_int(peers.get(source))
+            if number is not None:
+                details[target] = number
+    return details
+
+
+def derive_vpn_instances(
+    family: str,
+    label: str,
+    enable_key: str,
+    config: Iterable[dict[str, Any]] | None,
+    status: Any,
+) -> list[VpnInstance]:
+    """Combine the configuration and the status of one VPN type.
+
+    Instances come from the configuration; without it nothing can be switched.
+    A status of None means the page is not available.
+    """
+    configs = [item for item in config or [] if isinstance(item, dict) and item.get("id")]
+    config_ids = [str(item["id"]) for item in configs]
+    names = {str(item["id"]): str(item["name"]) for item in configs if item.get("name")}
+    rows = _vpn_status_rows(config_ids, names, status)
+    instances: list[VpnInstance] = []
+    for item in configs:
+        instance_id = str(item["id"])
+        enabled = _flag(item.get(enable_key), False) if enable_key in item else None
+        row = rows.get(instance_id)
+        text = _first_text(row.get("status", row.get("state"))) if row else None
+        if enabled is False:
+            connected: bool | None = False
+        elif row:
+            connected = vpn_status_connected(row.get("status", row.get("state")))
+        else:
+            connected = False if status is not None else None
+        name = names.get(instance_id)
+        if name is None and len(configs) > 1:
+            name = instance_id
+        if name is None or name.lower() in (family, label.lower()):
+            shown = label
+        else:
+            shown = f"{label} {name}"
+        instances.append(
+            VpnInstance(
+                family=family,
+                instance_id=instance_id,
+                label=shown,
+                enabled=enabled,
+                connected=connected,
+                status=text,
+                details=_vpn_details(row) if row else {},
+            )
+        )
+    return instances
+
+
 @dataclass(frozen=True, slots=True)
 class SimCard:
     """The roaming setting of one SIM slot (``/sim_cards/config``)."""
@@ -1185,15 +1332,17 @@ def firmware_version_tuple(text: str | None) -> tuple[int, ...] | None:
 def derive_firmware(installed: str | None, raw: Any) -> FirmwareInfo | None:
     """Read ``/firmware/device/updates/status``; None without update information.
 
-    The stable release is preferred over the newest one. Whether an update is
-    available is only said when both versions can be compared.
+    The stable release is preferred over the newest one when it is a real
+    version. Whether an update is available is only said when both versions
+    can be compared.
     """
     device = raw.get("device") if isinstance(raw, dict) else None
     if not isinstance(device, dict):
         return None
     stable = _first_text(device.get("stable_version"))
     newest = _first_text(device.get("version"))
-    latest = stable or newest
+    # A router without a stable channel reports a placeholder such as "newest".
+    latest = stable if firmware_version_tuple(stable) is not None else (newest or stable)
     if latest is None:
         return None
     have = firmware_version_tuple(installed)
@@ -1247,6 +1396,7 @@ class TeltonikaData:
     # None means the router has no such page; an empty list is an empty inbox.
     sms: list[SmsMessage] | None = None
     firmware: FirmwareInfo | None = None
+    vpn_instances: list[VpnInstance] = field(default_factory=list)
 
     @classmethod
     def build(
@@ -1274,6 +1424,8 @@ class TeltonikaData:
         sms: list[dict[str, Any]] | None = None,
         firmware_updates: dict[str, Any] | None = None,
         firmware_installed: str | None = None,
+        vpn_config: dict[str, list[dict[str, Any]] | None] | None = None,
+        vpn_status: dict[str, Any] | None = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
@@ -1324,6 +1476,17 @@ class TeltonikaData:
             traffic_rules=derive_traffic_rules(traffic_rules),
             sms=derive_sms(sms),
             firmware=derive_firmware(firmware_installed, firmware_updates),
+            vpn_instances=[
+                instance
+                for kind in VPN_FAMILIES
+                for instance in derive_vpn_instances(
+                    kind.key,
+                    kind.label,
+                    kind.enable_key,
+                    (vpn_config or {}).get(kind.key),
+                    (vpn_status or {}).get(kind.key),
+                )
+            ],
         )
 
     @property

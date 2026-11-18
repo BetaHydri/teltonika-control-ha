@@ -14,6 +14,7 @@ from .entity import (
     TeltonikaEntity,
     TeltonikaModemEntity,
     TeltonikaTunnelEntity,
+    TeltonikaVpnEntity,
     async_add_discovered,
 )
 from .models import (
@@ -22,6 +23,7 @@ from .models import (
     PortForward,
     SimCard,
     TrafficRule,
+    VpnInstance,
 )
 
 PARALLEL_UPDATES = 1
@@ -33,6 +35,18 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up one switch per access point."""
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"vpnx_{instance.family}_{instance.instance_id}",
+                lambda i=instance: TeltonikaVpnInstanceSwitch(c, i),
+            )
+            for instance in c.data.vpn_instances
+            if instance.enabled is not None
+        ),
+    )
     async_add_discovered(
         entry,
         async_add_entities,
@@ -288,6 +302,29 @@ class TeltonikaTunnelSwitch(TeltonikaTunnelEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable the tunnel."""
         await self.coordinator.async_set_vpn_tunnel(self._tunnel_id, False)
+
+
+class TeltonikaVpnInstanceSwitch(TeltonikaVpnEntity, SwitchEntity):
+    """Turns a Tailscale, OpenVPN, IPsec or SSTP instance on or off (connect, disconnect)."""
+
+    _attr_translation_key = "vpn_instance"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, instance: VpnInstance) -> None:
+        super().__init__(coordinator, instance, "switch")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the instance is enabled."""
+        instance = self.instance
+        return instance.enabled if instance else None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable the instance."""
+        await self.coordinator.async_set_vpn_instance(self._family, self._instance_id, True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable the instance."""
+        await self.coordinator.async_set_vpn_instance(self._family, self._instance_id, False)
 
 
 class TeltonikaAccessPointSwitch(TeltonikaEntity, SwitchEntity):

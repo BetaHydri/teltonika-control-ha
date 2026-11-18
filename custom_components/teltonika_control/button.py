@@ -13,8 +13,10 @@ from .entity import (
     TeltonikaEntity,
     TeltonikaModemEntity,
     TeltonikaTunnelEntity,
+    TeltonikaVpnEntity,
     async_add_discovered,
 )
+from .models import VpnInstance
 
 PARALLEL_UPDATES = 1
 
@@ -28,6 +30,18 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     async_add_entities(
         [TeltonikaRebootButton(coordinator), TeltonikaReconnectWifiButton(coordinator)]
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"vpnx_{instance.family}_{instance.instance_id}",
+                lambda i=instance: TeltonikaReconnectVpnInstanceButton(c, i),
+            )
+            for instance in c.data.vpn_instances
+            if instance.enabled is not None
+        ),
     )
     async_add_discovered(
         entry,
@@ -74,6 +88,19 @@ class TeltonikaReconnectVpnButton(TeltonikaTunnelEntity, ButtonEntity):
     async def async_press(self) -> None:
         """Restart the tunnel."""
         await self.coordinator.async_reconnect_vpn(self._tunnel_id)
+
+
+class TeltonikaReconnectVpnInstanceButton(TeltonikaVpnEntity, ButtonEntity):
+    """Restarts a Tailscale, OpenVPN, IPsec or SSTP instance by switching it off and on."""
+
+    _attr_translation_key = "reconnect_vpn_instance"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, instance: VpnInstance) -> None:
+        super().__init__(coordinator, instance, "reconnect")
+
+    async def async_press(self) -> None:
+        """Restart the instance."""
+        await self.coordinator.async_reconnect_vpn_instance(self._family, self._instance_id)
 
 
 class TeltonikaRebootButton(TeltonikaEntity, ButtonEntity):

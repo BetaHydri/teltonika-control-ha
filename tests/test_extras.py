@@ -290,6 +290,19 @@ async def test_firmware_update_entity_is_off_when_up_to_date(
     assert hass.states.get(entity_id(hass, "update", "firmware")).state == "off"
 
 
+async def test_firmware_placeholder_stable_version_falls_back_to_the_newest(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(
+        aioclient_mock,
+        firmware={"device": {"version": "RUTC_R_00.07.26.2", "stable_version": "newest"}},
+    )
+    await setup_entry(hass, entry)
+
+    state = hass.states.get(entity_id(hass, "update", "firmware"))
+    assert state.state == "off"
+    assert state.attributes["latest_version"] == "RUTC_R_00.07.26.2"
+
 async def test_router_without_firmware_information_has_no_update_entity(
     hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
 ) -> None:

@@ -96,6 +96,10 @@ respective owners and are used here only to say which routers are supported.
   interface state, traffic counters, a switch and a **Reconnect WireGuard**
   button that restarts the tunnel, for example from an automation. See
   [WireGuard tunnels](#wireguard-tunnels).
+- **Tailscale, OpenVPN, IPsec and SSTP**: if the router has instances of these
+  VPN types, each gets a connected sensor, a switch to connect or disconnect and
+  a reconnect button. Not yet tried on real hardware, see
+  [Other VPN types](#other-vpn-types).
 - **Router health**: uptime, CPU load, memory usage and the number of DHCP
   clients (connected devices).
 - **SMS**: send an SMS through the router from an automation or script, see how
@@ -263,6 +267,7 @@ to:
 | DHCP clients | Status, Network, LAN (DHCP leases) | Read |
 | WireGuard interface state and counters | Network, Interfaces | Read |
 | WireGuard switch and reconnect | Services, VPN, WireGuard | Read and write |
+| Tailscale, OpenVPN, IPsec, SSTP state, switch and reconnect | Services, VPN, the page of that type | Read and write |
 | Restart mobile connection, SIM slot | Network, Mobile, Modems | Write |
 | Data roaming switches (SIM settings) | Network, Mobile, General | Read and write |
 | Failover state | Network, Failover | Read |
@@ -296,6 +301,9 @@ Knowing this helps you decide how much to allow:
 - The on/off flag of the router's own access points.
 - The on/off flag of WireGuard instances (switch and **Reconnect WireGuard**,
   which switches the instance off and on again).
+- The on/off flag of Tailscale, OpenVPN, IPsec and SSTP instances (switch and
+  reconnect, same as for WireGuard). It never logs Tailscale out and never
+  changes keys, certificates or routes.
 - Saved Wi-Fi client networks (`join_wifi` and `forget_wifi`).
 - Restart of the mobile connection, SIM slot switch and router reboot.
 - The data roaming flag of each SIM ("Deny data roaming", only this field).
@@ -390,6 +398,7 @@ automatically.
 | WireGuard *name* enabled | switch | Turns the instance on or off. Needs the right to change the WireGuard configuration |
 | Reconnect WireGuard *name* | button | Switches the instance off and on |
 | WireGuard *name* received, sent | sensors | Traffic counters of the tunnel interface. Diagnostic |
+| *VPN* connected, *VPN* enabled, Reconnect *VPN* | binary sensor, switch, button | One set per Tailscale, OpenVPN, IPsec or SSTP instance, see [Other VPN types](#other-vpn-types) |
 | Reboot router | button | Add a confirmation in your dashboard |
 | SMS messages | sensor | How many messages the router holds. Only on routers that have the SMS page. The texts are not shown here; a new message fires the event `teltonika_control_sms_received`, see [SMS](#sms) |
 | Firmware | update | The installed firmware and, when the router has found one, the newest stable release. Informs only. Only on routers that offer firmware update information |
@@ -728,6 +737,32 @@ status endpoints. Combine the interface state with the VPN check instead.
 To restart the tunnel automatically when the VPN check keeps failing, use the
 [ready automation](docs/automation-examples.md#restart-the-wireguard-tunnel).
 
+## Other VPN types
+
+If the router has Tailscale, OpenVPN, IPsec or SSTP instances (**Services,
+VPN**), each instance gets three entities. The name is the VPN type, followed
+by the instance name when the type has several instances, for example
+`Tailscale` or `OpenVPN office`:
+
+| Entity | What it tells you |
+|---|---|
+| *VPN* connected (binary sensor) | The router's status text says the instance is connected. The text itself (for example `Running`) and counters such as uptime, traffic or Tailscale peers are attributes. |
+| *VPN* enabled (switch) | The instance is switched on in the router configuration. Turn it off to disconnect and on to connect. |
+| Reconnect *VPN* (button) | Switches the instance off, waits a few seconds and switches it on again. Refused while the instance is switched off. |
+
+These types are **not yet tried on real hardware**. They follow Teltonika's
+published API description (1.17.3). The router's status wording differs per
+type, so the integration reads the words ("Running", "Connected", "Established"
+are up; "Stopped", "Disconnected", "NeedsLogin" are down). A text it does not
+know leaves the sensor `unknown`. If that happens on your router, enable
+[debug logging](#debug-logging) or run the probe tool and open an issue with the
+status text, and the wording is added.
+
+Not included: Tailscale **log out** (it drops the login, so you would have to
+authenticate again), L2TP and PPTP (the router splits them into client and
+server pages), ZeroTier and GRE (the API description has no status for them).
+The Tailscale login URL, addresses and keys are never shown.
+
 ## SMS
 
 If the router has an SMS page, the integration creates the sensor **SMS
@@ -907,8 +942,10 @@ same page status and answer structures.
   read-out of the tunnel. It says nothing when Home Assistant reaches the
   remote network another way. The WireGuard handshake time is not available,
   because the router offers no status endpoint for it.
-- The WireGuard entities cover WireGuard only. OpenVPN, IPsec and other
-  tunnels are not listed yet; use the VPN check for them.
+- The WireGuard entities have no handshake time. Tailscale, OpenVPN, IPsec and
+  SSTP are covered by [Other VPN types](#other-vpn-types), untested on real
+  hardware; L2TP, PPTP, ZeroTier and GRE are not listed, use the VPN check for
+  them.
 - The **Firmware** entity appears only when the router has update information
   from its update server (FOTA), which needs internet access and the update
   service switched on in the router. It cannot start an update: install
