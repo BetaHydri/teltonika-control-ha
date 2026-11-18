@@ -11,5 +11,5 @@
   "issue_tracker": "https://github.com/BetaHydri/teltonika-control-ha/issues",
   "loggers": ["custom_components.teltonika_control"],
   "requirements": [],
-  "version": "0.17.3"
+  "version": "0.18.0"
 }

@@ -1062,6 +1062,24 @@ views:
                     text: Send this SMS? It costs what an SMS costs on the SIM.
                 button_action:
                   tap_action: *send_sms
+              # The inbox: the newest messages of the router, newest first. Needs
+              # version 0.18.0 or newer of the integration.
+              - type: custom:bubble-card
+                card_type: separator
+                name: Inbox
+                icon: mdi:inbox
+              - type: markdown
+                content: |-
+                  {% set msgs = state_attr('sensor.my_router_sms_messages', 'messages') or [] %}
+                  {% for m in msgs %}
+                  **{{ m.sender }}** · {{ m.date }}{% if m.status == 'unread' %} · new{% endif %}
+
+                  {{ m.message }}
+
+                  ---
+                  {% else %}
+                  No messages on the router.
+                  {% endfor %}
       - type: grid
         cards:
           - type: heading

@@ -88,6 +88,8 @@ FIRMWARE_INSTALL_TIMEOUT = 1800
 FIRMWARE_INSTALL_GRACE = 600
 # After "Download firmware": seconds until the router's progress page is trusted.
 FIRMWARE_DOWNLOAD_SETTLE = 20
+# How many of the newest SMS the inbox attribute lists.
+SMS_INBOX_SIZE = 10
 # States of the firmware update sensor, in the order of the process.
 FIRMWARE_STATES = [
     "up_to_date",

@@ -1278,6 +1278,16 @@ class SmsMessage:
     message: str
 
 
+def newest_sms(messages: Iterable[SmsMessage], limit: int) -> list[SmsMessage]:
+    """Return the newest messages first: by date, then by the router's message id."""
+
+    def order(message: SmsMessage) -> tuple[str, int]:
+        number = message.message_id
+        return (message.date or "", int(number) if number.isdigit() else 0)
+
+    return sorted(messages, key=order, reverse=True)[:limit]
+
+
 def derive_sms(raw: Iterable[dict[str, Any]] | None) -> list[SmsMessage] | None:
     """Read ``/messages/status``; None means the router has no SMS page.
 

@@ -201,7 +201,8 @@ list. Fix that entity and save again.
   is orange with "Update available" while the router has found a newer stable
   release. Tapping the SMS pill (or its small send icon) opens the **Send SMS**
   pop-up with the number and text fields and a Send button that asks for
-  confirmation (version 0.15.0 or newer). The pop-up is a standalone Bubble Card
+  confirmation (version 0.15.0 or newer), and below them the **Inbox**, the
+  newest messages of the router (version 0.18.0 or newer). The pop-up is a standalone Bubble Card
   pop-up (`hash: "#sms"`, Bubble Card 3.2.0 or newer, the cards inside it are
   listed under `cards`) at the end of the section; it
   takes no room until it is opened. The big pop-up header is hidden

@@ -130,6 +130,41 @@ async def test_sms_sensor_counts_the_inbox(
     assert hass.states.get(entity_id(hass, "sensor", "sms_messages")).state == "2"
 
 
+async def test_sms_sensor_lists_the_newest_messages_first(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    state = hass.states.get(entity_id(hass, "sensor", "sms_messages"))
+    assert state.attributes["messages"] == [
+        {
+            "sender": "Provider",
+            "date": "2026-11-18 08:30:00",
+            "status": "unread",
+            "message": "Welcome",
+        },
+        {
+            "sender": "+491701111111",
+            "date": "2026-11-17 10:00:00",
+            "status": "read",
+            "message": "Data volume used up",
+        },
+    ]
+
+
+def test_inbox_is_cut_to_the_newest_and_the_texts_stay_out_of_the_recorder() -> None:
+    from custom_components.teltonika_control.models import SmsMessage, newest_sms
+    from custom_components.teltonika_control.sensor import TeltonikaSmsSensor
+
+    many = [
+        SmsMessage(f"k{i}", str(i), "m", "s", None, f"2026-11-18 10:{i:02d}:00", f"t{i}")
+        for i in range(15)
+    ]
+    newest = newest_sms(many, 10)
+    assert [m.message_id for m in newest] == [str(i) for i in range(14, 4, -1)]
+    assert "messages" in TeltonikaSmsSensor._unrecorded_attributes
+
 async def test_router_without_sms_page_has_no_sms_sensor(
     hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
 ) -> None:

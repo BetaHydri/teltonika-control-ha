@@ -30,7 +30,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .const import BANDS, FIRMWARE_STATES, PORTAL_STATES, UPLINK_KINDS
+from .const import BANDS, FIRMWARE_STATES, PORTAL_STATES, SMS_INBOX_SIZE, UPLINK_KINDS
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
 from .entity import (
     TeltonikaEntity,
@@ -45,6 +45,7 @@ from .models import (
     VpnTunnel,
     modem_registration,
     modem_temperature,
+    newest_sms,
     to_float,
 )
 
@@ -770,14 +771,17 @@ class TeltonikaTunnelSensor(TeltonikaTunnelEntity, SensorEntity):
 
 
 class TeltonikaSmsSensor(TeltonikaEntity, SensorEntity):
-    """The number of SMS stored on the router.
+    """The number of SMS stored on the router, with the newest ones as an attribute.
 
-    The texts are not shown here: a new message is announced by an event.
+    The attribute ``messages`` lists the newest messages for a dashboard card.
+    It is left out of the recorder, so the texts do not end up in the history
+    database; the state machine holds them like any other attribute.
     """
 
     _attr_translation_key = "sms_messages"
     _attr_icon = "mdi:message-text"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _unrecorded_attributes = frozenset({"messages"})
 
     def __init__(self, coordinator: TeltonikaCoordinator) -> None:
         super().__init__(coordinator, "sms_messages")
@@ -787,6 +791,24 @@ class TeltonikaSmsSensor(TeltonikaEntity, SensorEntity):
         """Return how many messages the inbox holds."""
         sms = self.coordinator.data.sms
         return len(sms) if sms is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the newest messages, newest first."""
+        sms = self.coordinator.data.sms
+        if sms is None:
+            return None
+        return {
+            "messages": [
+                {
+                    "sender": message.sender,
+                    "date": message.date,
+                    "status": message.status,
+                    "message": message.message,
+                }
+                for message in newest_sms(sms, SMS_INBOX_SIZE)
+            ]
+        }
 
 
 class TeltonikaLastActionSensor(TeltonikaEntity, SensorEntity):

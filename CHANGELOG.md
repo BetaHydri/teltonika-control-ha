@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-18
+
+### Added
+
+- **SMS inbox.** The sensor **SMS messages** lists the newest 10 messages,
+  newest first, in its attribute `messages` (sender, date, status, text). The
+  attribute is not recorded in the history database. The sample dashboard shows
+  it as an **Inbox** below the fields of the SMS pop-up.
+
 ## [0.17.3] - 2026-11-18
 
 ### Fixed

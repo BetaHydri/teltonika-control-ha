@@ -406,7 +406,7 @@ automatically.
 | WireGuard *name* received, sent | sensors | Traffic counters of the tunnel interface. Diagnostic |
 | *VPN* connected, *VPN* enabled, Reconnect *VPN* | binary sensor, switch, button | One set per Tailscale, OpenVPN, IPsec or SSTP instance, see [Other VPN types](#other-vpn-types) |
 | Reboot router | button | Add a confirmation in your dashboard |
-| SMS messages | sensor | How many messages the router holds. Only on routers that have the SMS page. The texts are not shown here; a new message fires the event `teltonika_control_sms_received`, see [SMS](#sms) |
+| SMS messages | sensor | How many messages the router holds. The attribute `messages` lists the newest 10 with sender, date, status and text (not recorded in the history). Only on routers that have the SMS page. A new message also fires the event `teltonika_control_sms_received`, see [SMS](#sms) |
 | Firmware | update | The installed firmware and, when the router has found one, the newest stable release. Informs only. Only on routers that offer firmware update information |
 | Download firmware, Install firmware | buttons | See [Firmware update](#firmware-update). **Install firmware** is disabled by default |
 | Firmware status | sensor | Where the update stands: `up_to_date`, `update_available`, `downloading`, `ready`, `installing` or `failed`. The attribute `percent` shows the download progress. See [Firmware update](#firmware-update) |
@@ -842,8 +842,31 @@ The router is asked every two minutes, so an SMS can take up to that long to
 show up. The integration never deletes messages; the router does that itself
 when its storage is full.
 
-The message texts are not stored in sensors, so they do not end up in the
-history. Only the event carries them, and events are not recorded either.
+**Reading the inbox.** The sensor **SMS messages** lists the newest 10 messages,
+newest first, in its attribute `messages` (each with `sender`, `date`, `status`
+and `message`). The sample dashboard shows them in the **Inbox** of the SMS
+pop-up with a Markdown card; any Markdown card or template can read the
+attribute:
+
+```yaml
+type: markdown
+content: |-
+  {% for m in state_attr('sensor.my_router_sms_messages', 'messages') or [] %}
+  **{{ m.sender }}** · {{ m.date }}
+
+  {{ m.message }}
+
+  ---
+  {% endfor %}
+```
+
+The attribute is left out of the recorder, so the texts do not end up in the
+history database (and not in long-term statistics). They are in Home Assistant's
+live state like any attribute: everybody who may see the entity sees the
+messages. Do not share screenshots of that card, and be careful with messages
+that carry codes. The sender and text are shown as the router reports them; the
+router deletes old messages itself when its storage is full, the integration
+never deletes any. Events are not recorded either.
 
 ## Firmware update
 
