@@ -463,14 +463,18 @@ point you like, for example at 80 and 95 percent, without the router's SMS
 warning and without a helper. See the
 [ready automation](docs/automation-examples.md#mobile-data-volume-warning).
 
-**Data used today and this month.** Independent of the limit, the sensors
-**Data used today** and **Data used this month** add received and sent data
-from the router's traffic statistics (Status, Network, Mobile Traffic). Today
-starts at midnight of the router's time zone, so the sensor falls back to zero
-then and Home Assistant starts a new period in its statistics. The attributes
-`received_mb` and `sent_mb` split the value. The sensors appear if the router
-answers the `data_usage` pages. The month follows the router's own period,
-which does not always start on the first of the month.
+**Data used today and this month.** Independent of the limit, the router's
+traffic statistics (Status, Network, Mobile Traffic) give two more sensors:
+
+| Entity | Type | Notes |
+|---|---|---|
+| Data used today | sensor | Received plus sent data of the day. Attributes `received_mb`, `sent_mb` |
+| Data used this month | sensor | Received plus sent data of the month. Attributes `received_mb`, `sent_mb` |
+
+Today starts at midnight of the router's time zone, so the sensor falls back to
+zero then and Home Assistant starts a new period in its statistics. The month
+follows the router's own period, which does not always start on the first of
+the month. The sensors appear if the router answers the `data_usage` pages.
 
 ### Failover
 
