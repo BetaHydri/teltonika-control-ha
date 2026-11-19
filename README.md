@@ -380,6 +380,15 @@ SIM state, active SIM, data received and sent, a connected sensor, a
 **Restart mobile connection** button and, on dual SIM modems, a **SIM slot**
 select. RSSI and signal quality are disabled by default.
 
+**Data received** and **Data sent** are the router's lifetime totals of the
+modem (they come from `rxbytes` and `txbytes` of the modem status), not a
+monthly volume. Use them as the source of a Utility Meter helper, see
+[step 11 of the guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter),
+and take [Mobile data limit](#mobile-data-limit) for the volume of the current
+period. The router now and then reports such a counter as 0 for a single
+reading; the sensor ignores that until the lower value has stayed for three
+readings, so it does not count as a reset in the long-term statistics.
+
 **Network registration** shows the text of the router, for example
 `Registered, home`. The binary sensor **Roaming** is on while that text says
 roaming, so you can warn yourself when the modem leaves your home network.

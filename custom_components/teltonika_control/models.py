@@ -51,6 +51,30 @@ def to_int(value: Any, default: int | None = None) -> int | None:
     return int(number) if number is not None else default
 
 
+# Home Assistant takes a fall of more than 10 percent for a counter reset.
+COUNTER_RESET_FACTOR = 0.9
+COUNTER_RESET_POLLS = 3
+
+
+def guard_counter(
+    last: float | None, new: float | None, pending: int
+) -> tuple[float | None, int]:
+    """Hold a counter that suddenly falls until the lower value has stayed.
+
+    The router now and then reports a modem counter as 0 for one reading. Home
+    Assistant takes that for a reset and adds the whole total to the long-term
+    statistics a second time. A real reset stays and is accepted after
+    COUNTER_RESET_POLLS readings in a row. Returns the value to show and the
+    number of low readings seen so far.
+    """
+    if new is None or last is None or new >= last * COUNTER_RESET_FACTOR:
+        return new, 0
+    pending += 1
+    if pending >= COUNTER_RESET_POLLS:
+        return new, 0
+    return last, pending
+
+
 def _flag(value: Any, default: bool) -> bool:
     if value is None:
         return default

@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-11-19
+
+### Fixed
+
+- **Data received and data sent.** The router now and then reports these modem
+  counters as 0 for a single reading. Home Assistant took that for a counter
+  reset and added the whole total (more than 200 GB) to the long-term
+  statistics a second time. A counter that falls by more than 10 percent is now
+  held until the lower value has stayed for three readings, so a real reset is
+  still taken over.
+
 ## [0.18.0] - 2026-11-18
 
 ### Added

@@ -26,7 +26,7 @@ from homeassistant.const import (
     UnitOfTemperature,
     UnitOfTime,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
@@ -43,6 +43,7 @@ from .models import (
     FailoverInterface,
     TeltonikaData,
     VpnTunnel,
+    guard_counter,
     modem_registration,
     modem_temperature,
     newest_sms,
@@ -905,7 +906,12 @@ class TeltonikaRouterSensor(TeltonikaEntity, SensorEntity):
 
 
 class TeltonikaModemSensor(TeltonikaModemEntity, SensorEntity):
-    """A sensor of a modem."""
+    """A sensor of a modem.
+
+    A counter that suddenly falls is held for a few readings, see
+    :func:`guard_counter`, so a single wrong reading of 0 does not count as a
+    reset in the long-term statistics.
+    """
 
     entity_description: ModemSensorDescription
 
@@ -917,9 +923,28 @@ class TeltonikaModemSensor(TeltonikaModemEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator, modem_id, description.key)
         self.entity_description = description
+        self._counter = description.state_class == SensorStateClass.TOTAL_INCREASING
+        self._last_good: float | None = None
+        self._pending = 0
+        self._value: StateType = self._read()
+        if self._counter and isinstance(self._value, float):
+            self._last_good = self._value
+
+    def _read(self) -> StateType:
+        modem = self.modem
+        return self.entity_description.value_fn(modem) if modem else None
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        value = self._read()
+        if self._counter and (value is None or isinstance(value, float)):
+            value, self._pending = guard_counter(self._last_good, value, self._pending)
+            if value is not None:
+                self._last_good = value
+        self._value = value
+        super()._handle_coordinator_update()
 
     @property
     def native_value(self) -> StateType:
         """Return the sensor value."""
-        modem = self.modem
-        return self.entity_description.value_fn(modem) if modem else None
+        return self._value
