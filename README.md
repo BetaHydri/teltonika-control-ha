@@ -54,7 +54,7 @@ uses Bubble Card and Mushroom, for the dashboard only.
    [firewall dashboard](docs/firewall-dashboard.md).
 
 New to this? The [step-by-step guide](docs/getting-started.md) takes you from
-the router user to your first dashboard card. The
+the router user to your first dashboard card, and the
 [best practices](docs/best-practices.md) cover router access, firewall
 switches, data limits and automations in one page.
 
@@ -66,63 +66,42 @@ respective owners and are used here only to say which routers are supported.
 
 ### Major features
 
-- **Uplink control**: see which uplink carries your traffic (Wi-Fi, mobile
-  data or Ethernet) and switch between **Wi-Fi first** and **Mobile first**
-  with one tap. Optionally the router goes back to mobile data on its own
-  when the Wi-Fi has no internet.
-- **Hotspot login handling**: a sensor tells you when a campsite or hotel
-  Wi-Fi shows a login page, also when its login expires after a day while
-  mobile data keeps you online. One service prefers the Wi-Fi, waits until you
-  confirmed the page, and falls back to mobile data if nothing happens.
-  A result event drives your notifications.
-- **Wi-Fi network management**: scan for networks, pick one, enter the
-  password and add it, or remove a saved one, all with entities you can put on
-  a dashboard. Routers whose 5 GHz radio runs as Multi AP, such as the RUTC50,
-  are handled correctly. The same is available as services for automations.
-- **Mobile data monitoring**: operator, network type, band, RSRP, RSRQ, SINR,
-  modem temperature, SIM state, network registration ("Registered, home" or
-  roaming) and the data counters for each modem.
-- **SIM and modem control**: switch the SIM slot of dual SIM modems,
-  re-establish the mobile connection and allow or deny data roaming per SIM.
-- **GPS tracking**: for routers with GPS, a device tracker for the map plus
-  speed, altitude, satellites and accuracy.
+- **Uplink control**: see which uplink carries the traffic and switch between
+  **Wi-Fi first** and **Mobile first** with one tap, with an automatic way back
+  to mobile data when the Wi-Fi has no internet.
+- **Hotspot login handling**: detects a campsite or hotel login page (also an
+  expired login) and waits until you confirmed it, see
+  [Hotspots With a Login Page](#hotspots-with-a-login-page).
+- **Wi-Fi network management**: scan, add and remove networks with entities on
+  a dashboard or with services, see
+  [Managing Wi-Fi networks](#managing-wi-fi-networks).
+- **Mobile data and SIM**: modem signal and state, SIM slot, data roaming per
+  SIM, the router's failover state and the data volume against your contract,
+  see [Modem](#modem-one-device-per-modem), [Mobile data limit](#mobile-data-limit)
+  and [Failover](#failover).
+- **GPS tracking**: a device tracker for the map plus speed, altitude,
+  satellites and accuracy, see [GPS](#gps).
 - **The router's own Wi-Fi**: a switch for each access point that shows the
   real state, also when you change it in the router web interface.
-- **VPN check**: enter a host behind your site-to-site tunnel (a DNS name or an
-  IPv4 or IPv6 address, for example the router at home) and get a
-  **VPN reachable** sensor with the latency. It works with any VPN type,
-  such as WireGuard, OpenVPN or IPsec. See [VPN check](#vpn-check).
-- **WireGuard control**: for every WireGuard instance on the router, an
-  interface state, traffic counters, a switch and a **Reconnect WireGuard**
-  button that restarts the tunnel, for example from an automation. See
-  [WireGuard tunnels](#wireguard-tunnels).
-- **Tailscale, OpenVPN, IPsec and SSTP**: if the router has instances of these
-  VPN types, each gets a connected sensor, a switch to connect or disconnect and
-  a reconnect button. Not yet tried on real hardware, see
+- **VPN**: a **VPN reachable** sensor for any site-to-site tunnel, plus state,
+  switch and a **Reconnect** button for every WireGuard instance and, untested
+  on hardware, for Tailscale, OpenVPN, IPsec and SSTP. See
+  [VPN check](#vpn-check), [WireGuard tunnels](#wireguard-tunnels) and
   [Other VPN types](#other-vpn-types).
 - **Router health**: uptime, CPU load, memory usage and the number of DHCP
   clients (connected devices).
-- **SMS**: send an SMS through the router from an automation or script, see how
-  many messages the router holds, and react to every new SMS with an event, for
-  example to forward it as a notification. See [SMS](#sms).
-- **Firmware**: an update entity that tells you when the router has found a
-  newer stable firmware, plus buttons to download it and, when you decide so,
-  to install it. See [Firmware update](#firmware-update).
-- **Found on your network**: a Teltonika router shows up under **Discovered**,
-  and the router is linked to its other entries in Home Assistant by its MAC
-  addresses. Setup tries HTTPS and then plain HTTP.
-- **Firewall control**: a switch for every port forward and traffic rule of
-  the router, counters of what is open to the internet, and a separate
-  [firewall dashboard](docs/firewall-dashboard.md). See [Firewall](#firewall).
-- **Failover state and data volume**: the router's failover state per uplink,
-  and the usage of your mobile data with the percentage of your contract and a
-  "limit reached" sensor. See [Mobile data limit](#mobile-data-limit) and
-  [Failover](#failover).
-- **Ready-made dashboard**: a complete dashboard with coloured pills, two
-  columns and badges. It needs the Bubble Card and Mushroom frontend cards,
-  for this dashboard only. See
-  [docs/dashboard.md](docs/dashboard.md). The port forwards and traffic rules
-  have a [separate firewall dashboard](docs/firewall-dashboard.md).
+- **SMS**: send an SMS from the dashboard, an automation or a script, read the
+  inbox and react to every new SMS with an event. See [SMS](#sms).
+- **Firmware**: an update entity plus buttons to download the firmware and,
+  when you decide so, to install it. See [Firmware update](#firmware-update).
+- **Firewall control**: a switch for every port forward and traffic rule and a
+  separate [firewall dashboard](docs/firewall-dashboard.md). See
+  [Firewall](#firewall).
+- **Found on your network**: a Teltonika router shows up under **Discovered**
+  and is linked to its other entries in Home Assistant by its MAC addresses.
+  Setup tries HTTPS and then plain HTTP.
+- **Ready-made dashboards**: see [docs/dashboard.md](docs/dashboard.md) and the
+  [firewall dashboard](docs/firewall-dashboard.md).
 
 ### Other features
 
@@ -156,7 +135,7 @@ use it instead of the core integration without losing anything.
   collide. Each polls the router on its own; on a weak router, use only one or
   raise the intervals in the [options](#options).
 - If you only need the modem signal sensors, the core integration is enough.
-- Teltonika Control is a HACS custom repository, not part of the HACS default
+  Teltonika Control is a HACS custom repository, not part of the HACS default
   store, because the core integration covers the same devices through the same
   API.
 
@@ -180,12 +159,9 @@ Features that need hardware or a RutOS function appear only when the router
 has it, for example GPS, a second SIM, Wi-Fi, WireGuard, the mobile data limit
 or failover. A router without a page answers with an error for it, and the
 integration then does not create those entities. Everything else keeps working.
-RutOS 6 (for example on older RUT9xx firmware) has no REST API of this kind and
-is not supported.
-
-Not every RutOS version has every page. The newer pages (failover, data
-limit, firewall rules) are read as optional, and an older RutOS 7 release may
-miss some of them.
+The newer pages (failover, data limit, firewall rules) are read as optional, and
+an older RutOS 7 release may miss some of them. RutOS 6 (for example on older
+RUT9xx firmware) has no REST API of this kind and is not supported.
 
 If a feature does not work on your model or RutOS version, please open an issue
 with the [debug log](#debug-logging) and the diagnostics download. They show
@@ -193,10 +169,6 @@ which pages your router offers and how it names its fields, which is what is
 needed to add support for it. A report that says "works on a RUTM50" or "page X
 is missing on RutOS 7.1x" helps as much as a bug report, because the list above
 is only as good as what has been tested.
-
-The same RutOS API is described by Teltonika for RUTC and RUTX identically.
-Modems, Wi-Fi radios and interfaces are read from the router, not hard-coded,
-so differences such as which radio is 2.4 or 5 GHz do not matter.
 
 ## Prerequisites
 
@@ -224,9 +196,6 @@ to do what the integration does.
   default, with a self-signed certificate. If Home Assistant is not on the
   router's LAN, allow the access under **System, Administration, Access
   Control, General** and in the firewall.
-- Optional hardware decides which entities appear: a modem with a SIM for the
-  mobile entities, a second SIM slot for the SIM select, and Wi-Fi for the
-  Wi-Fi entities.
 - For uplink priority and hotspot handling, at least one Wi-Fi network must
   be saved on the router as a Wi-Fi client. Without it the priority select
   is unavailable.
@@ -286,12 +255,11 @@ operation. The table maps operations to web interface pages as the API
 description does. If an action is refused, Home Assistant shows the router's
 error message; grant read or write on that page to the group and try again.
 
-Read-only extras are optional. If the user may not read the system usage, the
-DHCP leases, the WireGuard configuration, the failover state, the data limits,
-the port forwards, the traffic rules, the SMS messages or the firmware
-information, the router answers with an error
-and the integration simply does not create those entities. Nothing else is
-affected. A tunnel whose configuration cannot be read is shown (interface
+Read-only extras are optional. If the user may not read a page (system usage,
+DHCP leases, the WireGuard configuration, failover, data limits, port forwards,
+traffic rules, SMS messages or firmware information), the router answers with
+an error and the integration simply does not create those entities. Nothing else
+is affected. A tunnel whose configuration cannot be read is shown (interface
 state and counters) but gets no switch and no reconnect button.
 
 #### What the Integration Changes on the Router
@@ -312,11 +280,12 @@ Knowing this helps you decide how much to allow:
 - The on/off flag of port forwarding rules and of traffic rules (only this
   field; a rule that is on lets traffic from the internet reach the router or a
   device in your network).
-- It sends an SMS only when you call the `send_sms` service or press **Send SMS**. Reading the SMS
-  messages changes nothing: they stay on the router.
-- The firmware: **Download firmware** has the router download the update (nothing
-  is installed, no restart). **Install firmware** (off until you enable it)
-  starts the installation of the downloaded firmware with the settings kept;
+- It sends an SMS only when you call the `send_sms` service or press
+  **Send SMS**. Reading the SMS messages changes nothing: they stay on the
+  router.
+- The firmware: **Download firmware** has the router download the update
+  (nothing is installed, no restart). **Install firmware** (off until you enable
+  it) starts the installation of the downloaded firmware with the settings kept;
   the router restarts and is offline for several minutes.
 
 It never creates, edits or deletes a firewall rule, and never changes
@@ -334,29 +303,18 @@ passwords, users or other firewall settings.
 
 ## Installation
 
-### HACS (custom repository)
-
-1. In HACS, open the menu and choose **Custom repositories**.
-2. Add `https://github.com/BetaHydri/teltonika-control-ha` as type
-   **Integration**.
-3. Install **Teltonika Control** and restart Home Assistant.
-
-### Manual
-
-Copy `custom_components/teltonika_control` into the `custom_components`
-folder of your Home Assistant configuration and restart.
+**HACS:** add the repository as a custom repository, see step 1 of the
+[Quick start](#quick-start). **Manual:** copy
+`custom_components/teltonika_control` into the `custom_components` folder of
+your Home Assistant configuration and restart.
 
 ## Setup
 
-New to this? The [step-by-step guide](docs/getting-started.md) walks you from
-the router user to your first dashboard card. The short version:
-
-1. Make sure the [prerequisites](#prerequisites) are met, in particular the
-   router user and its permissions.
-2. In Home Assistant, go to **Settings, Devices & services, Add
-   integration** and choose **Teltonika Control**.
-3. Enter the router address, user and password. Leave **Verify SSL
-   certificate** off if the router uses its self-signed certificate.
+The steps are in the [Quick start](#quick-start); the
+[step-by-step guide](docs/getting-started.md) walks you from the router user to
+your first dashboard card. Make sure the [prerequisites](#prerequisites) are
+met, in particular the router user and its permissions. Leave **Verify SSL
+certificate** off if the router uses its self-signed certificate.
 
 Use `http://` in front of the address to talk plain HTTP. Without it, the
 integration tries HTTPS first and then plain HTTP, so a router that serves only
@@ -400,19 +358,11 @@ automatically.
 | Router time | sensor | The router's clock. Diagnostic, disabled by default |
 | Uptime, CPU load, Memory usage | sensors | Diagnostic. Flash usage is also available, disabled by default |
 | DHCP clients | sensor | Number of leases; the attribute `devices` lists host name, IP address and interface (no MAC addresses) |
-| WireGuard *name* | binary sensor | The tunnel interface is up. One per WireGuard instance, see [WireGuard tunnels](#wireguard-tunnels) |
-| WireGuard *name* enabled | switch | Turns the instance on or off. Needs the right to change the WireGuard configuration |
-| Reconnect WireGuard *name* | button | Switches the instance off and on |
-| WireGuard *name* received, sent | sensors | Traffic counters of the tunnel interface. Diagnostic |
-| *VPN* connected, *VPN* enabled, Reconnect *VPN* | binary sensor, switch, button | One set per Tailscale, OpenVPN, IPsec or SSTP instance, see [Other VPN types](#other-vpn-types) |
+| WireGuard *name* and other VPN instances | binary sensor, switch, button, sensors | State, enabled switch, **Reconnect** button and traffic counters per instance, see [WireGuard tunnels](#wireguard-tunnels) and [Other VPN types](#other-vpn-types) |
 | Reboot router | button | Add a confirmation in your dashboard |
-| SMS messages | sensor | How many messages the router holds. The attribute `messages` lists the newest 10 with sender, date, status and text (not recorded in the history). Only on routers that have the SMS page. A new message also fires the event `teltonika_control_sms_received`, see [SMS](#sms) |
+| SMS messages, SMS number, SMS text, Send SMS, SMS send result | sensors, texts, button | Inbox, writing and sending an SMS. Only on routers that have the SMS page, see [SMS](#sms) |
 | Firmware | update | The installed firmware and, when the router has found one, the newest stable release. Informs only. Only on routers that offer firmware update information |
-| Download firmware, Install firmware | buttons | See [Firmware update](#firmware-update). **Install firmware** is disabled by default |
-| Firmware status | sensor | Where the update stands: `up_to_date`, `update_available`, `downloading`, `ready`, `installing` or `failed`. The attribute `percent` shows the download progress. See [Firmware update](#firmware-update) |
-| SMS number, SMS text | text | The number and the text of the next SMS; see [SMS](#sms). Only on routers that have the SMS page |
-| Send SMS | button | Sends the typed SMS. Add a confirmation in your dashboard |
-| SMS send result | sensor | `Sent` or `Not sent: ...` with the reason |
+| Firmware status, Download firmware, Install firmware | sensor, buttons | Download and installation, see [Firmware update](#firmware-update). **Install firmware** is disabled by default |
 | Failover *interface* | sensor | The router's failover state of an uplink: `online`, `offline`, `standby`, `starting` or `notracking`. Attributes: health `score`, `seconds_since_change`, `seconds_online`, `seconds_offline`, `tracking_lost`. One per interface in the failover configuration |
 | Failover *interface* online | binary sensor | On while the failover check says the uplink is online |
 | Failover mobile, Wi-Fi, Ethernet online | binary sensors | On while any interface of that kind is online. Same name on every router, one per kind that exists in the failover configuration |
@@ -525,14 +475,15 @@ notification is **Failover mobile online** turning off for a few minutes.
 
 The router decides "online" by pinging its check addresses through the
 interface. An interface that is working but not in use is reported as `standby`
-(the router keeps it ready as a backup); the integration counts it as online. A Wi-Fi network that does not answer these pings (some hotspots do
-not) shows `offline` even though it is connected, and the router then sends the
-traffic over mobile data. The **Uplink** sensor follows this: it shows the
-interface that really carries the traffic, and its attribute `failover_skipped`
-names the Wi-Fi that was passed over. If every interface is offline, the
-router's priority decides. So a slow connection with a connected Wi-Fi can mean
-that you are on mobile data; check the **Uplink** sensor, and set a check
-address that the hotspot answers (for example its gateway) in Network, Failover.
+(the router keeps it ready as a backup); the integration counts it as online. A
+Wi-Fi network that does not answer these pings (some hotspots do not) shows
+`offline` even though it is connected, and the router then sends the traffic
+over mobile data. The **Uplink** sensor follows this: it shows the interface
+that really carries the traffic, and its attribute `failover_skipped` names the
+Wi-Fi that was passed over. If every interface is offline, the router's
+priority decides. So a slow connection with a connected Wi-Fi can mean that you
+are on mobile data; check the **Uplink** sensor, and set a check address that
+the hotspot answers (for example its gateway) in Network, Failover.
 **Failover Wi-Fi online** is the router's check result, not proof that the
 Wi-Fi has no internet. Use **Wi-Fi connected** and **Internet** for the state of
 the Wi-Fi itself.
@@ -639,9 +590,8 @@ internet check fails, or the router's failover calls every Wi-Fi interface
 offline. The second one catches a hotspot whose login expires (many renew it
 every 24 hours): the router then sends the traffic over mobile data, the
 internet check of Home Assistant still passes, but the failover check through
-the Wi-Fi fails. A hotspot that never answers the failover pings (some block
-them) shows `login_required` all the time; give the Wi-Fi interface a check
-address that it answers in Network, Failover.
+the Wi-Fi fails. A hotspot that never answers the failover pings shows
+`login_required` all the time; see [Failover](#failover) for the check address.
 
 To get a notification when a login is needed, or when the Wi-Fi is lost, use
 the [ready automations](docs/automation-examples.md#hotspot-needs-a-login).
@@ -751,15 +701,16 @@ To restart the tunnel automatically when the VPN check keeps failing, use the
 ## Other VPN types
 
 If the router has Tailscale, OpenVPN, IPsec or SSTP instances (**Services,
-VPN**), each instance gets three entities. The name is the VPN type, followed
-by the instance name when the type has several instances, for example
-`Tailscale` or `OpenVPN office`:
+VPN**), each instance gets the same three entities as a WireGuard tunnel, named
+after the VPN type, followed by the instance name when the type has several
+instances, for example `Tailscale` or `OpenVPN office`:
 
-| Entity | What it tells you |
-|---|---|
-| *VPN* connected (binary sensor) | The router's status text says the instance is connected. The text itself (for example `Running`) and counters such as uptime, traffic or Tailscale peers are attributes. |
-| *VPN* enabled (switch) | The instance is switched on in the router configuration. Turn it off to disconnect and on to connect. |
-| Reconnect *VPN* (button) | Switches the instance off, waits a few seconds and switches it on again. Refused while the instance is switched off. |
+- *VPN* **connected** (binary sensor): the router's status text says the
+  instance is connected. The text itself (for example `Running`) and counters
+  such as uptime, traffic or Tailscale peers are attributes.
+- *VPN* **enabled** (switch): turn it off to disconnect and on to connect.
+- **Reconnect** *VPN* (button): switches the instance off and on, refused while
+  the instance is switched off.
 
 These types are **not yet tried on real hardware**. They follow Teltonika's
 published API description (1.17.3). The router's status wording differs per
@@ -789,33 +740,31 @@ Four entities work together, like the Wi-Fi management fields:
 
 | Entity | What it does |
 |---|---|
-| SMS number (text) | The phone number, in digits, with a leading `+` for the country code. Spaces and dashes are removed. It stays for the next message |
+| SMS number (text) | The phone number in digits, with a leading `+` for the country code. Spaces and dashes are removed. It stays for the next message |
 | SMS text (text) | The text, up to 255 characters. It is cleared after a successful send, so the same text is not sent twice |
-| Send SMS (button) | Sends the typed text. Add a confirmation in your dashboard, sending costs what an SMS costs on the SIM |
+| Send SMS (button) | Sends the typed text. Add a confirmation in your dashboard: sending costs what an SMS costs on the SIM |
 | SMS send result (sensor) | `Sent`, `Sent (2 parts)` or `Not sent: ...` with the reason, for example a missing number |
 
-The fields live in memory only: after a restart of Home Assistant they are empty.
-Their states are recorded like those of any other entity; if you do not want
-numbers and texts in the history, exclude `text.*_sms_number`, `text.*_sms_text`
-in the [recorder](https://www.home-assistant.io/integrations/recorder/#exclude).
-A ready dashboard with the two fields, the button (with confirmation) and the
-result is [dashboards/teltonika-sms.yaml](dashboards/teltonika-sms.yaml); paste
-it into **Raw configuration editor** of a new dashboard and replace `my_router`.
-The [sample dashboard](docs/dashboard.md) has the same as a **pop-up**: tap the
-SMS pill and the fields open on top of the page.
-On a router with two modems the dashboard cannot choose one: the button refuses
+The fields live in memory only: after a restart of Home Assistant they are
+empty. Their states are recorded like those of any other entity; if you do not
+want numbers and texts in the history, exclude `text.*_sms_number` and
+`text.*_sms_text` in the
+[recorder](https://www.home-assistant.io/integrations/recorder/#exclude). A
+page of its own with the same fields is
+[dashboards/teltonika-sms.yaml](dashboards/teltonika-sms.yaml); paste it into
+the **Raw configuration editor** of a new dashboard and replace `my_router`. On
+a router with two modems the dashboard cannot choose one: the button refuses
 and says which modems are online. Use the service with `modem` there.
 
 **Sending from an automation, script or the Developer tools.** The service
-`teltonika_control.send_sms` takes the router as target
-(any entity of the router) and the fields `number` and `message`. Give the number
-in digits, with a leading `+` for the country code; spaces and dashes are
-removed. With one modem the router uses it; with two, name the one to send with
+`teltonika_control.send_sms` takes the router as target (any entity of the
+router) and the fields `number` and `message`, with the number written as
+above. With one modem the router uses it; with two, name the one to send with
 in `modem` (for example `2-1.1`). The response says how many SMS the text used
-(`sms_used`; a long text is sent as several). Sending costs what an SMS costs on
-the SIM. Neither the number nor the text is written to the log. You can try it
-without writing anything: **Developer tools, Actions**, pick `Teltonika Control:
-Send SMS`, choose an entity of the router as target and fill in the two fields.
+(`sms_used`; a long text is sent as several). Neither the number nor the text
+is written to the log. You can try it without writing anything: **Developer
+tools, Actions**, pick `Teltonika Control: Send SMS`, choose an entity of the
+router as target and fill in the two fields.
 
 ```yaml
 action: teltonika_control.send_sms
@@ -839,8 +788,12 @@ and [commands by SMS](docs/automation-examples.md#commands-by-sms).
 `teltonika_control_sms_received` with the fields `sender`, `message`, `date`,
 `modem`, `status` and `router` (the serial number). Use it as an automation
 trigger, for example to forward the SMS of your provider as a notification, see
-the [automation examples](docs/automation-examples.md#forward-a-new-sms). Messages
-that were already on the router when Home Assistant started are not announced.
+the [automation examples](docs/automation-examples.md#forward-a-new-sms).
+Messages that were already on the router when Home Assistant started are not
+announced. The router is asked every two minutes, so an SMS can take up to that
+long to show up. The integration never deletes messages; the router does that
+itself when its storage is full.
+
 **SMS Utilities of the router.** The router can already answer SMS commands by
 itself: **Services, Mobile Utilities, SMS Utilities** has rules where a text such
 as `status`, `iostatus`, `reboot`, `mobileon` or `mobileoff` makes the router do
@@ -849,12 +802,10 @@ It works without Home Assistant, so use it for what the router knows. This
 integration adds what the router cannot do: SMS written from Home Assistant
 (alarms, status messages, a position link) with data of any entity, and the
 reaction of an automation to a received message. A message that matches a rule
-is handled by the router, so it can be missing from the inbox that this
-integration shows; ordinary texts are listed.
-
-The router is asked every two minutes, so an SMS can take up to that long to
-show up. The integration never deletes messages; the router does that itself
-when its storage is full.
+is handled by the router, so it may be missing from the inbox that this
+integration shows. Whether ordinary texts reach the inbox on every router and
+storage setting (**Services, Mobile Utilities, Messages, Storage**) is not
+confirmed yet.
 
 **Reading the inbox.** The sensor **SMS messages** lists the newest 10 messages,
 newest first, in its attribute `messages` (each with `sender`, `date`, `status`
@@ -878,9 +829,8 @@ The attribute is left out of the recorder, so the texts do not end up in the
 history database (and not in long-term statistics). They are in Home Assistant's
 live state like any attribute: everybody who may see the entity sees the
 messages. Do not share screenshots of that card, and be careful with messages
-that carry codes. The sender and text are shown as the router reports them; the
-router deletes old messages itself when its storage is full, the integration
-never deletes any. Events are not recorded either.
+that carry codes. Events are not recorded either. The sender and text are
+shown as the router reports them, and the format of `date` is the router's own.
 
 ## Firmware update
 
@@ -959,11 +909,9 @@ it is one of the router's default interfaces (`lan`, `wan*`, `mob*`, `vpn*`).
 ## Automation examples
 
 Ready-to-paste automations are collected on one page:
-[Automation examples](docs/automation-examples.md). It has the mobile data
-warning, hotspot login and Wi-Fi lost notices, uplink change, the way back to
-mobile data, VPN and WireGuard recovery, forwarding a new SMS, an SMS when the
-data volume runs low, and the camper home zone. Services
-take any entity of the router as target.
+[Automation examples](docs/automation-examples.md). It covers notifications,
+VPN and WireGuard recovery, the way back to mobile data, SMS, firmware and the
+camper home zone. Services take any entity of the router as target.
 
 ## Options
 
@@ -1053,8 +1001,6 @@ same page status and answer structures.
   time** sensor does not appear.
 - Changing the SIM drops mobile data for about a minute and is not rolled
   back automatically.
-- The roaming and firewall switches write one field and read it back. If the
-  router did not apply the change, Home Assistant shows an error.
 - Switching off the access point you are connected through disconnects you.
 - If one page of the router (for example the Wi-Fi status) does not answer in
   time, its entities show the last known values and the page is asked again
@@ -1064,21 +1010,15 @@ same page status and answer structures.
   stay unknown.
 - The VPN check is a reachability test from the Home Assistant host, not a
   read-out of the tunnel. It says nothing when Home Assistant reaches the
-  remote network another way. The WireGuard handshake time is not available,
-  because the router offers no status endpoint for it.
-- The WireGuard entities have no handshake time. Tailscale, OpenVPN, IPsec and
-  SSTP are covered by [Other VPN types](#other-vpn-types), untested on real
-  hardware; L2TP, PPTP, ZeroTier and GRE are not listed, use the VPN check for
-  them.
+  remote network another way. The router offers no WireGuard handshake time, so
+  the entities have none. Tailscale, OpenVPN, IPsec and SSTP are covered by
+  [Other VPN types](#other-vpn-types), untested on real hardware; L2TP, PPTP,
+  ZeroTier and GRE are not listed, use the VPN check for them.
 - The **Firmware** entity appears only when the router has update information
   from its update server (FOTA), which needs internet access and the update
-  service switched on in the router. The update entity itself only informs;
-  downloading and installing are separate buttons, see
-  [Firmware update](#firmware-update). The versions are compared by their
+  service switched on in the router. The versions are compared by their
   numbers; if the router names them in a way that cannot be compared, the entity
   says "up to date" instead of guessing.
-- The SMS texts and sender names the router reports are passed on as they are.
-  The format of the `date` field is the router's own.
 - Field names in the modem, Wi-Fi and interface answers differ slightly
   between RutOS releases. Open an issue with the diagnostics download if an
   entity stays empty.
