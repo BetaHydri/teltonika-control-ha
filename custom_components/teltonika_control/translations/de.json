@@ -153,6 +153,8 @@
       "data_limit": { "name": "Datenlimit {name}" },
       "data_limit_percent": { "name": "Datenlimit genutzt {name}" },
       "data_limit_resets_at": { "name": "Datenlimit Zurücksetzen {name}" },
+      "data_today": { "name": "Datenverbrauch heute" },
+      "data_month": { "name": "Datenverbrauch Monat" },
       "open_port_forwards": { "name": "Offene Portweiterleitungen" },
       "open_internet_rules": { "name": "Firewall-Regeln zum Internet offen" }
     },

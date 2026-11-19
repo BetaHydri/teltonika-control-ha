@@ -8,6 +8,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-19
+
+### Added
+
+- **Data used today and Data used this month.** Two sensors with the received
+  plus sent mobile data of the day and of the month, read from the router's
+  traffic statistics. The attributes `received_mb` and `sent_mb` split the
+  value. The sensors appear if the router has the pages. The sample dashboard
+  shows them as a Today / This month pill pair.
+
+### Changed
+
+- **Data received and Data sent are disabled by default** on new installs. They
+  are lifetime totals of the modem; the new day and month sensors are more
+  useful. Existing installs keep the state they have, enable them in the entity
+  settings if you want them. The sample dashboard no longer shows them.
+
 ## [0.18.1] - 2026-11-19
 
 ### Fixed

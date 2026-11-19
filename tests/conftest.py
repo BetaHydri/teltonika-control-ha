@@ -83,6 +83,7 @@ def mock_router(
     traffic_rules: bool = True,
     failover: bool = True,
     data_limit: bool = True,
+    data_usage: Any = True,
     sms: bool = True,
     firmware: dict[str, Any] | bool = True,
     firmware_progress: dict[str, Any] | bool = True,
@@ -113,6 +114,12 @@ def mock_router(
         (failover, "/failover/status", data["failover"]),
         (failover, "/failover/interfaces/config", data["failover_config"]),
         (data_limit, "/data_limit/status", data["data_limit"]),
+        (
+            data_usage is not False,
+            "/data_usage/day/status",
+            data_usage if isinstance(data_usage, list) else data["data_usage_day"],
+        ),
+        (data_usage is not False, "/data_usage/month/status", data["data_usage_month"]),
         (sms, "/messages/status", data["sms"]),
         (
             firmware is not False,

@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.teltonika_control.models import (
@@ -67,6 +68,10 @@ async def test_the_received_sensor_ignores_a_single_zero_reading(
 ) -> None:
     mock_router(aioclient_mock)
     await setup_entry(hass, entry)
+    registry = er.async_get(hass)
+    registry.async_update_entity(entity_id(hass, "sensor", "2-1.1_received"), disabled_by=None)
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
     sensor = entity_id(hass, "sensor", "2-1.1_received")
     before = float(hass.states.get(sensor).state)
     assert before > 0

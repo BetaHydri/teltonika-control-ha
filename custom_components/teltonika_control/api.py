@@ -343,6 +343,11 @@ class TeltonikaClient:
         """Return the used data and the limit of each mobile interface."""
         return await self._async_list("/data_limit/status")
 
+    async def async_data_usage(self, period: str) -> Any:
+        """Return the traffic rows ``[timestamp, rx, tx]`` of the day or month."""
+        data = await self.async_request("GET", f"/data_usage/{period}/status")
+        return data if isinstance(data, (dict, list)) else None
+
     async def async_port_forwards_config(self) -> list[dict[str, Any]]:
         """Return the port forwarding rules."""
         return await self._async_list("/firewall/port_forwards/config")

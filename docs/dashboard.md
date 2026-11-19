@@ -125,7 +125,7 @@ differ. These are the entities the dashboard uses:
 | Band | `sensor.my_modem_band` |
 | RSRP, RSRQ, SINR | `sensor.my_modem_rsrp`, `_rsrq`, `_sinr` |
 | Temperature | `sensor.my_modem_temperature` |
-| Data received, Data sent | `sensor.my_modem_data_received`, `_data_sent` |
+| Data used today, Data used this month (optional) | `sensor.my_router_data_used_today`, `sensor.my_router_data_used_this_month` |
 | Mobile data connected | `binary_sensor.my_modem_mobile_data_connected` |
 | Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
 | Failover mobile online (optional) | `binary_sensor.my_router_failover_mobile_online` |
@@ -212,7 +212,8 @@ list. Fix that entity and save again.
   (plain at home, orange while roaming), two pills for the data roaming of SIM
   1 and SIM 2 (green when on, grey when off, with a switch on the right; tap
   to change, and allowing asks for confirmation), signal values, the active
-  SIM with SIM 1 and SIM 2 buttons, modem temperature and the data counters. A
+  SIM with SIM 1 and SIM 2 buttons, modem temperature and the mobile data used
+  today and this month. A
   **Data limit** pill (only with a limit set on the router) shows the used part
   of the limit in percent, orange from 80 percent and red when the limit is
   reached, with the used data as small pill.

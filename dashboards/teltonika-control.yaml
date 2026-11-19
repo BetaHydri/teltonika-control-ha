@@ -1375,22 +1375,25 @@ views:
                 icon: mdi:database-check
                 show_name: true
                 show_state: true
+          # Mobile data of today and this month (optional, from the router's
+          # traffic statistics, received plus sent). Each hides itself while
+          # the router does not offer the data; delete it if you do not want it.
           - type: horizontal-stack
             cards:
               - type: custom:bubble-card
                 card_type: button
                 button_type: state
-                entity: sensor.my_modem_data_received
-                name: Received
-                icon: mdi:download-network
+                entity: sensor.my_router_data_used_today
+                name: Today
+                icon: mdi:calendar-today
                 show_name: true
                 show_state: true
               - type: custom:bubble-card
                 card_type: button
                 button_type: state
-                entity: sensor.my_modem_data_sent
-                name: Sent
-                icon: mdi:upload-network
+                entity: sensor.my_router_data_used_this_month
+                name: This month
+                icon: mdi:calendar-month
                 show_name: true
                 show_state: true
           # Data limit of SIM 1 (optional, from the limit set on the router,

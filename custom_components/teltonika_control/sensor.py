@@ -40,6 +40,7 @@ from .entity import (
 )
 from .models import (
     DataLimit,
+    DataUsage,
     FailoverInterface,
     TeltonikaData,
     VpnTunnel,
@@ -399,6 +400,7 @@ MODEM_SENSORS: tuple[ModemSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.MEGABYTES,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
         value_fn=lambda m: to_float(m.get("rxbytes")),
     ),
     ModemSensorDescription(
@@ -408,6 +410,7 @@ MODEM_SENSORS: tuple[ModemSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.MEGABYTES,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
         value_fn=lambda m: to_float(m.get("txbytes")),
     ),
 )
@@ -578,6 +581,18 @@ async def async_setup_entry(
         async_add_entities,
         lambda c: (
             (
+                f"data_usage_{description.key}",
+                lambda desc=description: TeltonikaDataUsageSensor(c, desc),
+            )
+            for description in DATA_USAGE_SENSORS
+            if description.value_fn(c.data) is not None
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
                 f"{modem_id}_{description.key}",
                 lambda m=modem_id, desc=description: TeltonikaModemSensor(c, m, desc),
             )
@@ -585,6 +600,83 @@ async def async_setup_entry(
             for description in MODEM_SENSORS
         ),
     )
+
+
+@dataclass(frozen=True, kw_only=True)
+class DataUsageSensorDescription(SensorEntityDescription):
+    """Describes the mobile data used today or this month."""
+
+    value_fn: Callable[[TeltonikaData], DataUsage | None]
+
+
+DATA_USAGE_SENSORS: tuple[DataUsageSensorDescription, ...] = (
+    DataUsageSensorDescription(
+        key="today",
+        translation_key="data_today",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        suggested_display_precision=0,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.data_today,
+    ),
+    DataUsageSensorDescription(
+        key="month",
+        translation_key="data_month",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=2,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.data_month,
+    ),
+)
+
+
+class TeltonikaDataUsageSensor(TeltonikaEntity, SensorEntity):
+    """The mobile data (received plus sent) of today or of this month.
+
+    The router sums the traffic itself and starts a new day at local midnight,
+    so the value falls back to zero there and long-term statistics treat that
+    as a new period.
+    """
+
+    entity_description: DataUsageSensorDescription
+
+    def __init__(
+        self,
+        coordinator: TeltonikaCoordinator,
+        description: DataUsageSensorDescription,
+    ) -> None:
+        super().__init__(coordinator, f"data_usage_{description.key}")
+        self.entity_description = description
+
+    @property
+    def usage(self) -> DataUsage | None:
+        """Return the current usage of this period."""
+        return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def available(self) -> bool:
+        """Return False if the router stopped answering this page."""
+        return super().available and self.usage is not None
+
+    @property
+    def native_value(self) -> StateType:
+        """Return received plus sent bytes."""
+        usage = self.usage
+        return usage.total if usage else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the received and sent part in megabytes."""
+        usage = self.usage
+        if usage is None:
+            return None
+        return {
+            "received_mb": round(usage.received / 1_000_000, 1),
+            "sent_mb": round(usage.sent / 1_000_000, 1),
+        }
 
 
 @dataclass(frozen=True, kw_only=True)

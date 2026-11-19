@@ -1107,6 +1107,38 @@ def derive_failover(
 
 
 @dataclass(frozen=True, slots=True)
+class DataUsage:
+    """The mobile data of a day or a month, summed up from the router's rows."""
+
+    received: float
+    sent: float
+
+    @property
+    def total(self) -> float:
+        """Return received plus sent bytes."""
+        return self.received + self.sent
+
+
+def derive_data_usage(raw: Any) -> DataUsage | None:
+    """Read ``/data_usage/day|month/status``; None means the page is missing.
+
+    Each row is ``[timestamp, received bytes, sent bytes]``: hourly for the
+    day, daily for the month. An empty list is a day without traffic.
+    """
+    if isinstance(raw, dict):
+        raw = raw.get("usage")
+    if not isinstance(raw, list):
+        return None
+    received = sent = 0.0
+    for row in raw:
+        if not isinstance(row, (list, tuple)) or len(row) < 3:
+            continue
+        received += to_float(row[1]) or 0.0
+        sent += to_float(row[2]) or 0.0
+    return DataUsage(received, sent)
+
+
+@dataclass(frozen=True, slots=True)
 class DataLimit:
     """The data limit of one mobile interface and how much of it is used."""
 
@@ -1480,6 +1512,8 @@ class TeltonikaData:
     firmware: FirmwareInfo | None = None
     firmware_download: FirmwareDownload | None = None
     vpn_instances: list[VpnInstance] = field(default_factory=list)
+    data_today: DataUsage | None = None
+    data_month: DataUsage | None = None
 
     @classmethod
     def build(
@@ -1510,6 +1544,8 @@ class TeltonikaData:
         firmware_progress: dict[str, Any] | None = None,
         vpn_config: dict[str, list[dict[str, Any]] | None] | None = None,
         vpn_status: dict[str, Any] | None = None,
+        data_usage_day: Any = None,
+        data_usage_month: Any = None,
     ) -> TeltonikaData:
         """Derive uplink, Wi-Fi client, priority, access points and position."""
         networks = wifi_network_names(wireless_config)
@@ -1561,6 +1597,8 @@ class TeltonikaData:
             sms=derive_sms(sms),
             firmware=derive_firmware(firmware_installed, firmware_updates),
             firmware_download=derive_firmware_download(firmware_progress),
+            data_today=derive_data_usage(data_usage_day),
+            data_month=derive_data_usage(data_usage_month),
             vpn_instances=[
                 instance
                 for kind in VPN_FAMILIES

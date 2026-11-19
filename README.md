@@ -242,6 +242,7 @@ to:
 | Data roaming switches (SIM settings) | Network, Mobile, General | Read and write |
 | Failover state | Network, Failover | Read |
 | Data limit usage | Network, Mobile, Data limit | Read |
+| Data used today and this month | Status, Network, Mobile Traffic | Read |
 | Port forward switches | Network, Firewall, Port forwards | Read and write |
 | Traffic rule switches | Network, Firewall, Traffic rules | Read and write |
 | SMS messages (count and new-message event) | Services, Mobile Utilities, SMS Utilities | Read |
@@ -376,18 +377,19 @@ automatically.
 ### Modem (one device per modem)
 
 Operator, network type, band, RSRP, RSRQ, SINR, temperature, data connection,
-SIM state, active SIM, data received and sent, a connected sensor, a
+SIM state, active SIM, data received and sent (disabled by default), a connected sensor, a
 **Restart mobile connection** button and, on dual SIM modems, a **SIM slot**
 select. RSSI and signal quality are disabled by default.
 
-**Data received** and **Data sent** are the router's lifetime totals of the
-modem (they come from `rxbytes` and `txbytes` of the modem status), not a
-monthly volume. Use them as the source of a Utility Meter helper, see
-[step 11 of the guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter),
-and take [Mobile data limit](#mobile-data-limit) for the volume of the current
-period. The router now and then reports such a counter as 0 for a single
-reading; the sensor ignores that until the lower value has stayed for three
-readings, so it does not count as a reset in the long-term statistics.
+**Data received** and **Data sent** (disabled by default) are the router's
+lifetime totals of the modem (they come from `rxbytes` and `txbytes` of the
+modem status), not a monthly volume. For the volume of a day or a month use
+[Data used today and this month](#mobile-data-limit); for a monthly counter of
+your own use them as the source of a Utility Meter helper, see
+[step 11 of the guide](docs/getting-started.md#step-11-optional-helpers-for-a-monthly-data-counter).
+The router now and then reports such a counter as 0 for a single reading; the
+sensor ignores that until the lower value has stayed for three readings, so it
+does not count as a reset in the long-term statistics.
 
 **Network registration** shows the text of the router, for example
 `Registered, home`. The binary sensor **Roaming** is on while that text says
@@ -460,6 +462,15 @@ the percentage is the share of your contract, so you can warn yourself at any
 point you like, for example at 80 and 95 percent, without the router's SMS
 warning and without a helper. See the
 [ready automation](docs/automation-examples.md#mobile-data-volume-warning).
+
+**Data used today and this month.** Independent of the limit, the sensors
+**Data used today** and **Data used this month** add received and sent data
+from the router's traffic statistics (Status, Network, Mobile Traffic). Today
+starts at midnight of the router's time zone, so the sensor falls back to zero
+then and Home Assistant starts a new period in its statistics. The attributes
+`received_mb` and `sent_mb` split the value. The sensors appear if the router
+answers the `data_usage` pages. The month follows the router's own period,
+which does not always start on the first of the month.
 
 ### Failover
 

@@ -392,6 +392,16 @@ DATA_LIMIT_STATUS = [
     {"id": "mob1s2a1", "interface": "mob1s2a1", "enabled": "0"},
 ]
 
+# Rows are [timestamp, received bytes, sent bytes]: hourly today, daily this month.
+DATA_USAGE_DAY = [
+    [1795042800, 1_000_000, 500_000],
+    [1795046400, 2_000_000, 250_000],
+]
+DATA_USAGE_MONTH = [
+    [1793919600, 1_000_000_000, 100_000_000],
+    [1794006000, 2_000_000_000, 200_000_000],
+]
+
 
 def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[str, Any]:
     """Return fresh copies; optionally give Wi-Fi a better metric than mobile."""
@@ -412,6 +422,8 @@ def payloads(*, wifi_metric: int | None = None, wireguard: bool = True) -> dict[
         "failover": deepcopy(FAILOVER_STATUS),
         "failover_config": deepcopy(FAILOVER_CONFIG),
         "data_limit": deepcopy(DATA_LIMIT_STATUS),
+        "data_usage_day": deepcopy(DATA_USAGE_DAY),
+        "data_usage_month": deepcopy(DATA_USAGE_MONTH),
         "sms": deepcopy(SMS_MESSAGES),
         "firmware_updates": deepcopy(FIRMWARE_UPDATES),
         "firmware_progress": deepcopy(FIRMWARE_PROGRESS),
