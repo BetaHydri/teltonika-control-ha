@@ -292,7 +292,8 @@ number and message in one call and returns how many SMS parts it used.
 
 An SMS can trigger something at the camper when there is no internet, for
 example "heating on". Because anybody who knows the number could send such an
-SMS, **always check the sender** and keep the command harmless. This turns the
+SMS, **always check the sender** and keep the command harmless (the sender alone
+is no proof, see the note below the example). This turns the
 heating on and answers with an SMS to the sender:
 
 ```yaml
@@ -324,6 +325,25 @@ to arrive. The sender is the number as the network reports it, usually with
 the country code; check how it shows up in the event (Developer tools, Events,
 listen to `teltonika_control_sms_received`) before you rely on the match.
 Do not use commands that open locks or switch off alarms.
+
+> [!NOTE]
+> **This is not the router's "SMS Utilities".** The SMS Utilities of RutOS
+> (Services, Mobile Utilities) only control the router itself, for example
+> reboot, Wi-Fi, mobile data, VPN or I/O, and they cannot call Home Assistant.
+> The integration does not use them: it reads the SMS inbox of the router and
+> fires the event, and the automation above does the rest. You do not have to
+> enable or configure any SMS Utilities rule for it.
+>
+> - **Do not reuse a rule keyword** of the router (`reboot`, `status`,
+>   `mobileoff`, `wifion`, ...) as your command. If such a rule is enabled and
+>   the text matches (for "No authorization" the bare keyword, otherwise the
+>   keyword after the authorization key), the router executes it too.
+> - **The sender number is no secret.** The number of an SMS can be forged. The
+>   SMS Utilities protect their rules with a key in the text (admin password,
+>   serial number or own password). Do the same for a command that matters: add
+>   a secret word to the text and check it in the condition, for example
+>   `value_template: "{{ trigger.event.data.message | trim == 'MySecret heating on' }}"`.
+>   Keep the secret out of shared automations and screenshots.
 
 ## Send an SMS when the data volume runs low
 
