@@ -51,7 +51,8 @@ Each rule links to the place in the documentation that explains it.
   percentage and the warnings then follow your contract, not the router limit.
   See [Mobile data limit](../README.md#mobile-data-limit).
 - **Warn from Home Assistant**, at 80 % and 95 % for example, instead of
-  relying on the router's SMS. The README has a ready automation.
+  relying on the router's SMS. See the
+  [ready automation](automation-examples.md#mobile-data-volume-warning).
 - **Mind the units**: the router counts in MB of 1,048,576 bytes, Home
   Assistant shows GB of 10⁹ bytes. Providers use the second.
 

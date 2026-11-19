@@ -20,21 +20,19 @@ Prerequisites for the integration:
 
 - Teltonika Control installed and set up, see the
   [getting started guide](getting-started.md).
-- Version 0.5.0 or newer of the integration. It accepts a service target
-  (an entity of your router, so no device ID is needed), has the Wi-Fi
-  management entities, the WireGuard entities and the router health sensors.
-  With an older version, delete the **Restart WireGuard tunnel** pill and the
-  **Router health** block from the file. Version 0.6.0 or newer is
-  recommended, because it polls the router much more gently. The failover,
-  data limit and firewall pills need version 0.11.0 or newer; without
-  it, delete them.
+- The current version of the integration; the file matches the latest release.
+  Pills for optional features (VPN, WireGuard, failover, data limit, firewall,
+  SMS, firmware) hide themselves while their entities do not exist, and you can
+  delete the ones you do not want. With an older version, delete the pills whose
+  entities do not exist yet, see the [changelog](../CHANGELOG.md).
 - Home Assistant 2024.8 or newer for the `perform-action` button setting.
 
 Prerequisites for this dashboard only. They are not needed for the
 integration and not for any other dashboard of yours:
 
 - **Bubble Card** (Frontend, HACS) draws the pills and the buttons. The
-  dashboard does not work without it.
+  dashboard does not work without it. The SMS and firmware pop-ups need
+  version 3.2.0 or newer.
 - **Mushroom** (Frontend, HACS) draws the coloured badges at the top. It is
   optional: delete the `badges:` block from the file if you do not want to
   install it.
@@ -174,61 +172,50 @@ list. Fix that entity and save again.
   pill is green with the latency or red when the host behind the tunnel does
   not answer. It only appears when you set a VPN check host in the options,
   see the [VPN check](../README.md#vpn-check). A **failover** pill for mobile
-  data (version 0.10.1 or newer) is green while the router's own check says
-  a mobile interface is online and red when none is. There is no Wi-Fi pill,
-  because the router's check can say `offline` for a Wi-Fi that works, see
-  [Failover](../README.md#failover).
+  data is green while the router's own check says a mobile interface is online
+  and red when none is. There is no Wi-Fi pill, because the router's check can
+  say `offline` for a Wi-Fi that works, see [Failover](../README.md#failover).
 - **Wi-Fi first and Mobile first** are two buttons without a drop-down. The
   active priority is coloured, the other one is grey, so they also show the
   current state. They call `teltonika_control.set_priority`. With Wi-Fi
   first, the integration goes back to mobile data when the Wi-Fi has no
   internet after 25 seconds.
 - **Router control**: restart the mobile connection, reconnect the Wi-Fi and
-  reboot the router. With a WireGuard instance on the router, a **Restart
-  WireGuard tunnel** pill appears while the instance is switched on (replace
-  `homebase` in its two entity IDs with the name of your instance, or delete
-  the pill). A **Open firewall** pill (version 0.11.0 or newer) opens the
-  separate [firewall dashboard](firewall-dashboard.md) with the port forwards
-  and traffic rules. It only links there and changes nothing: the arrow on its
-  right shows that it is a link, and nothing is switched from this pill. It is
-  green while nothing is open to the internet. While a port forward or a rule
-  is on it turns orange and shows two small counters, the port forwards that
-  are on and the rules open to the internet. It only appears while the router
-  has such rules. Below the reboot pill, **Router health** shows uptime, DHCP
-  clients, CPU load and memory usage. Below them, two optional pills (each hides
-  itself while the router does not offer the data): **SMS on the router**, the
-  number of stored messages (version 0.13.0 or newer), and **Firmware**, which
-  is orange with "Update available" while the router has found a newer stable
-  release. Tapping the SMS pill (or its small send icon) opens the **Send SMS**
-  pop-up with the number and text fields and a Send button that asks for
-  confirmation (version 0.15.0 or newer), and below them the **Inbox**, the
-  newest messages of the router (version 0.18.0 or newer). The pop-up is a standalone Bubble Card
-  pop-up (`hash: "#sms"`, Bubble Card 3.2.0 or newer, the cards inside it are
-  listed under `cards`) at the end of the section; it
-  takes no room until it is opened. The big pop-up header is hidden
-  (`show_header: false`) and a **separator** card is the heading; close a
-  pop-up by tapping outside of it, or remove that line to get the header with
-  the close button back. If you prefer a page of its own, use
-  [dashboards/teltonika-sms.yaml](../dashboards/teltonika-sms.yaml) and let the
-  pill navigate to it as the firewall pill does. Tapping the **Firmware** pill
-  opens a **Firmware** pop-up with the update state, the installed version, the
-  new version (only while the router has found one), the status and the
-  two buttons **Download firmware** and **Install firmware**, both with a
-  confirmation (version 0.17.0 or newer); the install entity is disabled by
-  default, see [Firmware update](../README.md#firmware-update). The hotspot button changes with the
-  state: it starts
-  `teltonika_control.portal_mode`, shows that it waits, and reports when
-  the Wi-Fi has internet. See
-  [hotspots with a login page](../README.md#hotspots-with-a-login-page).
+  reboot the router. The hotspot button changes with the state: it starts
+  `teltonika_control.portal_mode`, shows that it waits, and reports when the
+  Wi-Fi has internet, see
+  [hotspots with a login page](../README.md#hotspots-with-a-login-page). With a
+  WireGuard instance on the router, a **Restart WireGuard tunnel** pill appears
+  while the instance is switched on (replace `homebase` in its two entity IDs
+  with the name of your instance, or delete the pill).
+- **Firewall**: the **Open firewall** pill opens the separate
+  [firewall dashboard](firewall-dashboard.md) with the port forwards and traffic
+  rules. It only links there and changes nothing, the arrow on its right shows
+  that. It is green while nothing is open to the internet. While a port forward
+  or a rule is on it turns orange and shows two small counters, the port
+  forwards that are on and the rules open to the internet. It only appears while
+  the router has such rules.
+- **Router health**, below the reboot pill: uptime, DHCP clients, CPU load and
+  memory usage.
+- **SMS and firmware** (optional, each pill hides itself while the router does
+  not offer the data): **SMS on the router** shows the number of stored
+  messages. Tapping it, or its small send icon, opens the **Send SMS** pop-up
+  with the number and text fields, a Send button that asks for confirmation and
+  the **Inbox** with the newest messages. **Firmware** is orange with "Update
+  available" while the router has found a newer stable release. Tapping it opens
+  the **Firmware** pop-up with the update state, the installed version, the new
+  version (only while the router has found one), the status and the buttons
+  **Download firmware** and **Install firmware**, both with a confirmation. The
+  install entity is disabled by default, see
+  [Firmware update](../README.md#firmware-update).
 - **Mobile data**: operator, network type, a **Network registration** pill
   (plain at home, orange while roaming), two pills for the data roaming of SIM
   1 and SIM 2 (green when on, grey when off, with a switch on the right; tap
   to change, and allowing asks for confirmation), signal values, the active
-  SIM with
-  SIM 1 and SIM 2 buttons, modem temperature and the data counters. A
-  **Data limit** pill (version 0.10.0 or newer, only with a limit set on the
-  router) shows the used part of the limit in percent, orange from 80 percent
-  and red when the limit is reached, with the used data as small pill.
+  SIM with SIM 1 and SIM 2 buttons, modem temperature and the data counters. A
+  **Data limit** pill (only with a limit set on the router) shows the used part
+  of the limit in percent, orange from 80 percent and red when the limit is
+  reached, with the used data as small pill.
 - **Add a Wi-Fi network**, in three steps:
   1. Press **Scan** (the pill) and choose a network with **Choose**. The list
      hides networks that are already saved in the same band and shows each
@@ -260,6 +247,15 @@ Both pop-ups open from a pill. The number in the SMS picture is hidden.
 ![The Send SMS pop-up](images/send-sms.png)
 
 ![The Firmware pop-up](images/firmware-update.png)
+
+They are standalone Bubble Card pop-ups (Bubble Card 3.2.0 or newer, the cards
+inside are listed under `cards`) at the end of the section and take no room
+until they are opened. The big pop-up header is hidden (`show_header: false`)
+and a **separator** card is the heading. Close a pop-up by tapping outside of
+it, or remove that line to get the header with the close button back. If you
+prefer a page of its own for the SMS fields, use
+[dashboards/teltonika-sms.yaml](../dashboards/teltonika-sms.yaml) and let the
+pill navigate to it as the firewall pill does.
 
 ### What the small buttons on the right mean
 

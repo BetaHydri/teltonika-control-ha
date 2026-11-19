@@ -52,26 +52,12 @@ own login.
 5. Write down the user name and password. You enter them in Home Assistant
    in step 5.
 
-| You want | Give the group |
-|---|---|
-| Only sensors | Read on the pages in the table below |
-| Sensors and all controls | Read and write on the pages in the table below |
-
-| Used for | Router page | Needs |
-|---|---|---|
-| Model and firmware | System, Device, Info | Read |
-| Uplink and priority state | Network, Interfaces | Read |
-| Change uplink priority | Network, Interfaces | Write |
-| Wi-Fi and access point state | Network, Wireless, SSIDs | Read |
-| Access point switches, reconnect, scan, add and remove networks | Network, Wireless, SSIDs | Write |
-| Modem sensors | Network, Mobile | Read |
-| Uptime, load, memory, DHCP clients, WireGuard state | Status pages, Network, Interfaces | Read |
-| WireGuard switch and reconnect | Services, VPN, WireGuard | Read and write |
-| Restart mobile connection, switch SIM | Network, Mobile, Modems | Write |
-| Reboot the router | System, Administration, General | Write |
+Start with **read** rights, or give **read and write** for all controls. Which
+router page each function needs is listed in
+[Router User and Permissions](../README.md#router-user-and-permissions).
 
 Menu names can differ slightly between RutOS releases. Teltonika does not
-publish the exact permission entry for each action, so this table maps the
+publish the exact permission entry for each action, so the list maps the
 actions to the router pages they belong to. If Home Assistant later shows an
 error when you press a control, the message comes from the router: give the
 group read or write on the matching page and try again.
@@ -112,18 +98,11 @@ check the address, the network and step 3.
 
 ## Step 5: Install the integration
 
-### With HACS
-
-1. In HACS, open the menu and choose **Custom repositories**.
-2. Add `https://github.com/BetaHydri/teltonika-control-ha` with the type
-   **Integration**.
-3. Find **Teltonika Control**, install it and restart Home Assistant.
-
-### Manually
-
-Copy the folder `custom_components/teltonika_control` into the
-`custom_components` folder of your Home Assistant configuration, then
-restart Home Assistant.
+With HACS, add `https://github.com/BetaHydri/teltonika-control-ha` as a custom
+repository of the type **Integration** (menu **Custom repositories**), install
+**Teltonika Control** and restart Home Assistant. Manually, copy the folder
+`custom_components/teltonika_control` into the `custom_components` folder of
+your Home Assistant configuration and restart.
 
 ## Step 6: Add the router
 
@@ -148,32 +127,26 @@ modem. If you see an error, go to [Troubleshooting](#troubleshooting).
 Open **Settings**, **Devices & services**, **Teltonika Control** and select
 the router device. You should see:
 
-- Sensors for the uplink (Wi-Fi, mobile, Ethernet or other), its IP address
-  and, if the router is a Wi-Fi client, the network name, signal, band and
-  link speed.
-- Binary sensors for Wi-Fi connected, internet and hotspot login required.
-- One switch for each access point of the router.
+- Sensors for the uplink and, if the router is a Wi-Fi client, the network
+  name, signal, band and link speed, plus the binary sensors Wi-Fi connected,
+  internet and hotspot login required.
 - The **Uplink priority** select, the **Reconnect Wi-Fi** and **Reboot
-  router** buttons.
-- To manage Wi-Fi networks: the buttons **Scan for Wi-Fi networks**,
-  **Add selected network** and **Remove selected network**, the selects
-  **Found networks** and **Saved networks**, the **Wi-Fi password** field and
-  the **Last Wi-Fi action** sensor.
-- On routers with GPS: the **Position** device tracker and sensors for speed,
-  altitude, satellites and accuracy.
-- If you set a VPN check host ([step 12](#step-12-optional-vpn-check)): the
-  binary sensor **VPN reachable** and the sensor **VPN latency**.
+  router** buttons, one switch for each access point and the entities to
+  manage Wi-Fi networks (scan, found networks, password, add, saved networks,
+  remove, last action).
 - Router health sensors: **Uptime**, **CPU load**, **Memory usage** and
   **DHCP clients**.
-- For every WireGuard instance on the router
-  ([step 13](#step-13-optional-restart-a-wireguard-tunnel)): a binary sensor,
-  a switch, a **Reconnect WireGuard** button and traffic counters.
+- Only where the router has it: the GPS **Position** and sensors, the VPN
+  entities ([step 12](#step-12-optional-vpn-check) and
+  [step 13](#step-13-optional-restart-a-wireguard-tunnel)), SMS, firmware,
+  firewall switches and the data limit.
 
 Select the modem device to see operator, network type, network registration,
 signal values (RSRP, RSRQ, SINR), temperature, SIM state and data counters,
 the **Roaming** binary sensor, the **Allow data roaming** switch of each SIM, the
 **Restart mobile connection** button and, on dual SIM modems, the
-**SIM slot** select.
+**SIM slot** select. The complete list is in
+[What You Get](../README.md#what-you-get).
 
 Some entities only appear when the router can provide them. The priority
 select needs at least one saved Wi-Fi client network (see step 9), and modem
@@ -258,10 +231,10 @@ Mobile data stays preferred until you switch to **Wi-Fi first**, so a new
 network never breaks your connection by itself.
 
 A router radio can hold only one Wi-Fi client or one Multi AP list. If a
-radio is already used, the button tells you which network occupies it.
-On a radio that runs in Multi AP mode (the 5 GHz radio of the RUTC50), the
-network is added to the Multi AP list instead. See
-[Multi AP radios](../README.md#multi-ap-radios) for details.
+radio is already used, the button tells you which network occupies it. On a
+radio that runs in Multi AP mode (the 5 GHz radio of the RUTC50), the network is
+added to the Multi AP list instead, see
+[Multi AP radios](../README.md#multi-ap-radios).
 
 The same is possible as actions, for automations or scripts. Run them in
 **Developer tools**, **Actions**, with any entity of the router as target:
@@ -305,19 +278,13 @@ Use `ssid` instead of `station_id` for networks in a Multi AP list.
 
 ### Use a hotspot that shows a login page
 
-Some campsite and hotel Wi-Fi networks need a click on a landing page.
-
-1. Call `teltonika_control.portal_mode`. Wi-Fi gets priority and the
-   integration waits.
-2. On a phone connected to the router, open `http://neverssl.com` and accept
-   the hotspot page.
-3. When the internet check passes, the router stays on Wi-Fi and the event
-   `teltonika_control_portal_result` fires with `success: true`. If there is
-   no internet within the wait time, the router returns to mobile data.
-
-The **Hotspot login** sensor shows `login_required` while Wi-Fi is the uplink
-but has no internet. The README has an
-[example notification](automation-examples.md#hotspot-needs-a-login) for it.
+Call `teltonika_control.portal_mode`, open `http://neverssl.com` on a phone
+connected to the router and accept the hotspot page. When the internet check
+passes, the router stays on Wi-Fi. The steps and the **Hotspot login** sensor
+are described in
+[Hotspots With a Login Page](../README.md#hotspots-with-a-login-page), and
+there is an [example notification](automation-examples.md#hotspot-needs-a-login)
+for it.
 
 ### Restart the mobile connection or switch the SIM
 
@@ -328,37 +295,19 @@ about a minute.
 ## Step 10: Adjust the options
 
 Go to **Settings**, **Devices & services**, **Teltonika Control**, then
-select **Configure**.
-
-- **Update interval**: how often the status of the router is polled (uplink,
-  Wi-Fi signal, modem, GPS, load), 10 to 600 seconds. The default is 30
-  seconds.
-- **Configuration interval**: how often the pages that rarely change are read
-  again (Wi-Fi configuration, radios, WireGuard instances), 30 to 3600
-  seconds. The default is 300 seconds. Actions of the integration, such as
-  switching the priority or adding a network, read them again at once. A
-  RUTC50 has a weak CPU: if the router feels slow, raise both values.
-- **Internet check URL**: a web address that answers with HTTP 204 when the
-  internet works. It is used to detect a hotspot login page. Leave it empty
-  to turn the check off.
-- **VPN check host**: optional. A DNS name, IPv4 or IPv6 address of a device
-  behind your VPN tunnel, for example the router at your home base
-  (`192.168.178.1`). With it, the sensors **VPN reachable** and **VPN
-  latency** appear. Leave it empty to turn the check off. Details and
-  limits are in the [README](../README.md#vpn-check).
-- **VPN check port**: the TCP port for that check, default 443. A refused
-  connection also counts as reachable.
-
-The internet check runs on the Home Assistant host, so it only says
-something about the router if Home Assistant reaches the internet through
-this router.
+select **Configure**. The defaults suit most routers. What each option does is
+described in [Options](../README.md#options): the two intervals (raise both if
+a weak router such as the RUTC50 feels slow), the internet check URL, the VPN
+check host and port, and the mobile data plan.
 
 ## Step 11: Optional helpers for a monthly data counter
 
-This step is optional. The integration has no monthly counter of its own,
-but the modem's **Received** and **Sent** sensors count upwards, so a
-built-in Utility Meter helper can turn them into monthly values. Do this once
-for each of the two sensors:
+This step is optional. If you set a **Data limit** on the router, the
+integration already shows the used data and the percentage, see
+[Mobile data limit](../README.md#mobile-data-limit). Without a limit, the
+integration has no monthly counter of its own, but the modem's **Received** and
+**Sent** sensors count upwards, so a built-in Utility Meter helper can turn them
+into monthly values. Do this once for each of the two sensors:
 
 1. Go to **Settings**, **Devices & services**, **Helpers**.
 2. Select **Create helper**, then **Utility Meter**.
@@ -380,37 +329,24 @@ does not remove them.
 This step is optional. Use it if the router carries a site-to-site VPN (for
 example WireGuard, OpenVPN or IPsec) and you want to know in Home Assistant
 whether the tunnel carries traffic. No helper and no extra router setting is
-needed. The router only has to route to the remote network, which the VPN
-already does.
+needed.
 
 1. Choose a device at the other end of the tunnel that is always on, for
-   example the home router (`192.168.178.1`). Use an address inside the
-   tunnel's network, or a DNS name that resolves to it. Do not use the
-   WireGuard endpoint from the peer settings (public name and UDP port): it
-   never answers TCP and is not reached through the tunnel.
-2. Check from a device on the router's LAN that you can reach it, for example
-   by opening its web page or by running `ping` in a terminal.
-3. Go to **Settings**, **Devices & services**, **Teltonika Control**, select
-   **Configure**.
-4. Enter the address in **VPN check host**. IPv4, IPv6 and DNS names work. You
-   can add the port behind it, for example `192.168.178.1:443` or
-   `[fd00::1]:443`.
-5. Set **VPN check port** to a port the device answers or rejects. The default
-   is 443. A refused connection counts as reachable, a silent timeout counts as
-   down.
-6. Select **Submit**. The integration reloads.
-7. On the router device you now see **VPN reachable** (binary sensor) and
+   example the home router (`192.168.178.1`), with an address inside the
+   tunnel's network. Check from a device on the router's LAN that you can reach
+   it, for example by opening its web page or by running `ping`.
+2. Go to **Settings**, **Devices & services**, **Teltonika Control**, select
+   **Configure**, enter the address in **VPN check host** and a port the device
+   answers or rejects in **VPN check port**, and submit. The integration
+   reloads.
+3. On the router device you now see **VPN reachable** (binary sensor) and
    **VPN latency** (sensor, diagnostic). If you use the sample dashboard, the
    VPN pill appears in the Connection section.
 
-To turn the check off, empty the **VPN check host** field again. The two
-entities then remain in the entity list as unavailable until you delete them.
-
-What the check does and does not tell you is described in the
-[README](../README.md#vpn-check). In short: it tests the whole path through
-the tunnel from the Home Assistant host, but it does not show the WireGuard
-handshake. To restart a WireGuard tunnel, see
-[WireGuard tunnels](../README.md#wireguard-tunnels).
+Which address and port to choose, and what the check does and does not tell
+you, is described in the [README](../README.md#vpn-check). To turn the check
+off, empty the **VPN check host** field again. The two entities then remain in
+the entity list as unavailable until you delete them.
 
 ## Step 13: Optional: restart a WireGuard tunnel
 
@@ -419,26 +355,19 @@ This step is optional and needs a WireGuard instance on the router (**Services**
 entities appear by themselves for every instance.
 
 1. Make sure the router user of step 2 may read and change the WireGuard
-   configuration (**Services**, **VPN**, **WireGuard**, read and write). Without
-   the right to change it, you still get the interface state and the traffic
-   counters, but no switch and no button.
+   configuration. Without the right to change it, you still get the interface
+   state and the traffic counters, but no switch and no button.
 2. Open the router device in Home Assistant. For an instance named `HOMEBASE`
-   you see **WireGuard HOMEBASE** (binary sensor), **WireGuard HOMEBASE
-   enabled** (switch), **Reconnect WireGuard HOMEBASE** (button) and the
-   counters **received** and **sent**.
+   you see **WireGuard HOMEBASE**, **WireGuard HOMEBASE enabled**, **Reconnect
+   WireGuard HOMEBASE** and the traffic counters.
 3. Press **Reconnect WireGuard HOMEBASE** to test it. The router switches the
    instance off, waits a few seconds and switches it on again. Traffic through
-   the tunnel is interrupted for that time. Do not test it while you are
+   the tunnel is interrupted for that time, so do not test it while you are
    connected to the router through that tunnel.
-4. To restart the tunnel automatically when the [VPN check](#step-12-optional-vpn-check)
-   fails, use the automation in the
-   [README](../README.md#wireguard-tunnels).
 
-If the tunnel is switched off, the button refuses. Use the switch to turn it
-on. The tunnel entities show nothing about the last handshake, because the
-router does not offer it through its API. The binary sensor tells you that
-the interface is up, and the VPN check tells you whether the other end
-answers.
+What the entities mean, why the button can refuse and how to restart the tunnel
+automatically when the [VPN check](#step-12-optional-vpn-check) fails, is in
+[WireGuard tunnels](../README.md#wireguard-tunnels).
 
 ## Troubleshooting
 

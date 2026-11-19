@@ -63,31 +63,24 @@ switches work without them in any other card, in scripts and in automations.
 ## How the cards find your rules
 
 The switches of the integration carry an attribute `kind`: `port_forward` or
-`traffic_rule`. Traffic rules also have a `group`:
+`traffic_rule`. Traffic rules also have a `group` (`access`, `forward`, `system`
+or `other`), which the cards use to sort them. What each group is, and which
+ones are created disabled, is in [README, Firewall](../README.md#firewall).
 
-| `group` | What the rule is | Created |
-|---|---|---|
-| `access` | Lets the internet reach the router itself (SSH, web interface, your own remote access). | Enabled |
-| `forward` | Lets the internet reach devices behind the router. | Enabled |
-| `system` | The router's own rules, named `Allow-...` (DHCP, ping, WireGuard, IPsec and so on). | Disabled |
-| `other` | Rules that block traffic or only apply inside your network. | Enabled |
-
-The router's own rules are created **disabled** in Home Assistant, because
-switching one off by accident can cut a connection. They do not show up
-anywhere until you enable them under **Settings, Devices & services, Teltonika
-Control, Entities**. The dashboard does not list them either.
+The router's own rules (`system`) are created **disabled** in Home Assistant, so
+they do not show up anywhere until you enable them under **Settings, Devices &
+services, Teltonika Control, Entities**. The dashboard does not list them
+either.
 
 ## Safety
 
-- A rule that is **on** lets traffic from the internet reach the router or a
-  device in your network. Keep rules off that you do not need.
-- The rule that carries your own remote access (for example the rule for the
-  port of your Home Assistant) is in the list as well. **Switching it off locks
-  you out until you can reach the router another way.** Look at the name before
-  you confirm, and think about hiding that entity if others use the dashboard.
-- The switches change one field of the rule, the on/off flag. The integration
-  reads it back and shows an error if the router did not apply it. It never
-  creates, edits or deletes a rule.
+A rule that is on lets traffic from the internet reach the router or a device
+in your network, and switching off the rule that carries your own remote access
+locks you out; the [README](../README.md#firewall) explains both. For this
+dashboard:
+
+- Look at the name before you confirm, and think about hiding the entity of
+  your own remote access if others use the dashboard.
 - Do not give guests access to this dashboard.
 - Switching rules on or off can briefly interrupt connections while the router
   reloads its firewall.
@@ -110,19 +103,20 @@ You then add and remove the lines yourself when your router changes.
 
 ## Show it as a pop-up
 
-Bubble Card can show the same content as a pop-up on the main dashboard
-instead of a separate page. Put the cards of the firewall dashboard into a
-pop-up and open it from the pill:
+Bubble Card (3.2.0 or newer) can show the same content as a pop-up on the main
+dashboard instead of a separate page. Put the cards of the firewall dashboard
+into a standalone pop-up and open it from the pill:
 
 ```yaml
-- type: vertical-stack
+- type: custom:bubble-card
+  card_type: pop-up
+  hash: "#firewall"
+  name: Firewall
+  icon: mdi:shield-lock
   cards:
-    - type: custom:bubble-card
-      card_type: pop-up
-      hash: "#firewall"
-      name: Firewall
-      icon: mdi:shield-lock
     # the cards of the firewall dashboard go here
+    - type: markdown
+      content: Replace this card with the rule cards.
 ```
 
 Then change the **Firewall** pill of the main dashboard to
