@@ -9,8 +9,10 @@ import pytest
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.teltonika_control.api import TeltonikaClient
 from custom_components.teltonika_control.models import modem_sim_missing
 
 from .conftest import entity_id, mock_router
@@ -126,6 +128,34 @@ async def test_with_both_slots_empty_there_is_no_back_and_forth(
 
     assert switches == [2]
     assert hass.states.get(entity_id(hass, "select", "2-1.1_sim")).state == "sim_2"
+
+
+async def test_a_single_slot_modem_has_no_select_but_shows_a_missing_sim(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def answer(self: Any) -> list[dict[str, Any]]:
+        modem = deepcopy(MODEMS[0])
+        modem["sim_count"] = 1
+        modem["simstate"] = "Not inserted"
+        return [modem]
+
+    monkeypatch.setattr(TeltonikaClient, "async_modems_status", answer)
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    assert not [
+        e
+        for e in er.async_get(hass).entities.values()
+        if e.unique_id.endswith("_sim") and e.domain == "select"
+    ]
+    sensor = entity_id(hass, "binary_sensor", "2-1.1_sim_missing")
+    assert hass.states.get(sensor).state == STATE_ON
+
+    with pytest.raises(HomeAssistantError, match="only one SIM slot"):
+        await entry.runtime_data.async_switch_sim("2-1.1", 2)
 
 
 async def test_switching_to_a_slot_with_a_sim_stays(

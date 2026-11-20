@@ -1043,6 +1043,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         modem = self.data.modem(modem_id)
         if modem is None:
             raise HomeAssistantError("Modem not found")
+        if to_int(modem.get("sim_count")) != 2:
+            raise HomeAssistantError("This modem has only one SIM slot")
         previous_sim = int(modem.get("active_sim") or 0)
         if previous_sim == target_sim:
             return
