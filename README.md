@@ -396,6 +396,14 @@ does not count as a reset in the long-term statistics.
 roaming, so you can warn yourself when the modem leaves your home network.
 Both come from the modem status the integration already reads.
 
+The binary sensor **No SIM in the active slot** is on while the router reports
+the SIM state `Not inserted` for the active slot. Without a SIM the signal
+sensors turn unknown and the modem has no service, so use it to see why. When
+you switch the **SIM slot** with the integration, it watches the modem for up
+to a minute; if the new slot holds no SIM, it switches back to the previous
+slot and reports an error. A slot you change on the router itself is not
+switched back, only shown by the sensor.
+
 The switches **Allow data roaming SIM 1** and **SIM 2** show and change the
 router setting **Network, Mobile, General, SIM configuration, Deny data
 roaming** of each SIM. On means roaming is allowed (the opposite of the
@@ -1023,8 +1031,9 @@ same page status and answer structures.
 - The router clock comes from the system usage status of the router, with the
   `Date` header of its answers as fallback. Without either, the **Router
   time** sensor does not appear.
-- Changing the SIM drops mobile data for about a minute and is not rolled
-  back automatically.
+- Changing the SIM drops mobile data for about a minute. If the new slot has
+  no SIM, the integration switches back to the previous slot by itself; a
+  slot with a SIM is never changed back.
 - Switching off the access point you are connected through disconnects you.
 - If one page of the router (for example the Wi-Fi status) does not answer in
   time, its entities show the last known values and the page is asked again

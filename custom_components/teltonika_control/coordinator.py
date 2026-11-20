@@ -64,6 +64,8 @@ from .const import (
     PRIORITY_VERIFY_DELAY,
     PROBE_TIMEOUT,
     ROAMING_REFRESH_DELAY,
+    SIM_SWITCH_CHECK_SECONDS,
+    SIM_SWITCH_POLL,
     SLOW_PAGE_PAUSE,
     UPLINK_WIFI,
     VPN_FAMILIES,
@@ -88,6 +90,7 @@ from .models import (
     derive_installed_firmware,
     is_modem_online,
     is_protected_interface,
+    modem_sim_missing,
     next_multi_ap_priority,
     normalize_band,
     radio_band,
@@ -1040,11 +1043,45 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         modem = self.data.modem(modem_id)
         if modem is None:
             raise HomeAssistantError("Modem not found")
-        if int(modem.get("active_sim") or 0) == target_sim:
+        previous_sim = int(modem.get("active_sim") or 0)
+        if previous_sim == target_sim:
             return
         async with translate_errors():
             await self.client.async_switch_sim(modem_id)
+        if not await self._async_new_slot_is_empty(modem_id, target_sim):
+            await self.async_request_refresh()
+            return
+        _LOGGER.debug("Slot %s holds no SIM, switching back", target_sim)
+        async with translate_errors():
+            await self.client.async_switch_sim(modem_id)
         await self.async_request_refresh()
+        raise HomeAssistantError(
+            f"There is no SIM in slot {target_sim}. The router was switched "
+            f"back to SIM {previous_sim}."
+        )
+
+    async def _async_new_slot_is_empty(self, modem_id: str, target_sim: int) -> bool:
+        """Watch the modem after a switch and return True if the slot has no SIM.
+
+        A slot with a SIM must be reported twice in a row, because the modem may
+        still show the state of the old slot while it switches.
+        """
+        deadline = _monotonic() + SIM_SWITCH_CHECK_SECONDS
+        present_readings = 0
+        while _monotonic() < deadline:
+            await asyncio.sleep(SIM_SWITCH_POLL)
+            await self.async_refresh()
+            modem = self.data.modem(modem_id)
+            if modem is None or to_int(modem.get("active_sim")) != target_sim:
+                present_readings = 0
+                continue
+            missing = modem_sim_missing(modem)
+            if missing:
+                return True
+            present_readings = present_readings + 1 if missing is False else 0
+            if present_readings >= 2:
+                return False
+        return False
 
     async def _async_apply_metric(
         self, stations: list[WifiStation], metric: str

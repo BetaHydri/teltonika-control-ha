@@ -127,7 +127,7 @@ differ. These are the entities the dashboard uses:
 | Temperature | `sensor.my_modem_temperature` |
 | Data used today, Data used this month (optional) | `sensor.my_router_data_used_today`, `sensor.my_router_data_used_this_month` |
 | Mobile data connected | `binary_sensor.my_modem_mobile_data_connected` |
-| Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
+| No SIM in the active slot | `binary_sensor.my_modem_no_sim_in_the_active_slot` || Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
 | Failover mobile online (optional) | `binary_sensor.my_router_failover_mobile_online` |
 | Open port forwards, firewall rules open to the internet (optional) | `sensor.my_router_open_port_forwards`, `sensor.my_router_firewall_rules_open_to_the_internet` |
 | SMS messages, Firmware (optional) | `sensor.my_router_sms_messages`, `update.my_router_firmware` |
@@ -213,7 +213,8 @@ list. Fix that entity and save again.
   1 and SIM 2 (green when on, grey when off, with a switch on the right; tap
   to change, and allowing asks for confirmation), signal values, the active
   SIM with SIM 1 and SIM 2 buttons, modem temperature and the mobile data used
-  today and this month. A
+  today and this month. Under **Connection**, a red **No SIM in the active
+  slot** pill appears while the active slot is empty. A
   **Data limit** pill (only with a limit set on the router) shows the used part
   of the limit in percent, orange from 80 percent and red when the limit is
   reached, with the used data as small pill.

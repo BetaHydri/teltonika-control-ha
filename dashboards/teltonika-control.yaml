@@ -313,6 +313,19 @@ views:
                   name: Mobile failover offline
                   icon: mdi:signal-cellular-off
                   styles: *style_red
+          # Shown only while the active SIM slot is empty.
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: binary_sensor.my_modem_no_sim_in_the_active_slot
+                state: "on"
+            card:
+              type: custom:bubble-card
+              card_type: button
+              button_type: name
+              name: No SIM in the active slot
+              icon: mdi:sim-off
+              styles: *style_red
           # Two buttons that also show the current priority: the active one is
           # coloured, the other one is grey. Replaces a drop-down.
           - type: vertical-stack

@@ -29,6 +29,7 @@ from .models import (
     TeltonikaData,
     VpnInstance,
     modem_is_roaming,
+    modem_sim_missing,
 )
 
 PARALLEL_UPDATES = 0
@@ -126,6 +127,17 @@ async def async_setup_entry(
             (
                 f"{modem_id}_roaming",
                 lambda m=modem_id: TeltonikaModemRoaming(c, m),
+            )
+            for modem_id in c.modem_ids()
+        ),
+    )
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (
+                f"{modem_id}_sim_missing",
+                lambda m=modem_id: TeltonikaModemSimMissing(c, m),
             )
             for modem_id in c.modem_ids()
         ),
@@ -318,6 +330,22 @@ class TeltonikaModemRoaming(TeltonikaModemEntity, BinarySensorEntity):
         """Return the roaming state."""
         modem: dict[str, Any] | None = self.modem
         return modem_is_roaming(modem) if modem is not None else None
+
+
+class TeltonikaModemSimMissing(TeltonikaModemEntity, BinarySensorEntity):
+    """On while the active SIM slot of the modem is empty."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_translation_key = "sim_missing"
+
+    def __init__(self, coordinator: TeltonikaCoordinator, modem_id: str) -> None:
+        super().__init__(coordinator, modem_id, "sim_missing")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the active slot holds no SIM."""
+        modem: dict[str, Any] | None = self.modem
+        return modem_sim_missing(modem) if modem is not None else None
 
 
 class TeltonikaVpnConnected(TeltonikaVpnEntity, BinarySensorEntity):

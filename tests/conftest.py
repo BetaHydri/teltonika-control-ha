@@ -47,6 +47,7 @@ def no_delays(monkeypatch: pytest.MonkeyPatch) -> None:
         "PORTAL_FIRST_DELAY",
         "PORTAL_POLL_INTERVAL",
         "PRIORITY_VERIFY_DELAY",
+        "SIM_SWITCH_POLL",
     ):
         monkeypatch.setattr(f"custom_components.teltonika_control.coordinator.{name}", 0)
 

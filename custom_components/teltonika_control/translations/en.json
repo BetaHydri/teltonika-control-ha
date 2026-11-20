@@ -167,6 +167,7 @@
       "login_required": { "name": "Hotspot login required" },
       "mobile_connected": { "name": "Mobile data connected" },
       "roaming": { "name": "Roaming" },
+      "sim_missing": { "name": "No SIM in the active slot" },
       "vpn_reachable": { "name": "VPN reachable" },
       "tunnel_up": { "name": "WireGuard {name}" },
       "vpn_connected": { "name": "{name} connected" },

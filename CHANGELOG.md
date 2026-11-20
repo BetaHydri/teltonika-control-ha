@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-20
+
+### Added
+
+- **No SIM in the active slot.** A binary sensor on each modem that is on while
+  the router reports the SIM state `Not inserted`. Before, an empty slot only
+  showed as unknown signal values and "No service".
+- **A switch to an empty SIM slot is undone.** After the SIM slot select
+  switches the slot, the integration watches the modem for up to a minute. If
+  the new slot holds no SIM, it switches back to the previous slot and shows an
+  error. The sample dashboard shows a red pill while the active slot is empty.
+
 ## [0.19.0] - 2026-11-19
 
 ### Added

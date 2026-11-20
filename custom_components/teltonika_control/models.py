@@ -517,6 +517,17 @@ def is_modem_online(modem: dict[str, Any]) -> bool:
     return modem.get("simstate") is not None or modem.get("conntype") is not None
 
 
+def modem_sim_missing(modem: dict[str, Any]) -> bool | None:
+    """Return whether the active SIM slot is empty.
+
+    None while the router reports no SIM state (for example during a switch).
+    """
+    text = _first_text(modem.get("simstate"))
+    if text is None:
+        return None
+    return "not inserted" in text.lower()
+
+
 def modem_temperature(modem: dict[str, Any]) -> float | None:
     """Return the modem temperature in °C."""
     value = to_float(modem.get("temperature"))

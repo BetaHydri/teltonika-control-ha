@@ -290,7 +290,9 @@ for it.
 
 Press **Restart mobile connection** on the modem device. On dual SIM
 modems, use the **SIM slot** select. Switching the SIM drops mobile data for
-about a minute.
+about a minute. If the other slot holds no SIM, the integration notices it
+(binary sensor **No SIM in the active slot**), switches back and shows an
+error.
 
 ## Step 10: Adjust the options
 
