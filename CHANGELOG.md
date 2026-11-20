@@ -29,7 +29,8 @@ and this project adheres to
 - **A switch to an empty SIM slot is undone.** After the SIM slot select
   switches the slot, the integration watches the modem for up to 90 seconds. If
   the new slot holds no SIM, it switches back to the previous slot and shows an
-  error. With no SIM in either slot nothing is switched back. The sample dashboard shows a red pill while the active slot is empty.
+  error. With no SIM in either slot nothing is switched back. The sample
+  dashboard shows a red pill while the active slot is empty.
 
 ## [0.19.0] - 2026-11-19
 
