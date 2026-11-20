@@ -1046,9 +1046,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         previous_sim = int(modem.get("active_sim") or 0)
         if previous_sim == target_sim:
             return
+        # With no SIM in the old slot either, there is nothing to go back to.
+        previous_empty = modem_sim_missing(modem) is True
         async with translate_errors():
             await self.client.async_switch_sim(modem_id)
-        if not await self._async_new_slot_is_empty(modem_id, target_sim):
+        if previous_empty or not await self._async_new_slot_is_empty(
+            modem_id, target_sim
+        ):
             await self.async_request_refresh()
             return
         _LOGGER.debug("Slot %s holds no SIM, switching back", target_sim)

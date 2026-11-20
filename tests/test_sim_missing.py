@@ -104,6 +104,30 @@ async def test_switching_to_an_empty_slot_goes_back(
     )
 
 
+async def test_with_both_slots_empty_there_is_no_back_and_forth(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    router_sim: Any,
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+    switches = router_sim(coordinator, {1, 2})
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": entity_id(hass, "select", "2-1.1_sim"), "option": "sim_2"},
+        blocking=True,
+    )
+
+    assert switches == [2]
+    assert hass.states.get(entity_id(hass, "select", "2-1.1_sim")).state == "sim_2"
+
+
 async def test_switching_to_a_slot_with_a_sim_stays(
     hass: HomeAssistant,
     aioclient_mock: Any,
