@@ -39,16 +39,17 @@ def test_sim_state_is_read_as_missing(simstate: str | None, missing: bool | None
 def router_sim(monkeypatch: pytest.MonkeyPatch):
     """A modem whose slot 2 is empty; switching flips the active slot."""
 
-    def install(coordinator: Any, empty_slots: set[int]) -> list[int]:
+    def install(
+        coordinator: Any, empty_slots: set[int], stale: dict[str, bool] | None = None
+    ) -> list[int]:
         state = {"active": 1}
         switches: list[int] = []
 
         async def answer() -> list[dict[str, Any]]:
             modem = deepcopy(MODEMS[0])
             modem["active_sim"] = state["active"]
-            modem["simstate"] = (
-                "Not inserted" if state["active"] in empty_slots else "Inserted"
-            )
+            empty = state["active"] in empty_slots or bool(stale and stale["on"])
+            modem["simstate"] = "Not inserted" if empty else "Inserted"
             return [modem]
 
         async def switch(modem_id: str) -> None:
@@ -156,6 +157,32 @@ async def test_a_single_slot_modem_has_no_select_but_shows_a_missing_sim(
 
     with pytest.raises(HomeAssistantError, match="only one SIM slot"):
         await entry.runtime_data.async_switch_sim("2-1.1", 2)
+
+
+async def test_a_stale_reading_after_a_switch_back_does_not_block_the_next_try(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    router_sim: Any,
+) -> None:
+    """Right after a switch the old slot may still be reported as not inserted."""
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    stale = {"on": False}
+    switches = router_sim(entry.runtime_data, {2}, stale)
+    select = entity_id(hass, "select", "2-1.1_sim")
+
+    for _ in range(2):
+        with pytest.raises(HomeAssistantError, match="no SIM in slot 2"):
+            await hass.services.async_call(
+                "select",
+                "select_option",
+                {"entity_id": select, "option": "sim_2"},
+                blocking=True,
+            )
+        stale["on"] = True
+
+    assert switches == [2, 1, 2, 1]
 
 
 async def test_switching_to_a_slot_with_a_sim_stays(

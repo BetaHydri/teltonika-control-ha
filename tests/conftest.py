@@ -48,8 +48,13 @@ def no_delays(monkeypatch: pytest.MonkeyPatch) -> None:
         "PORTAL_POLL_INTERVAL",
         "PRIORITY_VERIFY_DELAY",
         "SIM_SWITCH_POLL",
+        "SIM_SWITCH_SETTLE",
     ):
         monkeypatch.setattr(f"custom_components.teltonika_control.coordinator.{name}", 0)
+    # Long enough for the fake clock below to let a SIM switch watch conclude.
+    monkeypatch.setattr(
+        "custom_components.teltonika_control.coordinator.SIM_SWITCH_CHECK_SECONDS", 300
+    )
 
     # Each reading of the portal deadline clock jumps 30 s, so a one minute
     # wait ends after a few polls instead of after a real minute.

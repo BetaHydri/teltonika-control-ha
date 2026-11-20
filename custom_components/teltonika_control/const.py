@@ -64,7 +64,8 @@ PORT_FORWARD_REFRESH_DELAY = 2
 # After a SIM switch: seconds between two looks at the modem and how long the
 # new slot is checked for a SIM before the switch counts as done.
 SIM_SWITCH_POLL = 5
-SIM_SWITCH_CHECK_SECONDS = 60
+SIM_SWITCH_SETTLE = 20
+SIM_SWITCH_CHECK_SECONDS = 90
 
 # Returns HTTP 204 with working internet; a captive portal answers with
 # a redirect or a login page instead.

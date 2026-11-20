@@ -400,7 +400,7 @@ The binary sensor **No SIM in the active slot** is on while the router reports
 the SIM state `Not inserted` for the active slot. Without a SIM the signal
 sensors turn unknown and the modem has no service, so use it to see why. When
 you switch the **SIM slot** with the integration, it watches the modem for up
-to a minute; if the new slot holds no SIM, it switches back to the previous
+to 90 seconds; if the new slot holds no SIM, it switches back to the previous
 slot and reports an error. If the old slot is empty as well (for example when
 you use only Wi-Fi or Ethernet), nothing is switched back. A router with one SIM slot has no **SIM slot** select; the sensor still shows an empty slot. A slot you change on the router itself is not
 switched back, only shown by the sensor.

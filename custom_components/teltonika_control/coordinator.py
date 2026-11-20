@@ -66,6 +66,7 @@ from .const import (
     ROAMING_REFRESH_DELAY,
     SIM_SWITCH_CHECK_SECONDS,
     SIM_SWITCH_POLL,
+    SIM_SWITCH_SETTLE,
     SLOW_PAGE_PAUSE,
     UPLINK_WIFI,
     VPN_FAMILIES,
@@ -199,6 +200,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self._fetched_at: dict[str, float] = {}
         self._slow_until: dict[str, float] = {}
         self._missing_until: dict[str, float] = {}
+        self._last_sim_switch: float | None = None
         # Short text per page for the debug log and the diagnostics download.
         self._page_notes: dict[str, str] = {}
         self._reported = False
@@ -1048,10 +1050,16 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         previous_sim = int(modem.get("active_sim") or 0)
         if previous_sim == target_sim:
             return
-        # With no SIM in the old slot either, there is nothing to go back to.
-        previous_empty = modem_sim_missing(modem) is True
+        # Right after a switch the modem may still report "Not inserted" for the
+        # slot it just left, so only a settled reading says the old slot is empty.
+        settled = (
+            self._last_sim_switch is None
+            or _monotonic() - self._last_sim_switch > SIM_SWITCH_CHECK_SECONDS
+        )
+        previous_empty = settled and modem_sim_missing(modem) is True
         async with translate_errors():
             await self.client.async_switch_sim(modem_id)
+        self._last_sim_switch = _monotonic()
         if previous_empty or not await self._async_new_slot_is_empty(
             modem_id, target_sim
         ):
@@ -1060,6 +1068,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         _LOGGER.debug("Slot %s holds no SIM, switching back", target_sim)
         async with translate_errors():
             await self.client.async_switch_sim(modem_id)
+        self._last_sim_switch = _monotonic()
         await self.async_request_refresh()
         raise HomeAssistantError(
             f"There is no SIM in slot {target_sim}. The router was switched "
@@ -1069,10 +1078,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
     async def _async_new_slot_is_empty(self, modem_id: str, target_sim: int) -> bool:
         """Watch the modem after a switch and return True if the slot has no SIM.
 
-        A slot with a SIM must be reported twice in a row, because the modem may
-        still show the state of the old slot while it switches.
+        "Not inserted" shows within seconds. "Inserted" can take about half a
+        minute to appear, and until then the modem may still report the state of
+        the old slot, so a slot with a SIM counts only after two readings once
+        the settle time has passed.
         """
-        deadline = _monotonic() + SIM_SWITCH_CHECK_SECONDS
+        started = _monotonic()
+        deadline = started + SIM_SWITCH_CHECK_SECONDS
         present_readings = 0
         while _monotonic() < deadline:
             await asyncio.sleep(SIM_SWITCH_POLL)
@@ -1084,7 +1096,10 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             missing = modem_sim_missing(modem)
             if missing:
                 return True
-            present_readings = present_readings + 1 if missing is False else 0
+            if missing is None or _monotonic() - started < SIM_SWITCH_SETTLE:
+                present_readings = 0
+                continue
+            present_readings += 1
             if present_readings >= 2:
                 return False
         return False

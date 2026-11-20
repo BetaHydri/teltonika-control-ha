@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-11-20
+
+### Fixed
+
+- **A second switch to an empty SIM slot right after the first was not undone.**
+  After a switch the modem keeps reporting the old slot's SIM state for about
+  half a minute, so the integration took the old slot for empty and left the
+  router on the empty slot. A reading right after a switch no longer counts as
+  the state of the old slot. A slot with a SIM is now confirmed only after 20
+  seconds and two readings, and the watch lasts up to 90 seconds.
+
 ## [0.20.0] - 2026-11-20
 
 ### Added
@@ -16,7 +27,7 @@ and this project adheres to
   the router reports the SIM state `Not inserted`. Before, an empty slot only
   showed as unknown signal values and "No service".
 - **A switch to an empty SIM slot is undone.** After the SIM slot select
-  switches the slot, the integration watches the modem for up to a minute. If
+  switches the slot, the integration watches the modem for up to 90 seconds. If
   the new slot holds no SIM, it switches back to the previous slot and shows an
   error. With no SIM in either slot nothing is switched back. The sample dashboard shows a red pill while the active slot is empty.
 
