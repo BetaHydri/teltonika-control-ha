@@ -354,6 +354,7 @@ automatically.
 | Wi-Fi password | text | Password for the next network; only a mask is shown, never the text |
 | Add selected network | button | Saves the found network with the password |
 | Saved networks | select | Wi-Fi clients and Multi AP list entries saved on the router |
+| Connect selected network | button | Makes the router try the selected saved network now (reconnects that client; a Multi AP entry is moved to the top of the list first) |
 | Remove selected network | button | Removes the selected saved network |
 | Last Wi-Fi action | sensor | Says `Scanning for networks ...` while a scan runs, then the result of the scan, add or remove |
 | Router time | sensor | The router's clock. Diagnostic, disabled by default |
@@ -652,6 +653,15 @@ dashboard needs no helpers or scripts:
    characters) first". Mobile data stays preferred.
 5. **Last Wi-Fi action** (sensor) shows what is happening and the result, for
    example `Scanning for networks ...`, `Saved Camp5` or `Scan failed: ...`.
+
+To connect to a saved network by hand, for example after arriving at a
+campsite, choose it in **Saved networks** and press **Connect selected
+network**. A Wi-Fi client is reconnected. An entry of the Multi AP list is
+moved to the top of the list (the router tries the list by priority, lowest
+number first) and the Multi AP radio reconnects, so the router does not first
+try every other saved network. The other entries keep their order below it.
+Then use the portal mode to confirm the hotspot login page, see
+[Hotspots With a Login Page](#hotspots-with-a-login-page).
 
 To remove a network, choose it in **Saved networks** and press **Remove
 selected network**. The list holds the Wi-Fi client networks and the entries of

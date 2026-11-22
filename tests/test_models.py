@@ -19,6 +19,7 @@ from custom_components.teltonika_control.models import (
     derive_wifi_first,
     is_protected_interface,
     modem_temperature,
+    multi_ap_priorities_first,
     next_multi_ap_priority,
     normalize_band,
     radio_occupant,
@@ -230,6 +231,43 @@ def test_radio_occupant_finds_client_and_multi_ap_but_not_access_points() -> Non
 )
 def test_next_multi_ap_priority(entries, expected) -> None:
     assert next_multi_ap_priority(entries) == expected
+
+
+@pytest.mark.parametrize(
+    ("entries", "ssid", "expected"),
+    [
+        ([], "Camp", {}),
+        ([{"id": "a", "ssid": "Camp", "priority": "1"}], "Camp", {}),
+        (
+            [
+                {"id": "a", "ssid": "Home", "priority": "1"},
+                {"id": "b", "ssid": "Camp", "priority": "2"},
+            ],
+            "Camp",
+            {"b": 1, "a": 2},
+        ),
+        (
+            [
+                {"id": "a", "ssid": "Home", "priority": "5"},
+                {"id": "b", "ssid": "Camp", "priority": "9"},
+                {"id": "c", "ssid": "Other", "priority": "7"},
+            ],
+            "Camp",
+            {"b": 1, "a": 2, "c": 3},
+        ),
+        (
+            [
+                {"id": "a", "ssid": "Home", "priority": "1"},
+                {"id": "b", "ssid": "Camp", "priority": "2"},
+            ],
+            "Home",
+            {},
+        ),
+        ([{"id": "a", "ssid": "Home"}, {"id": "b", "ssid": "Camp"}], "Camp", {"b": 1, "a": 2}),
+    ],
+)
+def test_multi_ap_priorities_first(entries, ssid, expected) -> None:
+    assert multi_ap_priorities_first(entries, ssid) == expected
 
 
 @pytest.mark.parametrize(

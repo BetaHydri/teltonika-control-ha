@@ -433,6 +433,27 @@ def next_multi_ap_priority(entries: Iterable[dict[str, Any]]) -> int:
     return max([0, *(to_int(e.get("priority"), 0) or 0 for e in entries)]) + 1
 
 
+def multi_ap_priorities_first(
+    entries: Iterable[dict[str, Any]], ssid: str
+) -> dict[str, int]:
+    """Return the new priorities that put the entries of one SSID first.
+
+    The router tries the Multi AP list in ascending priority. The list is
+    renumbered 1, 2, 3 ... keeping the old order; only changed entries are
+    returned (entry ID -> new priority).
+    """
+    ordered = sorted(
+        (e for e in entries if e.get("id") is not None),
+        key=lambda e: to_int(e.get("priority"), 0) or 0,
+    )
+    ordered.sort(key=lambda e: e.get("ssid") != ssid)
+    return {
+        str(entry["id"]): number
+        for number, entry in enumerate(ordered, start=1)
+        if to_int(entry.get("priority")) != number
+    }
+
+
 # Default interfaces of the router; only interfaces created for a Wi-Fi client
 # may be removed together with the saved network.
 PROTECTED_INTERFACE_IDS = frozenset(

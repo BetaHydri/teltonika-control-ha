@@ -1622,6 +1622,13 @@ views:
                   show_name: true
                   show_state: false
                   state_background: false
+                - entity: button.my_router_connect_selected_network
+                  icon: mdi:wifi-refresh
+                  name: Connect
+                  show_icon: true
+                  show_name: true
+                  show_state: false
+                  state_background: false
                 - entity: button.my_router_remove_selected_network
                   icon: mdi:wifi-minus
                   name: Remove

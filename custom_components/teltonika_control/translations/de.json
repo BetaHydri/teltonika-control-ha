@@ -184,6 +184,7 @@
       "restart_mobile": { "name": "Mobilfunk neu verbinden" },
       "scan_wifi": { "name": "WLANs suchen" },
       "add_network": { "name": "Ausgewähltes WLAN hinzufügen" },
+      "connect_network": { "name": "Ausgewähltes WLAN verbinden" },
       "remove_network": { "name": "Ausgewähltes WLAN entfernen" },
       "reconnect_vpn": { "name": "WireGuard {name} neu verbinden" },
       "reconnect_vpn_instance": { "name": "{name} neu verbinden" },

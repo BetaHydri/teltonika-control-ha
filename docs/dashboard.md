@@ -141,6 +141,7 @@ differ. These are the entities the dashboard uses:
 | Add selected network | `button.my_router_add_selected_network` |
 | Last Wi-Fi action | `sensor.my_router_last_wi_fi_action` |
 | Saved networks | `select.my_router_saved_networks` |
+| Connect selected network | `button.my_router_connect_selected_network` |
 | Remove selected network | `button.my_router_remove_selected_network` |
 | Position | `device_tracker.my_router_position` |
 | GPS speed, altitude, satellites, accuracy | `sensor.my_router_gps_speed`, `_gps_altitude`, `_gps_satellites`, `_gps_accuracy` |
@@ -235,8 +236,10 @@ list. Fix that entity and save again.
   The result pill tells you what happened. Mobile data stays preferred, so a
   new network never breaks your connection by itself.
 - **Saved Wi-Fi networks**: choose a saved network (a Wi-Fi client or an entry
-  of the Multi AP list) and press **Remove**. The last Multi AP entry cannot
-  be removed. Below it, the router's own Wi-Fi has a switch per band.
+  of the Multi AP list) and press **Connect** to make the router try it now
+  (a Multi AP entry moves to the top of the list), or **Remove**. The last
+  Multi AP entry cannot be removed. Below it, the router's own Wi-Fi has a
+  switch per band.
 - **GPS**: a map with the router's position plus speed, altitude, satellites
   and accuracy, on routers with GPS.
 

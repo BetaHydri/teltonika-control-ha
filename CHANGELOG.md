@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-22
+
+### Added
+
+- **Connect selected network.** A button next to **Saved networks** that makes
+  the router try the selected saved network now instead of after it has tried
+  every other saved network, for example after a move to a new campsite. A
+  Wi-Fi client is reconnected. A Multi AP list entry is moved to the top of the
+  list (priority 1, the others follow in their old order) and the Multi AP
+  radio reconnects. The sample dashboard has a **Connect** button.
+
 ## [0.20.1] - 2026-11-20
 
 ### Fixed

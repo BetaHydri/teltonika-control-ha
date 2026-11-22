@@ -839,6 +839,92 @@ async def test_saved_networks_include_multi_ap_entries(
     assert not requests(aioclient_mock, "DELETE", "/wireless/multi_ap/config/cfg1")
 
 
+async def test_connect_button_reconnects_the_selected_client(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    saved = entity_id(hass, "select", "saved_networks")
+    connect = entity_id(hass, "button", "connect_network")
+
+    with pytest.raises(HomeAssistantError, match="Select a saved network"):
+        await press(hass, connect)
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": saved, "option": "CampWifi (2.4 GHz)"},
+        blocking=True,
+    )
+    await press(hass, connect)
+
+    assert requests(aioclient_mock, "POST", "/wireless/actions/reconnect")[0][2] == {
+        "data": {"sta_id": "6"}
+    }
+    assert hass.states.get(entity_id(hass, "sensor", "last_action")).state == (
+        "Connecting to CampWifi ..."
+    )
+
+
+async def test_connect_button_puts_a_multi_ap_entry_first(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_multi_ap_router(
+        aioclient_mock,
+        [
+            {"id": "cfg1", "ssid": "Home", "priority": "1"},
+            {"id": "cfg2", "ssid": "Camp5", "priority": "2"},
+        ],
+    )
+    await setup_entry(hass, entry)
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": entity_id(hass, "select", "saved_networks"),
+            "option": "Camp5 (5 GHz, Multi AP)",
+        },
+        blocking=True,
+    )
+    await press(hass, entity_id(hass, "button", "connect_network"))
+
+    assert requests(aioclient_mock, "PUT", "/wireless/multi_ap/config/cfg2")[0][2] == {
+        "data": {"priority": "1"}
+    }
+    assert requests(aioclient_mock, "PUT", "/wireless/multi_ap/config/cfg1")[0][2] == {
+        "data": {"priority": "2"}
+    }
+    reconnects = requests(aioclient_mock, "POST", "/wireless/actions/reconnect")
+    assert [r[2] for r in reconnects] == [{"data": {"sta_id": "multi_radio1"}}]
+
+
+async def test_connect_button_leaves_a_first_multi_ap_entry_alone(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_multi_ap_router(
+        aioclient_mock,
+        [
+            {"id": "cfg1", "ssid": "Home", "priority": "1"},
+            {"id": "cfg2", "ssid": "Camp5", "priority": "2"},
+        ],
+    )
+    await setup_entry(hass, entry)
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {
+            "entity_id": entity_id(hass, "select", "saved_networks"),
+            "option": "Home (5 GHz, Multi AP)",
+        },
+        blocking=True,
+    )
+    await press(hass, entity_id(hass, "button", "connect_network"))
+
+    assert not requests(aioclient_mock, "PUT", "/wireless/multi_ap/config/cfg1")
+    assert not requests(aioclient_mock, "PUT", "/wireless/multi_ap/config/cfg2")
+    assert len(requests(aioclient_mock, "POST", "/wireless/actions/reconnect")) == 1
+
+
 async def test_router_with_multi_ap_on_2_4_ghz_and_a_client_on_5_ghz(
     hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
 ) -> None:

@@ -250,6 +250,19 @@ class TeltonikaAddNetworkButton(TeltonikaEntity, ButtonEntity):
         await self.coordinator.async_add_selected_network()
 
 
+class TeltonikaConnectNetworkButton(TeltonikaEntity, ButtonEntity):
+    """Makes the router try the selected saved network now."""
+
+    _attr_translation_key = "connect_network"
+
+    def __init__(self, coordinator: TeltonikaCoordinator) -> None:
+        super().__init__(coordinator, "connect_network")
+
+    async def async_press(self) -> None:
+        """Reconnect to the selected network."""
+        await self.coordinator.async_connect_selected_network()
+
+
 class TeltonikaRemoveNetworkButton(TeltonikaEntity, ButtonEntity):
     """Removes the selected saved network."""
 
@@ -266,5 +279,6 @@ class TeltonikaRemoveNetworkButton(TeltonikaEntity, ButtonEntity):
 WIFI_MANAGEMENT_BUTTONS = (
     ("scan_wifi", TeltonikaScanWifiButton),
     ("add_network", TeltonikaAddNetworkButton),
+    ("connect_network", TeltonikaConnectNetworkButton),
     ("remove_network", TeltonikaRemoveNetworkButton),
 )

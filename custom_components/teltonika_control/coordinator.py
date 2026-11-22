@@ -92,6 +92,7 @@ from .models import (
     is_modem_online,
     is_protected_interface,
     modem_sim_missing,
+    multi_ap_priorities_first,
     next_multi_ap_priority,
     normalize_band,
     radio_band,
@@ -1344,6 +1345,40 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             raise
         self.selected_saved = None
         self._report(f"Removed {saved.ssid}")
+
+    async def async_connect_selected_network(self) -> None:
+        """Make the router try the selected saved network now."""
+        saved = next(
+            (s for s in self.data.saved_networks if s.label == self.selected_saved), None
+        )
+        if saved is None:
+            raise HomeAssistantError("Select a saved network first")
+        if saved.kind == SAVED_MULTI_AP:
+            stations = [s for s in self.data.stations if s.mode == "multi_ap"]
+        else:
+            stations = [s for s in self.data.stations if s.config_id == saved.config_id]
+        if not stations:
+            message = f"{saved.ssid} has no Wi-Fi client to reconnect"
+            self._report(f"{saved.ssid} not connected: {message}")
+            raise HomeAssistantError(message)
+        _LOGGER.debug("Action: connect the selected saved network (%s)", saved.kind)
+        try:
+            async with translate_errors():
+                if saved.kind == SAVED_MULTI_AP:
+                    # The router tries the Multi AP list in priority order, so the
+                    # selected network goes first before the radio reconnects.
+                    entries = await self.client.async_multi_ap_config()
+                    for entry_id, priority in multi_ap_priorities_first(
+                        entries, saved.ssid
+                    ).items():
+                        await self.client.async_set_multi_ap_priority(entry_id, priority)
+                for station in stations:
+                    await self.client.async_reconnect_wifi(station.config_id)
+        except HomeAssistantError as err:
+            self._report(f"{saved.ssid} not connected: {err}")
+            raise
+        self._report(f"Connecting to {saved.ssid} ...")
+        await self.async_request_refresh()
 
     async def async_start_portal_mode(self, minutes: int) -> None:
         """Prefer Wi-Fi and wait until the hotspot login page is confirmed."""

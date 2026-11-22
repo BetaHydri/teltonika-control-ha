@@ -586,6 +586,14 @@ class TeltonikaClient:
             "POST", "/wireless/multi_ap/config", json={"data": payload}
         )
 
+    async def async_set_multi_ap_priority(self, entry_id: str, priority: int) -> None:
+        """Set the priority of a Multi AP list entry (lower is tried first)."""
+        await self.async_request(
+            "PUT",
+            f"/wireless/multi_ap/config/{quote(entry_id, safe='')}",
+            json={"data": {"priority": str(priority)}},
+        )
+
     async def async_update_multi_ap_key(self, entry_id: str, password: str) -> None:
         """Change the password of a Multi AP list entry."""
         await self.async_request(

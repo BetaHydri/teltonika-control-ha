@@ -258,6 +258,15 @@ data:
   password: "the Wi-Fi password"
 ```
 
+### Connect to a saved Wi-Fi network
+
+After arriving at a new place, choose the network in **Saved networks** and
+press **Connect selected network**. The router then tries that network now
+instead of waiting. A Wi-Fi client is reconnected. An entry of a Multi AP list
+is moved to the top of the list first (the router tries the list by priority)
+and the Multi AP radio reconnects.
+**Last Wi-Fi action** shows `Connecting to ... ...`.
+
 ### Remove a Wi-Fi network
 
 Choose the network in **Saved networks** and press **Remove selected
