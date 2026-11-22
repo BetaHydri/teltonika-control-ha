@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-11-22
+
+### Fixed
+
+- **Switching the uplink priority failed while no Wi-Fi was connected.** The
+  router answered the Wi-Fi reconnect with "failed to parse interface device"
+  and Home Assistant showed an error, although the new priority was already
+  saved, and a second saved network was left out. A reconnect that the router
+  refuses no longer stops the change; the priority counts when the Wi-Fi
+  connects.
+
 ## [0.21.0] - 2026-11-22
 
 ### Added

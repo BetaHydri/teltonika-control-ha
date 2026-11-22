@@ -1114,8 +1114,15 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
                     await self.client.async_set_interface_metric(
                         station.interface_id, metric
                     )
-                # Reconnect so netifd installs the route with the new metric.
-                await self.client.async_reconnect_wifi(station.config_id)
+                # Reconnect so netifd installs the route with the new metric. A
+                # Wi-Fi that is not connected (nothing in range) cannot reconnect;
+                # the metric is saved anyway and counts when it connects.
+                try:
+                    await self.client.async_reconnect_wifi(station.config_id)
+                except TeltonikaApiError as err:
+                    _LOGGER.debug(
+                        "Station %s did not reconnect: %s", station.config_id, err
+                    )
 
     async def async_set_wifi_priority(
         self, wifi_first: bool, *, verify: bool = False

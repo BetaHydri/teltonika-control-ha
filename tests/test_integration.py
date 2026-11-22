@@ -621,6 +621,36 @@ async def test_services_accept_an_entity_of_the_router_as_target(
     )
 
 
+async def test_priority_change_survives_a_wifi_that_cannot_reconnect(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    """The router says "failed to parse interface device" while no Wi-Fi is connected."""
+    aioclient_mock.post(
+        f"{BASE}/wireless/actions/reconnect",
+        status=400,
+        json={
+            "success": False,
+            "errors": [{"code": 1, "error": "failed to parse interface device"}],
+        },
+    )
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "set_priority",
+        {
+            "entity_id": entity_id(hass, "sensor", "uplink"),
+            "wifi_first": False,
+            "verify": False,
+        },
+        blocking=True,
+    )
+
+    assert requests(aioclient_mock, "PUT", "/interfaces/config/wan2")
+    assert requests(aioclient_mock, "POST", "/wireless/actions/reconnect")
+
+
 async def test_service_without_any_target_is_rejected(
     hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
 ) -> None:
