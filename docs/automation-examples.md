@@ -22,6 +22,7 @@ The rules behind them are on the [best practices](best-practices.md) page.
 - [Send an SMS when the data volume runs low](#send-an-sms-when-the-data-volume-runs-low)
 - [Send the position by SMS](#send-the-position-by-sms)
 - [Alarm by SMS when the camper moves](#alarm-by-sms-when-the-camper-moves)
+  ([with the presence trackers](#with-the-presence-trackers))
 - [Daily status by SMS](#daily-status-by-sms)
 - [Download new firmware at night](#download-new-firmware-at-night)
 - [Move the home zone with the camper](#move-the-home-zone-with-the-camper)
@@ -542,6 +543,46 @@ the internet; the SMS does not. To get an update while the camper keeps moving,
 add a `time_pattern` trigger (for example every 15 minutes) with the same
 conditions. A person without a position counts as far away, so keep the phone
 location of the people you want to count switched on.
+
+### With the presence trackers
+
+The check "nobody is with the camper" is more reliable with the
+[presence trackers](../README.md#presence-who-is-on-the-wi-fi): a phone on the
+Wi-Fi of the router is in the camper, with or without a GPS position. The
+automation then needs no person positions, only the trackers of the devices
+you chose (replace `device_tracker.me_router` and `device_tracker.partner_router`):
+
+```yaml
+automation:
+  - alias: "Router: alarm when the camper moves and nobody is on its Wi-Fi"
+    triggers:
+      - trigger: template
+        value_template: >-
+          {{ distance('device_tracker.my_router_position', 'zone.camper_spot') * 1000 > 200 }}
+        for: "00:03:00"
+    conditions:
+      - condition: state
+        entity_id:
+          - device_tracker.me_router
+          - device_tracker.partner_router
+        state: not_home
+    actions:
+      - action: teltonika_control.send_sms
+        target:
+          entity_id: sensor.my_router_sms_messages
+        data:
+          number: "+491701234567"
+          message: >-
+            ALARM: camper is moving. https://www.google.com/maps?q={{
+              state_attr('device_tracker.my_router_position', 'latitude') | round(6) }},{{
+              state_attr('device_tracker.my_router_position', 'longitude') | round(6) }}
+```
+
+All listed trackers must be `not_home` (the default of a state condition for
+several entities). Know the limits: a phone that stays in the camper keeps the
+alarm silent, and while the router does not answer the Wi-Fi status the
+trackers are `unavailable`, so the condition does not match. The GPS position
+comes from the same router, so in that case there is no position either.
 
 ## Daily status by SMS
 
