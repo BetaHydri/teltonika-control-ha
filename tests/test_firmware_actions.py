@@ -22,7 +22,7 @@ from custom_components.teltonika_control.const import (
 )
 from custom_components.teltonika_control.models import derive_firmware_download
 
-from .conftest import entity_id, find_device, mock_router
+from .conftest import BASE, entity_id, find_device, mock_router
 from .payloads import SERIAL
 from .test_integration import requests, setup_entry
 
@@ -342,6 +342,103 @@ async def test_missing_firmware_file_makes_the_old_result_stale(
 
     assert coordinator.firmware_state == "update_available"
     with pytest.raises(HomeAssistantError, match="Download the firmware first"):
+        await coordinator.async_install_firmware()
+
+
+NOT_FOUND = {
+    "success": False,
+    "errors": [{"code": 1, "error": "Firmware file not found in the device."}],
+}
+
+
+async def test_the_downloaded_file_is_checked_once_and_the_status_stays_ready(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+
+    for _ in range(3):
+        await coordinator.async_refresh()
+
+    assert hass.states.get(entity_id(hass, "sensor", "firmware_state")).state == "ready"
+    assert len(requests(aioclient_mock, "POST", "/firmware/actions/verify")) == 1
+    assert not requests(aioclient_mock, "POST", "/firmware/actions/upgrade")
+
+
+async def test_a_file_that_is_gone_is_not_called_ready(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    """The router's progress page says succeeded for a file it no longer has."""
+    aioclient_mock.post(f"{BASE}/firmware/actions/verify", status=400, json=NOT_FOUND)
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+
+    assert hass.states.get(entity_id(hass, "sensor", "firmware_state")).state == (
+        "update_available"
+    )
+    with pytest.raises(HomeAssistantError, match="Download the firmware first"):
+        await coordinator.async_install_firmware()
+    assert not requests(aioclient_mock, "POST", "/firmware/actions/upgrade")
+
+    # A new download starts over and is checked again once it is complete.
+    await coordinator.async_download_firmware()
+    coordinator.download_requested_at = time.monotonic() - FIRMWARE_DOWNLOAD_SETTLE - 1
+    assert coordinator.firmware_state == "ready"
+
+
+async def test_an_unclear_answer_keeps_the_status_and_is_asked_again_later(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    aioclient_mock.post(
+        f"{BASE}/firmware/actions/verify",
+        status=500,
+        json={"success": False, "errors": [{"code": 5, "error": "busy"}]},
+    )
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+    assert hass.states.get(entity_id(hass, "sensor", "firmware_state")).state == "ready"
+    assert len(requests(aioclient_mock, "POST", "/firmware/actions/verify")) == 1
+
+    await coordinator.async_refresh()
+    assert len(requests(aioclient_mock, "POST", "/firmware/actions/verify")) == 1
+
+    coordinator._file_check_retry_at = 0.0
+    await coordinator.async_refresh()
+    assert len(requests(aioclient_mock, "POST", "/firmware/actions/verify")) == 2
+    assert coordinator.firmware_state == "ready"
+
+
+async def test_no_check_while_the_firmware_is_up_to_date(
+    hass: HomeAssistant, aioclient_mock: Any, entry: MockConfigEntry
+) -> None:
+    mock_router(
+        aioclient_mock,
+        firmware={"device": {"stable_version": "RUTC_R_00.07.26.2"}},
+        firmware_progress={"percents": "100", "process": "succeeded"},
+    )
+    await setup_entry(hass, entry)
+
+    assert not requests(aioclient_mock, "POST", "/firmware/actions/verify")
+
+
+async def test_install_with_a_gone_file_explains_what_to_do(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_router(aioclient_mock)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+
+    async def refused(keep_settings: bool = True) -> None:
+        raise TeltonikaApiError("Firmware file not found in the device.", status=400)
+
+    monkeypatch.setattr(coordinator.client, "async_firmware_upgrade", refused)
+    with pytest.raises(HomeAssistantError, match="Download firmware again"):
         await coordinator.async_install_firmware()
 
 

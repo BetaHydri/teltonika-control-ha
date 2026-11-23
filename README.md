@@ -966,9 +966,15 @@ button in your dashboard (the sample dashboard does).
 
 **Notes.** The router's progress page does not say which version it holds and
 keeps showing the result of an old download. The status therefore shows
-`downloading` for the first seconds after you press **Download firmware**, and
-a failed installation with "Firmware file not found" puts it back to
-`update_available`: download again. If the update server has no stable release
+`downloading` for the first seconds after you press **Download firmware**. It
+also keeps saying "succeeded" for a file that the router has deleted since, for
+example when it restarted after the download. Before the status says `ready`,
+the integration therefore asks the router once whether the file is still there
+(the same check the router's web interface runs after a download, nothing is
+installed). If it is gone, the status stays `update_available`: download again.
+A failed installation with "Firmware file not found" does the same. If the
+router gives no clear answer, the status is left as it is and the check is
+repeated later. If the update server has no stable release
 for your router (it reports the version `newest`), the download asks for the
 latest release instead; the router's own default would download nothing. The
 installation is not tried on real hardware by the author: do it first on a

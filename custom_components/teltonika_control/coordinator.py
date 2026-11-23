@@ -58,6 +58,7 @@ from .const import (
     FIRMWARE_DOWNLOAD_SETTLE,
     FIRMWARE_INSTALL_GRACE,
     FIRMWARE_INSTALL_TIMEOUT,
+    FIRMWARE_VERIFY_RETRY,
     FIRMWARE_WATCH_SECONDS,
     GPS_GLITCH_POLLS,
     METRIC_MOBILE_FIRST,
@@ -261,6 +262,10 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         # "succeeded" turned out to belong to a file that is gone.
         self.download_requested_at: float | None = None
         self.stale_download = False
+        # The firmware version whose downloaded file was found on the router, and
+        # when to look again after an unclear answer.
+        self._file_checked: str | None = None
+        self._file_check_retry_at = 0.0
         # An installation we started: when, from which version, and whether it failed.
         self.installing_since: float | None = None
         self._install_from: str | None = None
@@ -438,6 +443,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         data.portal_waiting = self.portal_waiting
         self._update_presence(data, parts["wireless_status"] is not None)
         self._track_firmware(installed)
+        await self._async_check_firmware_file(data)
         self._remember_position(data)
         self._announce_new_sms(data)
         probe_internet = bool(self._probe_url) and data.uplink is not None
@@ -451,6 +457,49 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data.vpn_reachable, data.vpn_latency = vpn
         self._log_state(data)
         return data
+
+    async def _async_check_firmware_file(self, data: TeltonikaData) -> None:
+        """Find out whether the firmware the router calls downloaded is still there.
+
+        The router's download page keeps saying "succeeded" for a file that is
+        gone, for example after the router restarted. The status would say
+        "ready" for hours and the installation then fails with "file not found".
+        The verify step of the router's web interface tells whether the file
+        exists. Only a clear "not found" counts; any other answer leaves the
+        status as it is, and the check is repeated later. One check per version.
+        """
+        firmware, download = data.firmware, data.firmware_download
+        if (
+            firmware is None
+            or firmware.update_available is not True
+            or download is None
+            or not download.ready
+            or self.stale_download
+            or self.installing_since is not None
+            or self._file_checked == firmware.latest
+            or time.monotonic() < self._file_check_retry_at
+            or (
+                self.download_requested_at is not None
+                and time.monotonic() - self.download_requested_at < FIRMWARE_DOWNLOAD_SETTLE
+            )
+        ):
+            return
+        try:
+            await self.client.async_firmware_verify()
+        except TeltonikaApiError as err:
+            if "not found" in str(err).lower():
+                _LOGGER.debug("The downloaded firmware file is gone from the router: %s", err)
+                self.stale_download = True
+                self._file_checked = firmware.latest
+                return
+            _LOGGER.debug("The firmware file could not be checked: %s", err)
+        except TeltonikaError as err:
+            _LOGGER.debug("The firmware file could not be checked: %s", err)
+        else:
+            _LOGGER.debug("The downloaded firmware file is on the router")
+            self._file_checked = firmware.latest
+            return
+        self._file_check_retry_at = time.monotonic() + FIRMWARE_VERIFY_RETRY
 
     def _update_presence(self, data: TeltonikaData, wifi_known: bool) -> None:
         """Mark the tracked devices that are on the Wi-Fi, or were a moment ago.
@@ -897,6 +946,8 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         # has caught up, the old "succeeded" must not count as this download.
         self.download_requested_at = time.monotonic()
         self.stale_download = False
+        self._file_checked = None
+        self._file_check_retry_at = 0.0
         self._watch_download_until = self.download_requested_at + FIRMWARE_WATCH_SECONDS
         await self.async_request_refresh()
 
@@ -932,6 +983,12 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             # The router says it has no file: its "succeeded" was an old result.
             if "not found" in str(err).lower():
                 self.stale_download = True
+                self.async_update_listeners()
+                raise HomeAssistantError(
+                    "The router no longer has the downloaded firmware file (not found), "
+                    "for example because it restarted after the download. Press "
+                    "Download firmware again and install when the status is ready."
+                ) from err
             self.async_update_listeners()
             raise
         finally:

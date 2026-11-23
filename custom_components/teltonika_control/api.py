@@ -410,6 +410,17 @@ class TeltonikaClient:
             timeout=ACTION_TIMEOUT,
         )
 
+    async def async_firmware_verify(self) -> dict[str, Any]:
+        """Check the downloaded firmware file; the router answers "not found" without one.
+
+        This is the step the router's web interface runs after a download. It
+        only reads the file and does not install anything.
+        """
+        data = await self.async_request(
+            "POST", "/firmware/actions/verify", timeout=ACTION_TIMEOUT
+        )
+        return data if isinstance(data, dict) else {}
+
     async def async_firmware_upgrade(self, keep_settings: bool = True) -> None:
         """Install the downloaded firmware; the router restarts."""
         await self.async_request(

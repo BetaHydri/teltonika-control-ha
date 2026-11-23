@@ -8,6 +8,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-11-23
+
+### Fixed
+
+- **Firmware showed "ready" for a file the router no longer had.** The router's
+  download page keeps saying "succeeded" after the file was deleted, for
+  example by a restart of the router. The status then said `ready` for hours,
+  and **Install firmware** failed with "Firmware file not found in the device".
+  Before the status says `ready`, the integration now checks once per version
+  whether the file is still on the router (the verify step of the router's web
+  interface, it installs nothing). A file that is gone keeps the status at
+  `update_available`; any other answer leaves the status as it is and the check
+  is repeated later. The error of **Install firmware** now says what to do:
+  download again first.
+
 ## [0.23.0] - 2026-11-23
 
 ### Added

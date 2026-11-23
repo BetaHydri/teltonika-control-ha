@@ -203,6 +203,10 @@ def mock_router(
         method(f"{BASE}/firmware/actions/fota_download", json={"success": True})
         method(f"{BASE}/firmware/actions/upgrade", json={"success": True})
         method(
+            f"{BASE}/firmware/actions/verify",
+            json={"success": True, "data": {"valid": "1", "newer": "1"}},
+        )
+        method(
             f"{BASE}/messages/actions/send",
             json={"success": True, "data": {"sms_used": 2}},
         )

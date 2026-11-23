@@ -104,6 +104,9 @@ FIRMWARE_INSTALL_TIMEOUT = 1800
 FIRMWARE_INSTALL_GRACE = 600
 # After "Download firmware": seconds until the router's progress page is trusted.
 FIRMWARE_DOWNLOAD_SETTLE = 20
+# Seconds to wait before the downloaded firmware file is checked again after the
+# router gave no clear answer.
+FIRMWARE_VERIFY_RETRY = 300
 # How many of the newest SMS the inbox attribute lists.
 SMS_INBOX_SIZE = 10
 # States of the firmware update sensor, in the order of the process.
