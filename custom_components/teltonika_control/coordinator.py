@@ -38,11 +38,14 @@ from .const import (
     AP_REFRESH_DELAY,
     CONF_CONFIG_INTERVAL,
     CONF_DATA_PLAN,
+    CONF_PRESENCE_DELAY,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
+    CONF_TRACKED_DEVICES,
     CONF_VPN_HOST,
     CONF_VPN_PORT,
     DEFAULT_CONFIG_INTERVAL,
+    DEFAULT_PRESENCE_DELAY,
     DEFAULT_PROBE_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_VPN_PORT,
@@ -95,6 +98,7 @@ from .models import (
     multi_ap_priorities_first,
     next_multi_ap_priority,
     normalize_band,
+    normalize_mac,
     radio_band,
     radio_occupant,
     to_int,
@@ -221,6 +225,19 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         self._config_interval: float = entry.options.get(
             CONF_CONFIG_INTERVAL, DEFAULT_CONFIG_INTERVAL
         )
+        # Devices chosen in the options whose Wi-Fi presence is reported, and when
+        # each was last seen on an access point.
+        self.tracked_macs: tuple[str, ...] = tuple(
+            dict.fromkeys(
+                mac
+                for mac in map(normalize_mac, entry.options.get(CONF_TRACKED_DEVICES) or [])
+                if mac
+            )
+        )
+        self._presence_delay: float = (
+            float(entry.options.get(CONF_PRESENCE_DELAY, DEFAULT_PRESENCE_DELAY)) * 60
+        )
+        self._presence_seen: dict[str, float] = {}
         # State of the Wi-Fi management entities; the password is never stored.
         self.scan_results: list[ScanNetwork] = []
         self.selected_scan: str | None = None
@@ -414,6 +431,7 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             vpn_status={kind.key: parts[f"vpn_{kind.key}_status"] for kind in VPN_FAMILIES},
         )
         data.portal_waiting = self.portal_waiting
+        self._update_presence(data, parts["wireless_status"] is not None)
         self._track_firmware(installed)
         self._remember_position(data)
         self._announce_new_sms(data)
@@ -428,6 +446,26 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data.vpn_reachable, data.vpn_latency = vpn
         self._log_state(data)
         return data
+
+    def _update_presence(self, data: TeltonikaData, wifi_known: bool) -> None:
+        """Mark the tracked devices that are on the Wi-Fi, or were a moment ago.
+
+        A phone in standby drops off the access point for a short time, so a
+        device counts as away only after it was missing for the configured delay.
+        Without any answer of the Wi-Fi status page nothing is known.
+        """
+        if not self.tracked_macs:
+            return
+        data.presence_ready = wifi_known
+        now = _monotonic()
+        present: set[str] = set()
+        for mac in self.tracked_macs:
+            if mac in data.associated:
+                self._presence_seen[mac] = now
+            seen = self._presence_seen.get(mac)
+            if seen is not None and now - seen <= self._presence_delay:
+                present.add(mac)
+        data.present = frozenset(present)
 
     def _track_firmware(self, installed: str | None) -> None:
         """Follow the running firmware version and an installation in progress.
@@ -537,6 +575,13 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             len(online),
             data.vpn_reachable,
         )
+        if self.tracked_macs:
+            _LOGGER.debug(
+                "Presence: tracked=%d at_home=%d devices_on_wifi=%d",
+                len(self.tracked_macs),
+                len(data.present),
+                len(data.associated),
+            )
         if self._reported:
             return
         self._reported = True

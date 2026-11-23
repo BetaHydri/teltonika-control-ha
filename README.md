@@ -81,6 +81,9 @@ respective owners and are used here only to say which routers are supported.
   and [Failover](#failover).
 - **GPS tracking**: a device tracker for the map plus speed, altitude,
   satellites and accuracy, see [GPS](#gps).
+- **Who is in the camper**: a presence tracker for each phone you choose, home
+  while it is connected to the router's Wi-Fi, for a Home Assistant person.
+  See [Presence](#presence-who-is-on-the-wi-fi).
 - **The router's own Wi-Fi**: a switch for each access point that shows the
   real state, also when you change it in the router web interface.
 - **VPN**: a **VPN reachable** sensor for any site-to-site tunnel, plus state,
@@ -373,6 +376,7 @@ automatically.
 | Open port forwards | sensor | Number of port forwards that are on; the attribute `rules` lists them |
 | Firewall rules open to the internet | sensor | Number of traffic rules that are on and let outside traffic in; the attribute `rules` lists them |
 | Position | device tracker | Only on routers with GPS, see [GPS](#gps) |
+| *Device* (router) | device tracker | One per device chosen in the options: home while it is on the router's Wi-Fi. See [Presence](#presence-who-is-on-the-wi-fi) |
 | GPS speed, altitude, satellites, accuracy | sensors | Only on routers with GPS. Heading and fix status are disabled by default |
 
 ### Modem (one device per modem)
@@ -604,6 +608,54 @@ must be switched on in the router.
 If the user of the integration may not read the GPS data, the GPS entities do
 not appear. Give it read access to the GPS page, see the
 [permissions](#router-user-and-permissions).
+
+## Presence: who is on the Wi-Fi
+
+A phone that is connected to the router's own Wi-Fi is in the camper. That is
+more reliable than GPS: it works without a position, without the mobile
+network and without the phone's battery saver deciding when to report.
+
+The router tells which devices are connected to its access points. Choose the
+devices you want in the options (**Devices for presence**). For each one the
+integration creates a device tracker named after the device, for example
+`laptop (router)`. It is `home` while the device is connected to the Wi-Fi of
+the router and `not_home` when it is not.
+
+To use it for people, open **Settings**, **People**, choose the person and add
+the tracker under **Track device**. Home Assistant combines the trackers of a
+person: a tracker that comes from a router wins over the GPS of the phone, so
+the person is `home` as soon as the phone is on the Wi-Fi. In a Home Assistant
+that runs in the camper, `home` means in the camper.
+
+1. Connect the phone to the Wi-Fi of the router.
+2. Open the options of the integration (**Settings**, **Devices & services**,
+   **Teltonika Control**, **Configure**). **Devices for presence** lists the
+   devices the router knows by name and MAC address. A `●` marks the ones that
+   are on the Wi-Fi right now. Choose the phones. A MAC address can also be
+   typed.
+3. Add each new tracker to a person.
+
+Things to know:
+
+- **Minutes until away** (default 1) is how long a device may be missing from
+  the Wi-Fi before it counts as away. Phones in standby drop off the Wi-Fi for a
+  moment, so very short values can make the tracker flap. Set 0 for no delay.
+- Phones use a private Wi-Fi address (random MAC) per network. It stays the same
+  for the router's Wi-Fi, but changes when the phone forgets the network or the
+  setting is switched. Then choose the device again. Switching the private
+  address off for this network avoids it.
+- Only devices on the router's own access points count. A phone on mobile data
+  or on a campsite Wi-Fi is away, and a device on a cable is not found.
+- The tracker is unavailable while the router has not answered the Wi-Fi status.
+- The MAC addresses are not written to the debug log, and the diagnostics hide
+  them. The trackers show them as attributes, as Home Assistant does for every
+  router tracker.
+- Presence comes from the Wi-Fi status that the integration reads with every
+  update, so it adds no load on the router.
+
+Attributes of a tracker: `ip`, `host_name` and `mac` (from the router's lease
+list), `wifi_network` and `wifi_band` while connected. A tracker you take out of
+the options is removed from Home Assistant.
 
 ## Hotspots With a Login Page
 
@@ -972,6 +1024,9 @@ camper home zone. Services take any entity of the router as target.
   [VPN check](#vpn-check).
 - **Mobile data plan (GB)**: optional, the volume of your mobile contract per
   month. See [Mobile data limit](#mobile-data-limit).
+- **Devices for presence** and **Minutes until away**: optional, the devices
+  that are reported as home while they are on the Wi-Fi. See
+  [Presence](#presence-who-is-on-the-wi-fi).
 
 The integration reads the pages one after the other and keeps the load on the
 router low, because a RUTC50 has a weak CPU. If the router still feels slow,

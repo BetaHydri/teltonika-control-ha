@@ -533,6 +533,91 @@ def derive_access_points(
     return points
 
 
+def normalize_mac(value: Any) -> str | None:
+    """Return a MAC address as ``aa:bb:cc:dd:ee:ff``, or None if it is none."""
+    text = str(value or "").strip()
+    if not re.fullmatch(r"(?:[0-9a-fA-F]{2}[:\-]?){5}[0-9a-fA-F]{2}", text):
+        return None
+    digits = re.sub(r"[:\-]", "", text).lower()
+    return ":".join(digits[i : i + 2] for i in range(0, 12, 2))
+
+
+@dataclass(frozen=True, slots=True)
+class AssociatedDevice:
+    """A device that is connected to one of the router's own access points."""
+
+    mac: str
+    ssid: str | None
+    band: str | None
+
+
+def derive_associated(
+    wireless_config: Iterable[dict[str, Any]],
+    wireless_status: Iterable[dict[str, Any]],
+    wireless_devices: Iterable[dict[str, Any]],
+) -> dict[str, AssociatedDevice]:
+    """Return the devices on the router's access points, keyed by MAC address."""
+    configs = {str(item.get("id")): item for item in wireless_config}
+    devices = list(wireless_devices)
+    found: dict[str, AssociatedDevice] = {}
+    for row in wireless_status:
+        assoclist = row.get("assoclist")
+        if row.get("mode") not in (None, "ap") or not isinstance(assoclist, dict):
+            continue
+        config = configs.get(str(row.get("id")), {})
+        ssid = config.get("ssid") or row.get("ssid")
+        row_band = normalize_band(
+            frequency=row.get("freq") or row.get("frequency"),
+            channel=row.get("channel"),
+            band=row.get("band"),
+        )
+        for raw_mac, info in assoclist.items():
+            mac = normalize_mac(raw_mac)
+            if mac is None:
+                continue
+            radio = info.get("device") if isinstance(info, dict) else None
+            found[mac] = AssociatedDevice(
+                mac=mac,
+                ssid=str(ssid) if ssid else None,
+                band=radio_band(radio, devices) or row_band,
+            )
+    return found
+
+
+@dataclass(frozen=True, slots=True)
+class ClientDevice:
+    """A device the router knows from its DHCP leases or its Wi-Fi."""
+
+    mac: str
+    hostname: str | None
+    ip: str | None
+    connected: bool
+
+
+def derive_clients(
+    dhcp_leases: Iterable[dict[str, Any]] | None,
+    associated: dict[str, AssociatedDevice],
+) -> list[ClientDevice]:
+    """Return the known devices: the leases plus the devices on the Wi-Fi."""
+    names: dict[str, tuple[str | None, str | None]] = {}
+    for lease in dhcp_leases or []:
+        mac = normalize_mac(lease.get("macaddr"))
+        if mac is None:
+            continue
+        hostname = str(lease.get("hostname") or "").strip() or None
+        ip = str(lease.get("ipaddr") or "").strip() or None
+        names[mac] = (hostname, ip)
+    return [
+        ClientDevice(
+            mac=mac,
+            hostname=names.get(mac, (None, None))[0],
+            ip=names.get(mac, (None, None))[1],
+            connected=mac in associated,
+        )
+        for mac in sorted({*names, *associated})
+    ]
+
+
 def is_modem_online(modem: dict[str, Any]) -> bool:
     """Return whether ``modems/status`` returned the full status."""
     return modem.get("simstate") is not None or modem.get("conntype") is not None
@@ -1533,6 +1618,13 @@ class TeltonikaData:
     vpn_latency: float | None = None
     system_usage: SystemUsage | None = None
     dhcp_leases: list[dict[str, Any]] | None = None
+    # Devices on the router's access points and the devices the router knows;
+    # `present` holds the tracked ones that count as at home (set by the coordinator).
+    associated: dict[str, AssociatedDevice] = field(default_factory=dict)
+    clients: list[ClientDevice] = field(default_factory=list)
+    present: frozenset[str] = frozenset()
+    # False while the Wi-Fi status page never answered: presence is unknown then.
+    presence_ready: bool = True
     vpn_tunnels: list[VpnTunnel] = field(default_factory=list)
     sim_cards: list[SimCard] = field(default_factory=list)
     failover: list[FailoverInterface] = field(default_factory=list)
@@ -1589,6 +1681,7 @@ class TeltonikaData:
         uplink = derive_uplink(interfaces, networks, offline)
         multi_ap = multi_ap or []
         system_usage = derive_system_usage(usage)
+        associated = derive_associated(wireless_config, wireless_status, wireless_devices)
         return cls(
             interfaces=interfaces,
             interface_config=interface_config,
@@ -1620,6 +1713,8 @@ class TeltonikaData:
             else router_time,
             system_usage=system_usage,
             dhcp_leases=dhcp_leases,
+            associated=associated,
+            clients=derive_clients(dhcp_leases, associated),
             vpn_tunnels=derive_vpn_tunnels(interfaces, wireguard_config or []),
             sim_cards=derive_sim_cards(sim_cards),
             failover=failover_rows,

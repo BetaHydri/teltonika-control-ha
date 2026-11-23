@@ -37,6 +37,12 @@ CONF_PROBE_URL = "probe_url"
 CONF_VPN_HOST = "vpn_host"
 CONF_VPN_PORT = "vpn_port"
 CONF_DATA_PLAN = "data_plan_gb"
+CONF_TRACKED_DEVICES = "tracked_devices"
+CONF_PRESENCE_DELAY = "presence_delay"
+
+# Minutes a tracked device may be missing from the Wi-Fi before it counts as away.
+DEFAULT_PRESENCE_DELAY = 1
+MAX_PRESENCE_DELAY = 60
 
 DEFAULT_USERNAME = "admin"
 DEFAULT_SCAN_INTERVAL = 30

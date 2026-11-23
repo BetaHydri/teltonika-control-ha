@@ -24,6 +24,12 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, format_mac
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from .api import (
@@ -36,22 +42,26 @@ from .api import (
 from .const import (
     CONF_CONFIG_INTERVAL,
     CONF_DATA_PLAN,
+    CONF_PRESENCE_DELAY,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
+    CONF_TRACKED_DEVICES,
     CONF_VPN_HOST,
     CONF_VPN_PORT,
     DEFAULT_CONFIG_INTERVAL,
+    DEFAULT_PRESENCE_DELAY,
     DEFAULT_PROBE_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_USERNAME,
     DEFAULT_VPN_PORT,
     DOMAIN,
     MAX_CONFIG_INTERVAL,
+    MAX_PRESENCE_DELAY,
     MAX_SCAN_INTERVAL,
     MIN_CONFIG_INTERVAL,
     MIN_SCAN_INTERVAL,
 )
-from .models import RouterInfo
+from .models import RouterInfo, normalize_mac
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -355,6 +365,15 @@ class TeltonikaOptionsFlow(OptionsFlow):
                     # A port typed behind the host wins over the port field.
                     vpn_port = target[1] or vpn_port
             if not errors:
+                tracked: list[str] = []
+                for raw_mac in user_input.get(CONF_TRACKED_DEVICES) or []:
+                    mac = normalize_mac(raw_mac)
+                    if mac is None:
+                        errors[CONF_TRACKED_DEVICES] = "invalid_mac"
+                        break
+                    if mac not in tracked:
+                        tracked.append(mac)
+            if not errors:
                 return self.async_create_entry(
                     data={
                         CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
@@ -365,6 +384,10 @@ class TeltonikaOptionsFlow(OptionsFlow):
                         CONF_VPN_HOST: vpn_host,
                         CONF_VPN_PORT: vpn_port,
                         CONF_DATA_PLAN: user_input.get(CONF_DATA_PLAN, 0),
+                        CONF_TRACKED_DEVICES: tracked,
+                        CONF_PRESENCE_DELAY: user_input.get(
+                            CONF_PRESENCE_DELAY, DEFAULT_PRESENCE_DELAY
+                        ),
                     }
                 )
 
@@ -416,6 +439,57 @@ class TeltonikaOptionsFlow(OptionsFlow):
                             "suggested_value": suggested.get(CONF_DATA_PLAN) or None
                         },
                     ): vol.All(vol.Coerce(float), vol.Range(min=0, max=100000)),
+                    vol.Optional(
+                        CONF_TRACKED_DEVICES,
+                        description={
+                            "suggested_value": suggested.get(CONF_TRACKED_DEVICES) or []
+                        },
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=self._device_options(
+                                suggested.get(CONF_TRACKED_DEVICES) or []
+                            ),
+                            multiple=True,
+                            custom_value=True,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Optional(
+                        CONF_PRESENCE_DELAY,
+                        default=options.get(CONF_PRESENCE_DELAY, DEFAULT_PRESENCE_DELAY),
+                    ): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=MAX_PRESENCE_DELAY)
+                    ),
                 }
             ),
         )
+
+    def _device_options(self, chosen: list[str]) -> list[SelectOptionDict]:
+        """Return the devices the router knows, those on the Wi-Fi first."""
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        clients = runtime.data.clients if runtime is not None else []
+        options: list[SelectOptionDict] = []
+        listed: set[str] = set()
+        for client in sorted(
+            clients,
+            key=lambda c: (
+                not c.connected,
+                c.hostname is None,
+                (c.hostname or "").lower(),
+                c.mac,
+            ),
+        ):
+            marker = "● " if client.connected else ""
+            options.append(
+                SelectOptionDict(
+                    value=client.mac,
+                    label=f"{marker}{client.hostname or '?'} ({client.mac})",
+                )
+            )
+            listed.add(client.mac)
+        for raw_mac in chosen:
+            mac = normalize_mac(raw_mac)
+            if mac is not None and mac not in listed:
+                options.append(SelectOptionDict(value=mac, label=mac))
+                listed.add(mac)
+        return options

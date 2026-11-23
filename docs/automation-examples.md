@@ -11,6 +11,7 @@ The rules behind them are on the [best practices](best-practices.md) page.
 - [Hotspot needs a login](#hotspot-needs-a-login)
 - [Wi-Fi lost](#wi-fi-lost)
 - [Uplink changed](#uplink-changed)
+- [Somebody arrives in or leaves the camper](#somebody-arrives-in-or-leaves-the-camper)
 - [Back to mobile data when the Wi-Fi has no internet](#back-to-mobile-data-when-the-wi-fi-has-no-internet)
 - [VPN to home is down](#vpn-to-home-is-down)
 - [Restart the WireGuard tunnel](#restart-the-wireguard-tunnel)
@@ -134,6 +135,32 @@ automation:
         data:
           message: "{{ trigger.from_state.state }} → {{ trigger.to_state.state }}"
 ```
+
+## Somebody arrives in or leaves the camper
+
+With the phones chosen as [presence](../README.md#presence-who-is-on-the-wi-fi)
+and added to the people, a person changes between `home` and `not_home` when the
+phone joins or leaves the Wi-Fi of the router. In a Home Assistant that runs in
+the camper, `home` means in the camper. This tells you when anybody arrives:
+
+```yaml
+automation:
+  - alias: "Camper: somebody arrived"
+    triggers:
+      - trigger: state
+        entity_id:
+          - person.jan
+          - person.xin
+        from: not_home
+        to: home
+    actions:
+      - action: notify.mobile_app_my_phone
+        data:
+          message: "{{ trigger.to_state.name }} is in the camper"
+```
+
+The trackers of the integration, `device_tracker.laptop_router` for example,
+can also be used directly in a condition or a trigger.
 
 ## Back to mobile data when the Wi-Fi has no internet
 

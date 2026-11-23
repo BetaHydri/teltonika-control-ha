@@ -9,7 +9,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_VPN_HOST
+from .const import CONF_TRACKED_DEVICES, CONF_VPN_HOST
 from .coordinator import TeltonikaConfigEntry
 
 TO_REDACT = {
@@ -17,6 +17,7 @@ TO_REDACT = {
     CONF_PASSWORD,
     CONF_USERNAME,
     CONF_VPN_HOST,
+    CONF_TRACKED_DEVICES,
     "serial",
     "mac",
     "ssid",

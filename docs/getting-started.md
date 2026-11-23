@@ -309,7 +309,17 @@ Go to **Settings**, **Devices & services**, **Teltonika Control**, then
 select **Configure**. The defaults suit most routers. What each option does is
 described in [Options](../README.md#options): the two intervals (raise both if
 a weak router such as the RUTC50 feels slow), the internet check URL, the VPN
-check host and port, and the mobile data plan.
+check host and port, the mobile data plan, and the devices for
+[presence](../README.md#presence-who-is-on-the-wi-fi).
+
+### Show who is in the camper
+
+Choose the phones of your family under **Devices for presence** in the
+options. A phone must have been connected to the Wi-Fi of the router, so that
+the router knows it and the list shows its name. Then add the new trackers
+(`... (router)`) to the people under **Settings**, **People**, **Track
+device**. A person is `home` while the phone is on the Wi-Fi of the router.
+More in [Presence](../README.md#presence-who-is-on-the-wi-fi).
 
 ## Step 11: Optional helpers for a monthly data counter
 

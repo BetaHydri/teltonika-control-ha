@@ -1,15 +1,25 @@
-"""GPS position of the router as a device tracker."""
+"""Device trackers: the router's GPS position and who is on its Wi-Fi."""
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
-from homeassistant.components.device_tracker import SourceType, TrackerEntity
-from homeassistant.core import HomeAssistant
+from homeassistant.components.device_tracker import (
+    DOMAIN as DEVICE_TRACKER_DOMAIN,
+)
+from homeassistant.components.device_tracker import (
+    ScannerEntity,
+    SourceType,
+    TrackerEntity,
+)
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import TeltonikaConfigEntry, TeltonikaCoordinator
 from .entity import TeltonikaEntity, async_add_discovered
+from .models import ClientDevice
 
 PARALLEL_UPDATES = 0
 
@@ -19,7 +29,17 @@ async def async_setup_entry(
     entry: TeltonikaConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Add the tracker once the router reports that it has GPS."""
+    """Add the trackers of the chosen devices and the GPS position."""
+    coordinator = entry.runtime_data
+    _remove_untracked(hass, entry, coordinator)
+    async_add_discovered(
+        entry,
+        async_add_entities,
+        lambda c: (
+            (f"presence_{mac}", partial(TeltonikaPresenceTracker, c, mac))
+            for mac in c.tracked_macs
+        ),
+    )
     async_add_discovered(
         entry,
         async_add_entities,
@@ -27,6 +47,82 @@ async def async_setup_entry(
             (("gps", lambda: TeltonikaGpsTracker(c)),) if c.data.gps_available else ()
         ),
     )
+
+
+@callback
+def _remove_untracked(
+    hass: HomeAssistant, entry: TeltonikaConfigEntry, coordinator: TeltonikaCoordinator
+) -> None:
+    """Remove the trackers of devices that were taken out of the options."""
+    prefix = f"{coordinator.router.unique_id}_presence_"
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            entity.domain == DEVICE_TRACKER_DOMAIN
+            and entity.unique_id.startswith(prefix)
+            and entity.unique_id[len(prefix) :] not in coordinator.tracked_macs
+        ):
+            registry.async_remove(entity.entity_id)
+
+
+class TeltonikaPresenceTracker(TeltonikaEntity, ScannerEntity):
+    """A device that is home while it is connected to the router's Wi-Fi."""
+
+    _attr_translation_key = "presence"
+    _attr_entity_category = None
+
+    def __init__(self, coordinator: TeltonikaCoordinator, mac: str) -> None:
+        super().__init__(coordinator, f"presence_{mac}")
+        self._mac = mac
+        self._attr_mac_address = mac
+        client = self._client
+        self._attr_translation_placeholders = {
+            "device": (client.hostname if client and client.hostname else None) or mac
+        }
+
+    @property
+    def _client(self) -> ClientDevice | None:
+        return next((c for c in self.coordinator.data.clients if c.mac == self._mac), None)
+
+    @property
+    def unique_id(self) -> str | None:
+        """Return an ID that belongs to this router and device."""
+        return self._attr_unique_id
+
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Chosen devices are enabled, also when no device entry knows the MAC."""
+        return True
+
+    @property
+    def available(self) -> bool:
+        """Return False while the router never told who is on the Wi-Fi."""
+        return super().available and self.coordinator.data.presence_ready
+
+    @property
+    def is_connected(self) -> bool:
+        """Return whether the device is on the Wi-Fi or just left it."""
+        return self._mac in self.coordinator.data.present
+
+    @property
+    def ip_address(self) -> str | None:
+        """Return the address of the device from the router's lease list."""
+        client = self._client
+        return client.ip if client else None
+
+    @property
+    def hostname(self) -> str | None:
+        """Return the name of the device from the router's lease list."""
+        client = self._client
+        return client.hostname if client else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the network and band while the device is on the Wi-Fi."""
+        device = self.coordinator.data.associated.get(self._mac)
+        if device is None:
+            return {}
+        return {"wifi_network": device.ssid, "wifi_band": device.band}
 
 
 class TeltonikaGpsTracker(TeltonikaEntity, TrackerEntity):

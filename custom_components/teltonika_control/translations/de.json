@@ -62,9 +62,13 @@
           "probe_url": "URL für den Internettest",
           "vpn_host": "Host für den VPN-Test",
           "vpn_port": "Port für den VPN-Test",
-          "data_plan_gb": "Mobilfunk-Datenvolumen (GB)"
+          "data_plan_gb": "Mobilfunk-Datenvolumen (GB)",
+          "tracked_devices": "Geräte für die Anwesenheit",
+          "presence_delay": "Anwesenheit: Minuten bis „weg“"
         },
         "data_description": {
+          "tracked_devices": "Geräte, die als Anwesenheit gemeldet werden, solange sie im WLAN des Routers eingebucht sind, zum Beispiel die Handys der Familie. Je Gerät entsteht ein Tracker, den du in Home Assistant einer Person zuordnest. Die Liste zeigt die Geräte, die der Router kennt; ● steht für „gerade im WLAN“. Eine MAC-Adresse kannst du auch eintippen. Beachte die private WLAN-Adresse des Handys: Sie bleibt für dieses WLAN gleich, ändert sich aber, wenn das Handy das WLAN vergisst.",
+          "presence_delay": "So lange darf ein Gerät im WLAN fehlen, bevor es als weg gilt (0 bis 60 Minuten, Standard 1). Handys im Standby buchen sich kurz aus; ein höherer Wert verhindert Flattern.",
           "data_plan_gb": "Das Datenvolumen deines Mobilfunkvertrags pro Monat in Gigabyte (1 GB = 1000 MB). Mit Datenvolumen beziehen sich Prozent und „Datenlimit erreicht“ auf das Volumen deines Vertrags und nicht auf das Limit im Router. Der Router braucht weiter ein aktiviertes Datenlimit, weil er mitzählt, du kannst es aber hoch setzen, damit der Router den Mobilfunk nie abschaltet. Leer lassen, um das Limit des Routers zu verwenden.",
           "scan_interval": "Wie oft der Status des Routers abgefragt wird (Signal, Uplink, Modem, GPS, Last).",
           "config_interval": "Wie oft selten ändernde Seiten erneut gelesen werden (WLAN- und WireGuard-Konfiguration, 30 bis 3600 Sekunden, Standard 300). Aktionen dieser Integration lesen sie sofort neu. Ein höherer Wert hält die Last auf dem Router klein.",
@@ -75,7 +79,8 @@
       }
     },
     "error": {
-      "invalid_vpn_host": "Gib einen einfachen DNS-Namen oder eine IP-Adresse an, optional mit Port, ohne http:// und ohne Pfad."
+      "invalid_vpn_host": "Gib einen einfachen DNS-Namen oder eine IP-Adresse an, optional mit Port, ohne http:// und ohne Pfad.",
+      "invalid_mac": "Gib eine MAC-Adresse wie aa:bb:cc:dd:ee:ff an oder wähle ein Gerät aus der Liste."
     }
   },
   "entity": {
@@ -159,7 +164,8 @@
       "open_internet_rules": { "name": "Firewall-Regeln zum Internet offen" }
     },
     "device_tracker": {
-      "gps": { "name": "Position" }
+      "gps": { "name": "Position" },
+      "presence": { "name": "{device} (Router)" }
     },
     "binary_sensor": {
       "wifi_connected": { "name": "WLAN verbunden" },

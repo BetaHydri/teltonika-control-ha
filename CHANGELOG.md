@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-23
+
+### Added
+
+- **Presence from the Wi-Fi.** Choose devices in the options (**Devices for
+  presence**, from the list of devices the router knows, or by MAC address) and
+  the integration creates a device tracker for each one. It is `home` while the
+  device is connected to one of the router's access points and `not_home`
+  after it was missing for **Minutes until away** (default 1). Assign the
+  trackers to people in Home Assistant: a router tracker wins over the phone's
+  GPS, so a person is `home` in the camper as soon as the phone is on its
+  Wi-Fi. The Wi-Fi status is already read with every update, so this adds no
+  load on the router. A tracker removed from the options is removed from Home
+  Assistant; the MAC addresses are hidden in the diagnostics and not written
+  to the debug log.
+
 ## [0.21.1] - 2026-11-22
 
 ### Fixed
