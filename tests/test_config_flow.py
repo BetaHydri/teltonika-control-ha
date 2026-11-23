@@ -16,6 +16,7 @@ from custom_components.teltonika_control.const import (
     CONF_CONFIG_INTERVAL,
     CONF_DATA_PLAN,
     CONF_PRESENCE_DELAY,
+    CONF_PRESENCE_IDLE,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
     CONF_TRACKED_DEVICES,
@@ -23,6 +24,7 @@ from custom_components.teltonika_control.const import (
     CONF_VPN_PORT,
     DEFAULT_CONFIG_INTERVAL,
     DEFAULT_PRESENCE_DELAY,
+    DEFAULT_PRESENCE_IDLE,
     DEFAULT_VPN_PORT,
     DOMAIN,
 )
@@ -137,4 +139,5 @@ async def test_options_flow_disables_probe(
         CONF_DATA_PLAN: 0,
         CONF_TRACKED_DEVICES: [],
         CONF_PRESENCE_DELAY: DEFAULT_PRESENCE_DELAY,
+        CONF_PRESENCE_IDLE: DEFAULT_PRESENCE_IDLE,
     }

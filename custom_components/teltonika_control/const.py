@@ -39,10 +39,15 @@ CONF_VPN_PORT = "vpn_port"
 CONF_DATA_PLAN = "data_plan_gb"
 CONF_TRACKED_DEVICES = "tracked_devices"
 CONF_PRESENCE_DELAY = "presence_delay"
+CONF_PRESENCE_IDLE = "presence_idle"
 
 # Minutes a tracked device may be missing from the Wi-Fi before it counts as away.
 DEFAULT_PRESENCE_DELAY = 1
 MAX_PRESENCE_DELAY = 60
+# Seconds without any traffic after which a device on the Wi-Fi counts as gone;
+# 0 turns it off and leaves the decision to the router.
+DEFAULT_PRESENCE_IDLE = 0
+MAX_PRESENCE_IDLE = 3600
 
 DEFAULT_USERNAME = "admin"
 DEFAULT_SCAN_INTERVAL = 30

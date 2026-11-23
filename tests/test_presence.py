@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.teltonika_control.const import (
     CONF_PRESENCE_DELAY,
+    CONF_PRESENCE_IDLE,
     CONF_SCAN_INTERVAL,
     CONF_TRACKED_DEVICES,
     DOMAIN,
@@ -45,13 +46,17 @@ LAPTOP = "aa:bb:cc:00:00:01"
 CLOCK = "custom_components.teltonika_control.coordinator._monotonic"
 
 
-def tracking_entry(*macs: str, delay: int = 1) -> MockConfigEntry:
+def tracking_entry(*macs: str, delay: int = 1, idle: int = 0) -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
         data=ENTRY_DATA,
         unique_id=SERIAL,
         title="Teltonika-RUTC50.com",
-        options={CONF_TRACKED_DEVICES: list(macs), CONF_PRESENCE_DELAY: delay},
+        options={
+            CONF_TRACKED_DEVICES: list(macs),
+            CONF_PRESENCE_DELAY: delay,
+            CONF_PRESENCE_IDLE: idle,
+        },
     )
 
 
@@ -80,6 +85,24 @@ def test_associated_devices_come_from_the_access_points() -> None:
     found = derive_associated(WIRELESS_CONFIG, WIRELESS_STATUS, WIRELESS_DEVICES)
 
     assert found == {PHONE: AssociatedDevice(PHONE, "MyRouter", "2.4 GHz")}
+
+
+def test_the_idle_time_of_a_device_is_read_in_seconds() -> None:
+    status = [
+        {
+            "id": "default_radio0",
+            "mode": "ap",
+            "assoclist": {
+                "AA:BB:CC:DD:EE:01": {"device": "radio0", "inactive": 470},
+                "AA:BB:CC:DD:EE:02": {"device": "radio0"},
+            },
+        }
+    ]
+
+    found = derive_associated(WIRELESS_CONFIG, status, WIRELESS_DEVICES)
+
+    assert found[PHONE].inactive == 0.47
+    assert found["aa:bb:cc:dd:ee:02"].inactive is None
 
 
 def test_a_client_row_or_an_empty_access_point_adds_nothing() -> None:
@@ -167,6 +190,90 @@ async def test_a_device_is_away_only_after_the_delay(
     now[0] = 70.0
     await coordinator.async_refresh()
     await hass.async_block_till_done()
+    assert hass.states.get(tracker(hass, PHONE)).state == "home"
+
+
+async def test_a_silent_device_counts_as_gone_with_an_idle_limit(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The router keeps a phone that left without goodbye for minutes."""
+    now = [0.0]
+    monkeypatch.setattr(CLOCK, lambda: now[0])
+    mock_router(aioclient_mock)
+    entry = tracking_entry(PHONE, delay=1, idle=120)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+    assert hass.states.get(tracker(hass, PHONE)).state == "home"
+
+    def silent(seconds: float) -> Any:
+        async def status() -> list[dict[str, Any]]:
+            return [
+                {
+                    "id": "default_radio0",
+                    "mode": "ap",
+                    "assoclist": {
+                        "AA:BB:CC:DD:EE:01": {
+                            "device": "radio0",
+                            "inactive": seconds * 1000,
+                        }
+                    },
+                }
+            ]
+
+        return status
+
+    caplog.set_level("DEBUG", logger="custom_components.teltonika_control.coordinator")
+    # Quiet for 100 s: still within the limit, stays home.
+    monkeypatch.setattr(coordinator.client, "async_wireless_status", silent(100))
+    now[0] = 30.0
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(tracker(hass, PHONE)).state == "home"
+
+    # Quiet for 200 s: no longer counted, away after the delay of one minute.
+    monkeypatch.setattr(coordinator.client, "async_wireless_status", silent(200))
+    for seconds, expected in ((60, "home"), (91, "not_home")):
+        now[0] = float(seconds)
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert hass.states.get(tracker(hass, PHONE)).state == expected, seconds
+    assert "idle_seconds=[200]" in caplog.text
+    assert PHONE not in caplog.text.lower()
+
+    # It talks again: home at once.
+    monkeypatch.setattr(coordinator.client, "async_wireless_status", silent(2))
+    now[0] = 95.0
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(tracker(hass, PHONE)).state == "home"
+
+
+async def test_without_an_idle_limit_a_silent_device_stays_home(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_router(aioclient_mock)
+    entry = tracking_entry(PHONE)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+
+    async def status() -> list[dict[str, Any]]:
+        return [
+            {
+                "id": "default_radio0",
+                "mode": "ap",
+                "assoclist": {"AA:BB:CC:DD:EE:01": {"device": "radio0", "inactive": 900000}},
+            }
+        ]
+
+    monkeypatch.setattr(coordinator.client, "async_wireless_status", status)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
     assert hass.states.get(tracker(hass, PHONE)).state == "home"
 
 

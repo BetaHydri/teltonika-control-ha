@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-23
+
+### Added
+
+- **Presence: leave the Wi-Fi sooner.** A phone that leaves without saying
+  goodbye stays in the router's list until the router's inactivity limit runs
+  out, often 5 minutes, so its tracker stayed `home` that long. The new option
+  **Seconds of silence until away** (default 0, off) counts a device as gone
+  once it sent nothing for that long. The debug log line `Presence: ...` now
+  shows `idle_seconds` of the chosen devices (no addresses) to help choosing
+  the value.
+
 ## [0.22.0] - 2026-11-23
 
 ### Added

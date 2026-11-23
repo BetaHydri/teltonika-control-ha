@@ -64,9 +64,11 @@
           "vpn_port": "VPN check port",
           "data_plan_gb": "Mobile data plan (GB)",
           "tracked_devices": "Devices for presence",
-          "presence_delay": "Presence: minutes until away"
+          "presence_delay": "Presence: minutes until away",
+          "presence_idle": "Presence: seconds of silence until away"
         },
         "data_description": {
+          "presence_idle": "A phone that leaves the Wi-Fi without saying goodbye stays in the router's list until the router's inactivity limit runs out (often 5 minutes). With this value a device that sent nothing for that long counts as gone at once. 0 turns it off. A phone in standby can also be silent for a long time at home, so do not go below 120 seconds and watch \"idle_seconds\" in the debug log.",
           "tracked_devices": "Devices to report as present while they are connected to the router's Wi-Fi, for example the family's phones. Each device gets a tracker that you assign to a person in Home Assistant. The list shows the devices the router knows; ● means connected to the Wi-Fi right now. You can also type a MAC address. Mind the phone's private Wi-Fi address: it stays the same for this Wi-Fi but changes when the phone forgets the network.",
           "presence_delay": "How long a device may be missing from the Wi-Fi before it counts as away (0 to 60 minutes, default 1). Phones in standby drop off the Wi-Fi for a moment; a higher value prevents flapping.",
           "data_plan_gb": "The data volume of your mobile contract per month in gigabytes (1 GB = 1000 MB). With a plan, the percentage and the \"limit reached\" sensor of the data limit refer to the plan, not to the limit set on the router. The router still needs an enabled data limit, because it keeps the count, but you can set that limit high so that the router never switches the mobile data off. Leave empty to use the router's limit.",

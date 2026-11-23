@@ -43,6 +43,7 @@ from .const import (
     CONF_CONFIG_INTERVAL,
     CONF_DATA_PLAN,
     CONF_PRESENCE_DELAY,
+    CONF_PRESENCE_IDLE,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
     CONF_TRACKED_DEVICES,
@@ -50,6 +51,7 @@ from .const import (
     CONF_VPN_PORT,
     DEFAULT_CONFIG_INTERVAL,
     DEFAULT_PRESENCE_DELAY,
+    DEFAULT_PRESENCE_IDLE,
     DEFAULT_PROBE_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_USERNAME,
@@ -57,6 +59,7 @@ from .const import (
     DOMAIN,
     MAX_CONFIG_INTERVAL,
     MAX_PRESENCE_DELAY,
+    MAX_PRESENCE_IDLE,
     MAX_SCAN_INTERVAL,
     MIN_CONFIG_INTERVAL,
     MIN_SCAN_INTERVAL,
@@ -388,6 +391,9 @@ class TeltonikaOptionsFlow(OptionsFlow):
                         CONF_PRESENCE_DELAY: user_input.get(
                             CONF_PRESENCE_DELAY, DEFAULT_PRESENCE_DELAY
                         ),
+                        CONF_PRESENCE_IDLE: user_input.get(
+                            CONF_PRESENCE_IDLE, DEFAULT_PRESENCE_IDLE
+                        ),
                     }
                 )
 
@@ -459,6 +465,12 @@ class TeltonikaOptionsFlow(OptionsFlow):
                         default=options.get(CONF_PRESENCE_DELAY, DEFAULT_PRESENCE_DELAY),
                     ): vol.All(
                         vol.Coerce(int), vol.Range(min=0, max=MAX_PRESENCE_DELAY)
+                    ),
+                    vol.Optional(
+                        CONF_PRESENCE_IDLE,
+                        default=options.get(CONF_PRESENCE_IDLE, DEFAULT_PRESENCE_IDLE),
+                    ): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=MAX_PRESENCE_IDLE)
                     ),
                 }
             ),

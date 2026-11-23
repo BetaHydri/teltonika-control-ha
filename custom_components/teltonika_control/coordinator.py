@@ -39,6 +39,7 @@ from .const import (
     CONF_CONFIG_INTERVAL,
     CONF_DATA_PLAN,
     CONF_PRESENCE_DELAY,
+    CONF_PRESENCE_IDLE,
     CONF_PROBE_URL,
     CONF_SCAN_INTERVAL,
     CONF_TRACKED_DEVICES,
@@ -46,6 +47,7 @@ from .const import (
     CONF_VPN_PORT,
     DEFAULT_CONFIG_INTERVAL,
     DEFAULT_PRESENCE_DELAY,
+    DEFAULT_PRESENCE_IDLE,
     DEFAULT_PROBE_URL,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_VPN_PORT,
@@ -236,6 +238,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         )
         self._presence_delay: float = (
             float(entry.options.get(CONF_PRESENCE_DELAY, DEFAULT_PRESENCE_DELAY)) * 60
+        )
+        self._presence_idle: float = float(
+            entry.options.get(CONF_PRESENCE_IDLE, DEFAULT_PRESENCE_IDLE) or 0
         )
         self._presence_seen: dict[str, float] = {}
         # State of the Wi-Fi management entities; the password is never stored.
@@ -452,6 +457,9 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
 
         A phone in standby drops off the access point for a short time, so a
         device counts as away only after it was missing for the configured delay.
+        The router keeps a phone that left without saying goodbye in its list
+        until its inactivity limit (often 5 minutes); with an idle limit set, a
+        device that was silent for longer than that counts as gone at once.
         Without any answer of the Wi-Fi status page nothing is known.
         """
         if not self.tracked_macs:
@@ -460,12 +468,17 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
         now = _monotonic()
         present: set[str] = set()
         for mac in self.tracked_macs:
-            if mac in data.associated:
+            device = data.associated.get(mac)
+            if device is not None and not self._is_idle(device.inactive):
                 self._presence_seen[mac] = now
             seen = self._presence_seen.get(mac)
             if seen is not None and now - seen <= self._presence_delay:
                 present.add(mac)
         data.present = frozenset(present)
+
+    def _is_idle(self, inactive: float | None) -> bool:
+        """Return whether a device was silent for longer than the idle limit."""
+        return bool(self._presence_idle) and inactive is not None and inactive > self._presence_idle
 
     def _track_firmware(self, installed: str | None) -> None:
         """Follow the running firmware version and an installation in progress.
@@ -576,11 +589,17 @@ class TeltonikaCoordinator(DataUpdateCoordinator[TeltonikaData]):
             data.vpn_reachable,
         )
         if self.tracked_macs:
+            idle = sorted(
+                round(device.inactive)
+                for mac in self.tracked_macs
+                if (device := data.associated.get(mac)) and device.inactive is not None
+            )
             _LOGGER.debug(
-                "Presence: tracked=%d at_home=%d devices_on_wifi=%d",
+                "Presence: tracked=%d at_home=%d devices_on_wifi=%d idle_seconds=%s",
                 len(self.tracked_macs),
                 len(data.present),
                 len(data.associated),
+                idle,
             )
         if self._reported:
             return

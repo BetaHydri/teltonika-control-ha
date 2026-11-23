@@ -64,9 +64,11 @@
           "vpn_port": "Port für den VPN-Test",
           "data_plan_gb": "Mobilfunk-Datenvolumen (GB)",
           "tracked_devices": "Geräte für die Anwesenheit",
-          "presence_delay": "Anwesenheit: Minuten bis „weg“"
+          "presence_delay": "Anwesenheit: Minuten bis „weg“",
+          "presence_idle": "Anwesenheit: Sekunden Stille bis „weg“"
         },
         "data_description": {
+          "presence_idle": "Ein Handy, das das WLAN ohne Abmelden verlässt, bleibt in der Liste des Routers, bis dessen Inaktivitätszeit abläuft (oft 5 Minuten). Mit diesem Wert gilt ein Gerät, das so lange nichts gesendet hat, sofort als nicht mehr im WLAN. 0 schaltet das ab. Ein Handy im Standby kann auch zuhause lange still sein, nimm deshalb nicht weniger als 120 Sekunden und beobachte im Debug-Log „idle_seconds“.",
           "tracked_devices": "Geräte, die als Anwesenheit gemeldet werden, solange sie im WLAN des Routers eingebucht sind, zum Beispiel die Handys der Familie. Je Gerät entsteht ein Tracker, den du in Home Assistant einer Person zuordnest. Die Liste zeigt die Geräte, die der Router kennt; ● steht für „gerade im WLAN“. Eine MAC-Adresse kannst du auch eintippen. Beachte die private WLAN-Adresse des Handys: Sie bleibt für dieses WLAN gleich, ändert sich aber, wenn das Handy das WLAN vergisst.",
           "presence_delay": "So lange darf ein Gerät im WLAN fehlen, bevor es als weg gilt (0 bis 60 Minuten, Standard 1). Handys im Standby buchen sich kurz aus; ein höherer Wert verhindert Flattern.",
           "data_plan_gb": "Das Datenvolumen deines Mobilfunkvertrags pro Monat in Gigabyte (1 GB = 1000 MB). Mit Datenvolumen beziehen sich Prozent und „Datenlimit erreicht“ auf das Volumen deines Vertrags und nicht auf das Limit im Router. Der Router braucht weiter ein aktiviertes Datenlimit, weil er mitzählt, du kannst es aber hoch setzen, damit der Router den Mobilfunk nie abschaltet. Leer lassen, um das Limit des Routers zu verwenden.",

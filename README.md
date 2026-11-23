@@ -640,6 +640,16 @@ Things to know:
 - **Minutes until away** (default 1) is how long a device may be missing from
   the Wi-Fi before it counts as away. Phones in standby drop off the Wi-Fi for a
   moment, so very short values can make the tracker flap. Set 0 for no delay.
+- **Seconds of silence until away** (default 0, off) is for phones that leave
+  without saying goodbye. The router keeps such a phone in its list until its
+  station inactivity limit runs out, often 5 minutes, so the tracker stays
+  `home` that long. With a value here, a device that sent nothing for longer
+  counts as gone at once (the delay above still applies). A phone in standby
+  can be silent for a long time even while it is in the camper, so do not go
+  below 120 seconds. Turn on the [debug log](#debug-logging) once: the line
+  `Presence: ... idle_seconds=[...]` shows how silent your phones get. The other
+  way is the router itself: lower **Station inactivity limit** (`max_inactivity`)
+  of the access point in the router's web interface.
 - Phones use a private Wi-Fi address (random MAC) per network. It stays the same
   for the router's Wi-Fi, but changes when the phone forgets the network or the
   setting is switched. Then choose the device again. Switching the private
@@ -1024,9 +1034,9 @@ camper home zone. Services take any entity of the router as target.
   [VPN check](#vpn-check).
 - **Mobile data plan (GB)**: optional, the volume of your mobile contract per
   month. See [Mobile data limit](#mobile-data-limit).
-- **Devices for presence** and **Minutes until away**: optional, the devices
-  that are reported as home while they are on the Wi-Fi. See
-  [Presence](#presence-who-is-on-the-wi-fi).
+- **Devices for presence**, **Minutes until away** and **Seconds of silence
+  until away**: optional, the devices that are reported as home while they are
+  on the Wi-Fi. See [Presence](#presence-who-is-on-the-wi-fi).
 
 The integration reads the pages one after the other and keeps the load on the
 router low, because a RUTC50 has a weak CPU. If the router still feels slow,
