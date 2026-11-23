@@ -664,7 +664,11 @@ Things to know:
   update, so it adds no load on the router.
 
 Attributes of a tracker: `ip`, `host_name` and `mac` (from the router's lease
-list), `wifi_network` and `wifi_band` while connected. A tracker you take out of
+list), `wifi_network`, `wifi_band`, `signal` (dBm) and `inactive_seconds` while
+connected. `inactive_seconds` is how long the router has not heard from the
+device, the value that **Seconds of silence until away** is compared with; watch
+it to choose that value. `signal` and `inactive_seconds` are not kept in the
+history. A tracker you take out of
 the options is removed from Home Assistant.
 
 ## Hotspots With a Login Page

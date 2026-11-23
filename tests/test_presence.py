@@ -93,7 +93,7 @@ def test_the_idle_time_of_a_device_is_read_in_seconds() -> None:
             "id": "default_radio0",
             "mode": "ap",
             "assoclist": {
-                "AA:BB:CC:DD:EE:01": {"device": "radio0", "inactive": 470},
+                "AA:BB:CC:DD:EE:01": {"device": "radio0", "inactive": 470, "signal": -61},
                 "AA:BB:CC:DD:EE:02": {"device": "radio0"},
             },
         }
@@ -102,7 +102,9 @@ def test_the_idle_time_of_a_device_is_read_in_seconds() -> None:
     found = derive_associated(WIRELESS_CONFIG, status, WIRELESS_DEVICES)
 
     assert found[PHONE].inactive == 0.47
+    assert found[PHONE].signal == -61
     assert found["aa:bb:cc:dd:ee:02"].inactive is None
+    assert found["aa:bb:cc:dd:ee:02"].signal is None
 
 
 def test_a_client_row_or_an_empty_access_point_adds_nothing() -> None:
@@ -275,6 +277,40 @@ async def test_without_an_idle_limit_a_silent_device_stays_home(
     await hass.async_block_till_done()
 
     assert hass.states.get(tracker(hass, PHONE)).state == "home"
+
+
+async def test_the_tracker_shows_signal_and_silence_of_the_device(
+    hass: HomeAssistant,
+    aioclient_mock: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_router(aioclient_mock)
+    entry = tracking_entry(PHONE)
+    await setup_entry(hass, entry)
+    coordinator = entry.runtime_data
+
+    async def status() -> list[dict[str, Any]]:
+        return [
+            {
+                "id": "default_radio0",
+                "mode": "ap",
+                "assoclist": {
+                    "AA:BB:CC:DD:EE:01": {
+                        "device": "radio0",
+                        "inactive": 12400,
+                        "signal": -58,
+                    }
+                },
+            }
+        ]
+
+    monkeypatch.setattr(coordinator.client, "async_wireless_status", status)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    attributes = hass.states.get(tracker(hass, PHONE)).attributes
+    assert attributes["signal"] == -58
+    assert attributes["inactive_seconds"] == 12
 
 
 async def test_a_zero_delay_reports_away_at_once(

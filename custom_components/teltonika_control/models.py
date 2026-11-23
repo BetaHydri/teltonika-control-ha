@@ -551,6 +551,8 @@ class AssociatedDevice:
     band: str | None
     # Seconds since the router last heard from the device; None if not reported.
     inactive: float | None = None
+    # Signal strength in dBm as the access point measures it.
+    signal: float | None = None
 
 
 def derive_associated(
@@ -579,11 +581,13 @@ def derive_associated(
                 continue
             radio = info.get("device") if isinstance(info, dict) else None
             inactive_ms = to_float(info.get("inactive")) if isinstance(info, dict) else None
+            signal = to_float(info.get("signal")) if isinstance(info, dict) else None
             found[mac] = AssociatedDevice(
                 mac=mac,
                 ssid=str(ssid) if ssid else None,
                 band=radio_band(radio, devices) or row_band,
                 inactive=inactive_ms / 1000 if inactive_ms is not None else None,
+                signal=signal,
             )
     return found
 

@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.23.2] - 2026-11-23
+
+### Added
+
+- **Presence trackers show `signal` and `inactive_seconds`.** The signal
+  strength in dBm and the seconds since the router last heard from the device,
+  while it is on the Wi-Fi. Use them to choose the value of **Seconds of silence
+  until away**. Both stay out of the recorder history.
+
 ## [0.23.1] - 2026-11-23
 
 ### Fixed

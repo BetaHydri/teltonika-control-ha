@@ -70,6 +70,8 @@ class TeltonikaPresenceTracker(TeltonikaEntity, ScannerEntity):
 
     _attr_translation_key = "presence"
     _attr_entity_category = None
+    # Change on nearly every update; no use in the history.
+    _unrecorded_attributes = frozenset({"signal", "inactive_seconds"})
 
     def __init__(self, coordinator: TeltonikaCoordinator, mac: str) -> None:
         super().__init__(coordinator, f"presence_{mac}")
@@ -118,11 +120,21 @@ class TeltonikaPresenceTracker(TeltonikaEntity, ScannerEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the network and band while the device is on the Wi-Fi."""
+        """Return what the router says about the device while it is on the Wi-Fi.
+
+        `signal` is in dBm; `inactive_seconds` is how long the router has not
+        heard from the device (the value the option "Seconds of silence until
+        away" compares with).
+        """
         device = self.coordinator.data.associated.get(self._mac)
         if device is None:
             return {}
-        return {"wifi_network": device.ssid, "wifi_band": device.band}
+        attributes: dict[str, Any] = {"wifi_network": device.ssid, "wifi_band": device.band}
+        if device.signal is not None:
+            attributes["signal"] = round(device.signal)
+        if device.inactive is not None:
+            attributes["inactive_seconds"] = round(device.inactive)
+        return attributes
 
 
 class TeltonikaGpsTracker(TeltonikaEntity, TrackerEntity):
