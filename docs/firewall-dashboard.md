@@ -1,5 +1,7 @@
 # Firewall dashboard
 
+**English** | [Deutsch](firewall-dashboard.de.md)
+
 The main [dashboard](dashboard.md) stays small on purpose. The port forwards
 and traffic rules of the router get their own dashboard, which you only need
 when your router has such rules and you want to switch them from Home

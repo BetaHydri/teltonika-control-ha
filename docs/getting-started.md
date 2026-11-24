@@ -1,5 +1,7 @@
 # Getting started with Teltonika Control
 
+**English** | [Deutsch](getting-started.de.md)
+
 This guide takes you from a Teltonika RUTC or RUTX router to working
 controls in Home Assistant, one step at a time. It is written for Home
 Assistant users who are not router experts. Plan about 15 minutes.

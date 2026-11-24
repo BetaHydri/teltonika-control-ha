@@ -1,5 +1,7 @@
 # Teltonika Control
 
+**English** | [Deutsch](README.de.md)
+
 [![Validate](https://github.com/BetaHydri/teltonika-control-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/BetaHydri/teltonika-control-ha/actions/workflows/validate.yml)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/docs/faq/custom_repositories)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

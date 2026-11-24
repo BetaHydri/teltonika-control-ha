@@ -1,5 +1,7 @@
 # Automation examples
 
+**English** | [Deutsch](automation-examples.de.md)
+
 Ready-made automations for Teltonika Control. Replace `my_router` with the
 entity prefix of your router (see **Settings, Devices & services, Teltonika
 Control, Entities**; in another language the endings differ) and the notify

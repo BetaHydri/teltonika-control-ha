@@ -1,5 +1,7 @@
 # Dashboard for Teltonika Control
 
+**English** | [Deutsch](dashboard.de.md)
+
 A ready-made dashboard for your router. It shows the active uplink, the
 Wi-Fi and mobile data state, and gives you buttons for the actions you need
 on the road: Wi-Fi first or mobile first, hotspot login, restarting the
@@ -127,7 +129,8 @@ differ. These are the entities the dashboard uses:
 | Temperature | `sensor.my_modem_temperature` |
 | Data used today, Data used this month (optional) | `sensor.my_router_data_used_today`, `sensor.my_router_data_used_this_month` |
 | Mobile data connected | `binary_sensor.my_modem_mobile_data_connected` |
-| No SIM in the active slot | `binary_sensor.my_modem_no_sim_in_the_active_slot` || Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
+| No SIM in the active slot | `binary_sensor.my_modem_no_sim_in_the_active_slot` |
+| Data limit used, data used, reached (optional, per SIM) | `sensor.my_router_data_limit_used_sim_1`, `sensor.my_router_data_used_sim_1`, `binary_sensor.my_router_data_limit_reached_sim_1` |
 | Failover mobile online (optional) | `binary_sensor.my_router_failover_mobile_online` |
 | Open port forwards, firewall rules open to the internet (optional) | `sensor.my_router_open_port_forwards`, `sensor.my_router_firewall_rules_open_to_the_internet` |
 | SMS messages, Firmware (optional) | `sensor.my_router_sms_messages`, `update.my_router_firmware` |

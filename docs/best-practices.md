@@ -1,5 +1,7 @@
 # Best practices
 
+**English** | [Deutsch](best-practices.de.md)
+
 Short rules that keep your router safe and your Home Assistant setup tidy.
 Each rule links to the place in the documentation that explains it.
 
