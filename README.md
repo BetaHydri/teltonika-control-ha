@@ -72,8 +72,8 @@ respective owners and are used here only to say which routers are supported.
 - **Hotspot login handling**: detects a campsite or hotel login page (also an
   expired login) and waits until you confirmed it, see
   [Hotspots With a Login Page](#hotspots-with-a-login-page).
-- **Wi-Fi network management**: scan, add and remove networks with entities on
-  a dashboard or with services, see
+- **Wi-Fi network management**: scan, add, connect to and remove networks with
+  entities on a dashboard or with services, see
   [Managing Wi-Fi networks](#managing-wi-fi-networks).
 - **Mobile data and SIM**: modem signal and state, SIM slot, data roaming per
   SIM, the router's failover state and the data volume against your contract,
@@ -646,10 +646,16 @@ Things to know:
   `home` that long. With a value here, a device that sent nothing for longer
   counts as gone at once (the delay above still applies). A phone in standby
   can be silent for a long time even while it is in the camper, so do not go
-  below 120 seconds. Turn on the [debug log](#debug-logging) once: the line
-  `Presence: ... idle_seconds=[...]` shows how silent your phones get. The other
+  below 120 seconds. Watch the tracker's attribute `inactive_seconds` to see
+  how silent your phones get; the debug line
+  `Presence: ... idle_seconds=[...]` shows the same. The other
   way is the router itself: lower **Station inactivity limit** (`max_inactivity`)
   of the access point in the router's web interface.
+- A person that is `home` only because of a router tracker has the coordinates
+  of the Home zone, not of the phone. Automations that measure the distance
+  from a person to the vehicle then see the old position. Use the router
+  trackers directly in such automations, see
+  [Alarm by SMS](docs/automation-examples.md#with-the-presence-trackers).
 - Phones use a private Wi-Fi address (random MAC) per network. It stays the same
   for the router's Wi-Fi, but changes when the phone forgets the network or the
   setting is switched. Then choose the device again. Switching the private

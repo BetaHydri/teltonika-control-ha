@@ -319,6 +319,16 @@ options. A phone must have been connected to the Wi-Fi of the router, so that
 the router knows it and the list shows its name. Then add the new trackers
 (`... (router)`) to the people under **Settings**, **People**, **Track
 device**. A person is `home` while the phone is on the Wi-Fi of the router.
+
+Two settings decide how fast a phone that left counts as away. The router keeps
+a phone that left without saying goodbye in its list for several minutes
+(often 5). **Seconds of silence until away** (default 0, off) shortens that:
+a phone that sent nothing for that long counts as gone. Choose it with the
+tracker's attribute `inactive_seconds` and not below 120. **Minutes until away**
+(default 1) is an extra wait on top, so that a phone in standby does not make
+the tracker flap. A person with the router tracker is `home` with the
+coordinates of the Home zone, not of the phone; keep that in mind for
+automations that measure a distance to a person.
 More in [Presence](../README.md#presence-who-is-on-the-wi-fi).
 
 ## Step 11: Optional helpers for a monthly data counter
